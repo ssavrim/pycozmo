@@ -12,6 +12,7 @@ PyCozmo
    external/capturing.md
    external/functions.md
    external/offboard_functions.md
+   external/robot_support_audit.md
    external/versions.md
    external/hardware_versions.md
    external/esp8266.md

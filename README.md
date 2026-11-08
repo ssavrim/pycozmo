@@ -66,6 +66,10 @@ Documentation
 Robot Support
 -------------
 
+A checked item means that an API or protocol implementation exists; it does not
+mean that every robot, firmware version or peripheral has been tested. See the
+[implementation audit](docs/robot_support_audit.md) for evidence and priorities.
+
 Sensors:
 - [x] Camera
 - [x] Cliff sensor
@@ -87,7 +91,7 @@ Actuators:
 - [x] Cube LEDs
 - [x] Platform LEDs (when available)
 
-On-board functions (see [docs/functions.md](docs/functions.md) for details:
+On-board functions (see [docs/functions.md](docs/functions.md) for details):
 - [x] Wi-Fi AP
 - [x] Bluetooth LE
 - [x] Localization
@@ -95,16 +99,16 @@ On-board functions (see [docs/functions.md](docs/functions.md) for details:
 - [x] NV RAM storage
 - [x] Over-the-air (OTA) firmware updates
 
-Off-board functions (see [docs/offboard_functions.md](docs/offboard_functions.md) for details:
+Off-board functions (see [docs/offboard_functions.md](docs/offboard_functions.md) for details):
 - [x] Procedural face generation
-- [x] Cozmo animations from FlatBuffers .bin files
-- [ ] Personality engine - work in progress
-- [ ] Cozmo behaviors - work in progress
-- [ ] Motion detection
-- [ ] Object (cube and platform) detection
+- [x] Cozmo animations from FlatBuffers .bin files (audio and some tracks are not played)
+- [ ] Personality engine - partial, work in progress
+- [ ] Cozmo behaviors - partial, work in progress
+- [x] Basic camera motion detection (OpenCV; sensitive to camera motion)
+- [ ] Visual object detection (cubes and charging platform; Bluetooth discovery is available)
 - [ ] Cube marker recognition
-- [ ] Face detection
-- [ ] Face recognition
+- [x] Basic face detection (OpenCV Haar cascade; optional vision extra)
+- [x] Basic local face recognition (OpenCV LBPH; optional vision extra)
 - [ ] Facial expression estimation
 - [ ] Pet detection
 - [ ] Camera calibration
@@ -120,7 +124,7 @@ Extra off-board functions:
 - [ ] Drivable area estimation
 - [ ] Voice commands
 
-If you have ideas for other functionality [share them via GitHub](https://github.com/zayfod/pycozmo/issues).
+If you have ideas for other functionality [share them via GitHub](https://github.com/ssavrim/pycozmo/issues).
 
 
 Tools
