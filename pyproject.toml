@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycozmo"
+version = "0.8.0"
+description = "A pure-Python communication library and alternative SDK for the Cozmo robot"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{name = "Kaloyan Tenchov", email = "zayfod@gmail.com"}]
+keywords = ["ddl", "anki", "cozmo", "robot", "robotics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+]
+dependencies = ["dpkt", "numpy", "Pillow>=6.0.0", "flatbuffers", "standard-chunk>=3.13; python_version >= '3.13'"]
+
+[project.optional-dependencies]
+vision = ["opencv-contrib-python-headless>=4.12,<5"]
+
+[project.urls]
+Homepage = "https://github.com/zayfod/pycozmo/"
+
+[dependency-groups]
+dev = ["pytest", "flake8", "mypy"]
+docs = ["sphinx", "myst-parser"]
+
+[tool.setuptools]
+script-files = [
+    "tools/pycozmo_dump.py", "tools/pycozmo_replay.py", "tools/pycozmo_update.py",
+    "tools/pycozmo_resources.py", "tools/pycozmo_app.py",
+]
+
+[tool.setuptools.packages.find]
+include = ["pycozmo*"]
