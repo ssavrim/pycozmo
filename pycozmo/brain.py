@@ -4,7 +4,6 @@ Brain class - high level behavior and emotion engine.
 
 """
 
-from typing import Optional
 from threading import Thread
 from queue import Queue, Empty
 import time

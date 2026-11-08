@@ -65,54 +65,42 @@ the low-level UDP communication with Cozmo.
 ```
 
 
+
 Requirements
 ------------
 
-- [Python](https://www.python.org/downloads/) 3.6.0 or newer
-- [Pillow](https://github.com/python-pillow/Pillow) 6.0.0 - Python image library
-- [FlatBuffers](https://github.com/google/flatbuffers) - serialization library
-- [dpkt](https://github.com/kbandla/dpkt) - TCP/IP packet parsing library 
-
+- Python 3.12 or newer.
+- Pillow, NumPy, FlatBuffers and dpkt (installed automatically).
+- Optionally, OpenCV with its contrib modules for face detection and recognition.
 
 Installation
 ------------
 
-Using pip:
+Clone this fork and install it into a virtual environment:
 
-```
-pip install --user pycozmo
-
-pycozmo_resources.py download
-```
-
-From source:
-
-```
-git clone https://github.com/zayfod/pycozmo.git
+```bash
+git clone https://github.com/ssavrim/pycozmo.git
 cd pycozmo
-python setup.py install --user
-
-pycozmo_resources.py download
+python -m venv .venv
+# Activate .venv for your platform, then:
+python -m pip install .
 ```
 
-From source, for development:
+For face recognition, install `.[vision]` instead. For development with uv,
+run `uv sync --extra vision` and see [CONTRIBUTING.md](https://github.com/ssavrim/pycozmo/blob/master/CONTRIBUTING.md).
+The PyPI package named `pycozmo` may be an older upstream release and does not
+necessarily include this fork's changes.
 
-```
-git clone git@github.com:zayfod/pycozmo.git
-cd pycozmo
-python setup.py develop --user
-pip install --user -r requirements-dev.txt
+Original animations and sounds are not distributed with the library. See the
+resource and animation documentation before loading your own extracted files.
 
-pycozmo_resources.py download
-```
 
- 
 Support
 -------
 
 Bug reports and changes should be sent via GitHub:
 
-[https://github.com/zayfod/pycozmo](https://github.com/zayfod/pycozmo)
+[https://github.com/ssavrim/pycozmo](https://github.com/ssavrim/pycozmo)
 
 DDL Robot Discord server, channel #development-cozmo:
 

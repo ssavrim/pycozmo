@@ -19,15 +19,17 @@ pycozmo package
     pycozmo.brain
     pycozmo.camera
     pycozmo.client
+    pycozmo.companion
     pycozmo.conn
     pycozmo.emotions
     pycozmo.event
     pycozmo.exception
     pycozmo.filter
+    pycozmo.face_registry
     pycozmo.frame
     pycozmo.image_encoder
     pycozmo.lights
-    pycozmo.logging
+    pycozmo.logger
     pycozmo.object
     pycozmo.procedural_face
     pycozmo.protocol_ast
@@ -40,4 +42,5 @@ pycozmo package
     pycozmo.robot_debug
     pycozmo.run
     pycozmo.util
+    pycozmo.vision
     pycozmo.window

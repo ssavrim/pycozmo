@@ -13,6 +13,19 @@ This project is a tool for exploring the hardware and software of the Digital Dr
 It is unstable and heavily under development.
 
 
+Installation and development
+----------------------------
+
+Python 3.12 or newer is required. Install [uv](https://docs.astral.sh/uv/), then run:
+
+```bash
+uv sync
+uv run pytest
+```
+
+For documentation tooling, use `uv sync --group docs`. To install the library in an
+existing environment, use `python -m pip install .`.
+
 Usage
 -----
 
@@ -204,54 +217,42 @@ the low-level UDP communication with Cozmo.
 ```
 
 
+
 Requirements
 ------------
 
-- [Python](https://www.python.org/downloads/) 3.6.0 or newer
-- [Pillow](https://github.com/python-pillow/Pillow) 6.0.0 - Python image library
-- [FlatBuffers](https://github.com/google/flatbuffers) - serialization library
-- [dpkt](https://github.com/kbandla/dpkt) - TCP/IP packet parsing library 
-
+- Python 3.12 or newer.
+- Pillow, NumPy, FlatBuffers and dpkt (installed automatically).
+- Optionally, OpenCV with its contrib modules for face detection and recognition.
 
 Installation
 ------------
 
-Using pip:
+Clone this fork and install it into a virtual environment:
 
-```
-pip install --user pycozmo
-
-pycozmo_resources.py download
-```
-
-From source:
-
-```
-git clone https://github.com/zayfod/pycozmo.git
+```bash
+git clone https://github.com/ssavrim/pycozmo.git
 cd pycozmo
-python setup.py install --user
-
-pycozmo_resources.py download
+python -m venv .venv
+# Activate .venv for your platform, then:
+python -m pip install .
 ```
 
-From source, for development:
+For face recognition, install `.[vision]` instead. For development with uv,
+run `uv sync --extra vision` and see [CONTRIBUTING.md](CONTRIBUTING.md).
+The PyPI package named `pycozmo` may be an older upstream release and does not
+necessarily include this fork's changes.
 
-```
-git clone git@github.com:zayfod/pycozmo.git
-cd pycozmo
-python setup.py develop --user
-pip install --user -r requirements-dev.txt
+Original animations and sounds are not distributed with the library. See the
+resource and animation documentation before loading your own extracted files.
 
-pycozmo_resources.py download
-```
 
- 
 Support
 -------
 
 Bug reports and changes should be sent via GitHub:
 
-[https://github.com/zayfod/pycozmo](https://github.com/zayfod/pycozmo)
+[https://github.com/ssavrim/pycozmo](https://github.com/ssavrim/pycozmo)
 
 DDL Robot Discord server, channel #development-cozmo:
 
@@ -263,3 +264,50 @@ Disclaimer
 
 This project is not affiliated with [Digital Dream Labs](https://www.digitaldreamlabs.com/) or
 [Anki](https://anki.com/).
+
+Original resources and cube connections
+---------------------------------------
+
+PyCozmo does not include Cozmo's proprietary resources. If you have extracted
+animation files, load their directory explicitly with `cli.load_anims(path)` and
+inspect `cli.anim_names`. `cli.play_anim(name)` may move the robot. To restrict a
+clip to face and head tracks, use:
+
+```python
+from pycozmo import anim_encoder
+
+cli.play_anim(name, allowed_types=(anim_encoder.AnimProceduralFace,
+                                   anim_encoder.AnimHeadAngle))
+```
+
+Wwise `.wem` audio can be played with `cli.play_wem(path)` after installing
+`vgmstream-cli` separately. Supply its executable path as `decoder=` if needed.
+Only the audio file itself is decoded; animation sound-event mappings are not
+played automatically. The default decoded duration limit is 60 seconds.
+`cli.set_volume(level)` accepts an integer from 0 to 65535.
+
+For cubes, `cli.available_objects` lists discovered factory IDs. Use
+`cli.set_object_connection(factory_id)` to request a connection and wait for
+`ObjectConnectionState` before addressing its reported `object_id`. Register
+handlers before requesting a connection; events may arrive quickly. Some robots
+reuse an object slot when another cube connects. See
+[examples/cube_lights.py](examples/cube_lights.py) for an example.
+
+The `pycozmo.companion` module provides a deterministic policy for observations
+such as faces, cube taps and low battery. It returns suggested actions and never
+commands motors. Applications must provide fresh observations, implement each
+action, stop on `halt`, and enforce movement safety themselves; this is a policy
+building block, not a complete autonomous controller.
+
+For local face and motion detection, install the optional OpenCV dependency
+with `uv sync --extra vision` (or `python -m pip install '.[vision]'` from the checkout).
+`pycozmo.vision.FaceVision(callback, face_dir=...)` accepts PIL camera frames via
+`submit`; the callback receives face rectangles, image dimensions, a monotonic
+timestamp, a recognized name or `None`, and a motion score. Call `close()` when
+finished. Recognition requires explicit `enroll(name)` with a recently detected
+face. Samples are saved locally to `face_dir`, or by default under
+`~/.local/share/pycozmo/faces`. `registry.clear()` removes managed samples and
+preserves unrelated files in that directory.
+Face and motion detection do not by themselves control the robot. See
+[examples/face_detection.py](examples/face_detection.py) for connecting the
+vision worker to camera events.

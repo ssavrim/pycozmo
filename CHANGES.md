@@ -1,6 +1,17 @@
 Revision History
 ================
 
+Unreleased
+----------
+- Require Python 3.12 or later; add uv project management and Python 3.12/3.13/3.14 CI.
+- Correct procedural face rendering for inverted shapes in original animations.
+- Clamp u-law output to valid bytes and decode PCM as little-endian.
+- Wait reliably for robot initialization and handle reused cube object slots.
+- Load animations from a custom directory and optionally filter keyframe types.
+- Add optional WEM decoding through an externally installed vgmstream-cli.
+- Add a deterministic companion decision policy independent of robot I/O.
+- Add optional local face recognition and motion detection via OpenCV.
+
 v0.8.0 (Nov 12, 2020)
 ---------------------
 - New animation controller that synchronizes animations, audio playback, and image displaying.
