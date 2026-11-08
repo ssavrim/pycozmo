@@ -50,6 +50,8 @@ class Client(event.Dispatcher):
         super().__init__()
         # Whether to automatically initialize the robot when connection is established.
         self.auto_initialize = bool(auto_initialize)
+        self._robot_found = Event()
+        self._robot_ready = Event()
 
         self.conn = conn.Connection(robot_addr, protocol_log_messages)
         self.conn.add_child_dispatcher(self)
@@ -124,10 +126,14 @@ class Client(event.Dispatcher):
 
     def connect(self) -> None:
         logger.debug("Connecting...")
+        self._robot_found.clear()
+        self._robot_ready.clear()
         self.conn.connect()
 
     def disconnect(self) -> None:
         logger.debug("Disconnecting...")
+        self._robot_found.clear()
+        self._robot_ready.clear()
         self.conn.disconnect()
 
     def _enable_robot(self):
@@ -149,6 +155,7 @@ class Client(event.Dispatcher):
 
         self.anim_controller.start()
 
+        self._robot_ready.set()
         self.dispatch(event.EvtRobotReady, self)
 
     def _on_hardware_info(self, cli, pkt: protocol_encoder.HardwareInfo):
@@ -176,6 +183,7 @@ class Client(event.Dispatcher):
                     self.serial_number, self.body_hw_version, self.body_color.value)
         if self.auto_initialize:
             self._initialize_robot()
+        self._robot_found.set()
         self.dispatch(event.EvtRobotFound, self)
 
     def wait_for(self, evt, timeout: Optional[float] = None):
@@ -185,17 +193,15 @@ class Client(event.Dispatcher):
             raise exception.Timeout("Timeout waiting for event {}".format(evt))
 
     def wait_for_robot(self, timeout: float = 5.0) -> None:
-        if not self.robot_fw_sig:
-            try:
-                self.wait_for(event.EvtRobotFound, timeout=timeout)
-            except exception.Timeout as e:
-                raise exception.ConnectionTimeout("Failed to connect to Cozmo.") from e
+        """Wait for initialization, including events that arrived before this call.
 
-        if not self.serial_number:
-            try:
-                self.wait_for(event.EvtRobotReady, timeout=timeout)
-            except exception.Timeout as e:
-                raise exception.ConnectionTimeout("Failed to initialize Cozmo.") from e
+        With automatic initialization disabled, wait for body information instead.
+        The timeout applies to the complete wait.
+        """
+        ready = self._robot_ready if self.auto_initialize else self._robot_found
+        if not ready.wait(timeout):
+            message = "Failed to initialize Cozmo." if self.auto_initialize else "Failed to connect to Cozmo."
+            raise exception.ConnectionTimeout(message)
 
     def _reset_partial_state(self):
         self._partial_image_timestamp = None
@@ -353,8 +359,17 @@ class Client(event.Dispatcher):
             }
         else:
             # Disconnected
-            if pkt.object_id in self.connected_objects:
+            current = self.connected_objects.get(pkt.object_id)
+            if current and (pkt.factory_id == 0 or current["factory_id"] == pkt.factory_id):
                 del self.connected_objects[pkt.object_id]
+
+    def set_object_connection(self, factory_id: int, connect: bool = True) -> None:
+        """Request a connection to a discovered cube or other Bluetooth object.
+
+        Completion is asynchronous; listen for ObjectConnectionState and use its
+        object_id when addressing the cube. Some robots reuse a single object slot.
+        """
+        self.conn.send(protocol_encoder.ObjectConnect(factory_id=factory_id, connect=connect))
 
     def _on_debug_data(self, cli, pkt: protocol_encoder.DebugData):
         del cli
@@ -520,19 +535,21 @@ class Client(event.Dispatcher):
         pkt = protocol_encoder.EndAnimation()
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
 
-    def play_anim(self, name: str) -> None:
+    def play_anim(self, name: str, *, allowed_types=None) -> None:
+        """Play an original clip, optionally filtering to specified keyframe types."""
         if not self._clip_metadata:
             raise ValueError("Animations not loaded.")
         elif name not in self._clip_metadata:
             raise ValueError("Unknown clip name.")
 
-        if name not in self._ppclips:
-            if name not in self._clips:
-                self._load_clips(self._clip_metadata[name].fspec)
-            clip = self._clips[name]
-            self._ppclips[name] = anim.PreprocessedClip.from_anim_clip(clip)
-
-        ppclip = self._ppclips[name]
+        if name not in self._clips:
+            self._load_clips(self._clip_metadata[name].fspec)
+        if allowed_types is not None:
+            ppclip = anim.PreprocessedClip.from_anim_clip(self._clips[name], allowed_types=allowed_types)
+        else:
+            if name not in self._ppclips:
+                self._ppclips[name] = anim.PreprocessedClip.from_anim_clip(self._clips[name])
+            ppclip = self._ppclips[name]
         self.play_anim_ppclip(ppclip)
 
     def cancel_anim(self) -> None:
@@ -548,13 +565,21 @@ class Client(event.Dispatcher):
         logger_animation.info("Playing animation {}".format(member.name))
         self.play_anim(member.name)
 
-    def load_anims(self) -> None:
-        util.check_assets()
-        anim_dir = str(util.get_cozmo_anim_dir())
-        self._clip_metadata = anim_encoder.get_clip_metadata(anim_dir)
+    def load_anims(self, anim_dir: Optional[str] = None) -> None:
+        """Load animation clips; optionally provide a directory of extracted assets.
+
+        Animation groups are loaded only for the standard asset installation.
+        """
+        standard_assets = anim_dir is None
+        if standard_assets:
+            util.check_assets()
+            anim_dir = str(util.get_cozmo_anim_dir())
+        metadata = anim_encoder.get_clip_metadata(str(anim_dir))
+        groups = anim.load_animation_groups(str(util.get_cozmo_asset_dir())) if standard_assets else {}
+        self._clip_metadata = metadata
         self._clips = {}
-        resource_dir = str(util.get_cozmo_asset_dir())
-        self.animation_groups = anim.load_animation_groups(resource_dir)
+        self._ppclips = {}
+        self.animation_groups = groups
 
     def get_anim_names(self) -> set:
         return set(self._clip_metadata.keys())
@@ -571,6 +596,10 @@ class Client(event.Dispatcher):
     def play_audio(self, fspec: str) -> None:
         pkts = audio.load_wav(fspec)
         self.anim_controller.play_audio(pkts)
+
+    def play_wem(self, fspec: str, decoder: str = "vgmstream-cli") -> None:
+        """Decode and play a Wwise WEM using an externally installed decoder."""
+        self.anim_controller.play_audio(audio.load_wem(fspec, decoder=decoder))
 
     def activate_behavior(self, behavior):
         self.add_child_dispatcher(behavior)

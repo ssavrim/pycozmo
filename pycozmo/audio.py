@@ -10,6 +10,11 @@ References:
 
 from typing import List
 import struct
+import subprocess
+import tempfile
+from pathlib import Path
+
+import numpy as np
 import wave
 import time
 
@@ -19,6 +24,7 @@ from . import protocol_encoder
 
 __all__ = [
     "load_wav",
+    "load_wem",
 ]
 
 
@@ -59,7 +65,7 @@ def bytes_to_cozmo(byte_string: bytes, rate_correction: int, channels: int) -> b
     """ Convert a 744 sample, 16-bit audio frame into a U-law encoded frame. """
     out = bytearray(744)
     n = channels * rate_correction
-    bs = struct.unpack('{}h'.format(int(len(byte_string) / 2)), byte_string)[0::n]
+    bs = struct.unpack('<{}h'.format(len(byte_string) // 2), byte_string)[0::n]
     for i, s in enumerate(bs):
         out[i] = u_law_encoding(s)
     return out
@@ -82,4 +88,36 @@ def u_law_encoding(sample: int) -> int:
         position -= 1
 
     lsb = (sample >> (position - 4)) & 0x0f
-    return -(~(sign | ((position - 7) << 4) | lsb))
+    return min(255, -(~(sign | ((position - 7) << 4) | lsb)))
+
+
+def load_wem(filename: str, decoder: str = "vgmstream-cli", max_seconds: float = 60.0):
+    """Decode a Wwise WEM file into audio packets using the external vgmstream CLI.
+
+    The executable is supplied separately. Audio is converted to mono 22,050 Hz
+    PCM before encoding. ``max_seconds`` bounds the decoded audio in memory.
+    """
+    if max_seconds <= 0:
+        raise ValueError("max_seconds must be positive")
+    with tempfile.TemporaryDirectory(prefix="pycozmo-wem-") as tmp:
+        wav_path = Path(tmp) / "audio.wav"
+        try:
+            subprocess.run([decoder, "-o", str(wav_path), str(filename)], check=True,
+                           timeout=20, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except FileNotFoundError as exc:
+            raise ValueError("vgmstream-cli executable not found") from exc
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise ValueError("WEM decoding failed") from exc
+        with wave.open(str(wav_path), "rb") as source:
+            width, channels, rate, count = (source.getsampwidth(), source.getnchannels(),
+                                            source.getframerate(), source.getnframes())
+            if width != 2 or channels not in (1, 2) or rate <= 0 or count > rate * max_seconds:
+                raise ValueError("Unsupported decoded audio format or duration")
+            raw = source.readframes(count)
+        samples = np.frombuffer(raw, dtype="<i2").reshape(-1, channels).astype(np.float32).mean(axis=1)
+        if rate != 22050 and len(samples):
+            positions = np.arange(round(len(samples) * 22050 / rate)) * rate / 22050
+            samples = np.interp(positions, np.arange(len(samples)), samples)
+        pcm = np.clip(samples, -32768, 32767).astype("<i2").tobytes()
+        return [protocol_encoder.OutputAudio(samples=bytes_to_cozmo(pcm[i:i + 1488], 1, 1))
+                for i in range(0, len(pcm), 1488)]

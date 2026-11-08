@@ -53,9 +53,12 @@ class PreprocessedClip(object):
         return im
 
     @classmethod
-    def from_anim_clip(cls, clip: anim_encoder.AnimClip) -> "PreprocessedClip":
+    def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types=None) -> "PreprocessedClip":
+        """Preprocess all tracks, or only keyframes of the supplied types."""
         keyframes = defaultdict(list)   # type: Dict[int, List[protocol_encoder.Packet]]
         for keyframe in clip.keyframes:
+            if allowed_types is not None and not isinstance(keyframe, allowed_types):
+                continue
             if isinstance(keyframe, anim_encoder.AnimHeadAngle):
                 # FIXME: Why can duration be larger than 255?
                 pkt = protocol_encoder.AnimHead(duration_ms=min(keyframe.duration_ms, 255),
