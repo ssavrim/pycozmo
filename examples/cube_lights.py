@@ -40,8 +40,7 @@ with pycozmo.connect() as cli:
         print("Cube connected as object ID {}.".format(cube_id))
         for light in (pycozmo.lights.red_light, pycozmo.lights.green_light,
                       pycozmo.lights.blue_light, pycozmo.lights.off_light):
-            cli.conn.send(pycozmo.protocol_encoder.CubeId(object_id=cube_id))
-            cli.conn.send(pycozmo.protocol_encoder.CubeLights(states=(light,) * 4))
+            cli.set_cube_lights(cube_id, (light,) * 4)
             time.sleep(2)
     finally:
         cli.del_handler(pycozmo.protocol_encoder.ObjectConnectionState, handler)

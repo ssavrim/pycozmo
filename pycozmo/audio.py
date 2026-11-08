@@ -25,6 +25,7 @@ from . import protocol_encoder
 __all__ = [
     "load_wav",
     "load_wem",
+    "synthesize_speech",
 ]
 
 
@@ -108,16 +109,49 @@ def load_wem(filename: str, decoder: str = "vgmstream-cli", max_seconds: float =
             raise ValueError("vgmstream-cli executable not found") from exc
         except (subprocess.SubprocessError, OSError) as exc:
             raise ValueError("WEM decoding failed") from exc
-        with wave.open(str(wav_path), "rb") as source:
-            width, channels, rate, count = (source.getsampwidth(), source.getnchannels(),
-                                            source.getframerate(), source.getnframes())
-            if width != 2 or channels not in (1, 2) or rate <= 0 or count > rate * max_seconds:
-                raise ValueError("Unsupported decoded audio format or duration")
-            raw = source.readframes(count)
-        samples = np.frombuffer(raw, dtype="<i2").reshape(-1, channels).astype(np.float32).mean(axis=1)
-        if rate != 22050 and len(samples):
-            positions = np.arange(round(len(samples) * 22050 / rate)) * rate / 22050
-            samples = np.interp(positions, np.arange(len(samples)), samples)
-        pcm = np.clip(samples, -32768, 32767).astype("<i2").tobytes()
-        return [protocol_encoder.OutputAudio(samples=bytes_to_cozmo(pcm[i:i + 1488], 1, 1))
-                for i in range(0, len(pcm), 1488)]
+        return _load_resampled_wav(wav_path, max_seconds)
+
+
+def _load_resampled_wav(filename: Path, max_seconds: float) -> List[protocol_encoder.OutputAudio]:
+    """Convert a bounded 16-bit mono/stereo WAV to 22,050 Hz audio packets."""
+    with wave.open(str(filename), "rb") as source:
+        width, channels, rate, count = (source.getsampwidth(), source.getnchannels(),
+                                        source.getframerate(), source.getnframes())
+        if width != 2 or channels not in (1, 2) or rate <= 0 or count > rate * max_seconds:
+            raise ValueError("Unsupported decoded audio format or duration")
+        raw = source.readframes(count)
+    if len(raw) != count * channels * width:
+        raise ValueError("Incomplete decoded audio")
+    samples = np.frombuffer(raw, dtype="<i2").reshape(-1, channels).astype(np.float32).mean(axis=1)
+    if rate != 22050 and len(samples):
+        positions = np.arange(round(len(samples) * 22050 / rate)) * rate / 22050
+        samples = np.interp(positions, np.arange(len(samples)), samples)
+    pcm = np.clip(samples, -32768, 32767).astype("<i2").tobytes()
+    return [protocol_encoder.OutputAudio(samples=bytes_to_cozmo(pcm[i:i + 1488], 1, 1))
+            for i in range(0, len(pcm), 1488)]
+
+
+def synthesize_speech(text: str, *, voice: str = "en", words_per_minute: int = 175,
+                      executable: str = "espeak-ng") -> List[protocol_encoder.OutputAudio]:
+    """Synthesize speech with a separately installed eSpeak NG executable.
+
+    The generated audio is converted to Cozmo packets. No voice data or eSpeak
+    binaries are included. The generated clip is limited to 60 seconds.
+    """
+    if not isinstance(text, str) or not text.strip() or len(text) > 2000:
+        raise ValueError("Text must contain 1 to 2000 characters")
+    if not isinstance(voice, str) or not voice or len(voice) > 64 or voice.startswith('-'):
+        raise ValueError("Invalid voice")
+    if isinstance(words_per_minute, bool) or not isinstance(words_per_minute, int) or not 80 <= words_per_minute <= 450:
+        raise ValueError("Speech rate must be an integer from 80 to 450 words per minute")
+    with tempfile.TemporaryDirectory(prefix="pycozmo-speech-") as tmp:
+        wav_path = Path(tmp) / "speech.wav"
+        try:
+            subprocess.run([executable, "-v", voice, "-s", str(words_per_minute),
+                            "-w", str(wav_path), "--stdin"], input=text.encode("utf-8"),
+                           check=True, timeout=20, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except FileNotFoundError as exc:
+            raise ValueError("eSpeak NG executable not found") from exc
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise ValueError("Speech synthesis failed") from exc
+        return _load_resampled_wav(wav_path, max_seconds=60.0)

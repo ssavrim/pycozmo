@@ -11,6 +11,7 @@ Unreleased
 - Add optional WEM decoding through an externally installed vgmstream-cli.
 - Add a deterministic companion decision policy independent of robot I/O.
 - Add optional local face recognition and motion detection via OpenCV.
+- Add optional eSpeak NG text-to-speech and cube light/accelerometer helpers.
 
 v0.8.0 (Nov 12, 2020)
 ---------------------

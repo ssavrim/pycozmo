@@ -4,7 +4,7 @@ Cozmo protocol client and high-level API.
 
 """
 
-from threading import Event
+from threading import Event, Lock
 from typing import Optional, Tuple
 import json
 import time
@@ -91,6 +91,7 @@ class Client(event.Dispatcher):
         # Object state
         self.available_objects = dict()
         self.connected_objects = dict()
+        self._cube_light_lock = Lock()
         # Filters
         self.packet_type_filter = filter.Filter()
         self.packet_type_filter.deny_ids({protocol_declaration.PacketType.PING.value})
@@ -371,6 +372,22 @@ class Client(event.Dispatcher):
         """
         self.conn.send(protocol_encoder.ObjectConnect(factory_id=factory_id, connect=connect))
 
+    def set_cube_lights(self, object_id: int, states, *, rotation_period_frames: int = 0) -> None:
+        """Set four cube lights by connected object ID.
+
+        Calls to this method serialize selection and light packets. Direct sends
+        of CubeId or CubeLights must also be coordinated by the application.
+        """
+        select = protocol_encoder.CubeId(object_id=object_id, rotation_period_frames=rotation_period_frames)
+        command = protocol_encoder.CubeLights(states=states)
+        with self._cube_light_lock:
+            self.conn.send(select)
+            self.conn.send(command)
+
+    def set_object_accel_stream(self, object_id: int, enable: bool = True) -> None:
+        """Enable or disable ObjectAccel packets for a connected object ID."""
+        self.conn.send(protocol_encoder.StreamObjectAccel(object_id=object_id, enable=enable))
+
     def _on_debug_data(self, cli, pkt: protocol_encoder.DebugData):
         del cli
         msg = robot_debug.get_debug_message(pkt.name_id, pkt.format_id, pkt.args)
@@ -600,6 +617,13 @@ class Client(event.Dispatcher):
     def play_wem(self, fspec: str, decoder: str = "vgmstream-cli") -> None:
         """Decode and play a Wwise WEM using an externally installed decoder."""
         self.anim_controller.play_audio(audio.load_wem(fspec, decoder=decoder))
+
+    def say_text(self, text: str, *, voice: str = "en", words_per_minute: int = 175,
+                 executable: str = "espeak-ng") -> None:
+        """Speak text using a separately installed eSpeak NG executable."""
+        packets = audio.synthesize_speech(text, voice=voice, words_per_minute=words_per_minute,
+                                          executable=executable)
+        self.anim_controller.play_audio(packets)
 
     def activate_behavior(self, behavior):
         self.add_child_dispatcher(behavior)

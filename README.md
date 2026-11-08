@@ -113,7 +113,7 @@ Off-board functions (see [docs/offboard_functions.md](docs/offboard_functions.md
 - [ ] Pet detection
 - [ ] Camera calibration
 - [ ] Navigation map building
-- [ ] Text-to-speech
+- [x] Text-to-speech via an independently installed eSpeak NG (not the original Cozmo voice)
 - [ ] Songs
 
 Extra off-board functions:
@@ -290,11 +290,20 @@ Only the audio file itself is decoded; animation sound-event mappings are not
 played automatically. The default decoded duration limit is 60 seconds.
 `cli.set_volume(level)` accepts an integer from 0 to 65535.
 
+For text-to-speech, install [eSpeak NG](https://github.com/espeak-ng/espeak-ng)
+separately and use `cli.say_text("Bonjour Cozmo", voice="fr")`. Audio is
+synthesized on the computer and queued for playback on the robot. It is a
+substitute voice, not the original Cozmo voice. eSpeak NG is a separate project
+licensed under GPL-3.0-or-later; neither its executable nor voice data is bundled
+with PyCozmo. See [examples/say_text.py](examples/say_text.py).
+
 For cubes, `cli.available_objects` lists discovered factory IDs. Use
 `cli.set_object_connection(factory_id)` to request a connection and wait for
 `ObjectConnectionState` before addressing its reported `object_id`. Register
 handlers before requesting a connection; events may arrive quickly. Some robots
-reuse an object slot when another cube connects. See
+reuse an object slot when another cube connects. Use
+`cli.set_cube_lights(object_id, states)` for four LED states and
+`cli.set_object_accel_stream(object_id)` to request accelerometer packets. See
 [examples/cube_lights.py](examples/cube_lights.py) for an example.
 
 The `pycozmo.companion` module provides a deterministic policy for observations

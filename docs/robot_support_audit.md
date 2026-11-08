@@ -14,6 +14,7 @@ itself establish that a feature works on every firmware or physical robot.
 | Procedural face | `procedural_face`, expressions and the animation controller render eyes. | These are robot expressions, not recognition of a person's emotion. |
 | Original animations | FlatBuffer clips, procedural face, head, lift, body and backpack-light keyframes are processed in `anim.PreprocessedClip`. A caller can filter keyframe types. | `AnimFaceAnimation`, `AnimRobotAudio` and `AnimEvent` are not processed. Playing an unfiltered clip may move the robot. The extracted catalogue was preprocessed offline; that does not prove physical playback of every clip. |
 | Original sounds | `audio.load_wem` and `Client.play_wem` decode a selected WEM through an external `vgmstream-cli`. | Resource files and decoder are supplied separately. Sound-event-to-WEM resolution, selection probabilities, mixing and synchronization with animation are not implemented. |
+| Text-to-speech | `audio.synthesize_speech` and `Client.say_text` use a separately installed eSpeak NG executable. | Synthetic substitute voice, not the original Cozmo voice. WAV conversion and eSpeak output are tested offline; robot playback needs physical validation. |
 | Motion detection | Optional `FaceVision` computes a changed-pixel score between consecutive grayscale frames. | The score is not an object tracker and also responds to head, robot, lighting and camera movement. The caller must decide how to use it. |
 | Face detection | Optional OpenCV Haar cascade in `FaceVision`, with camera-event example. | A basic frontal detector; tests use controlled images or a stub detector, not an accuracy benchmark. It does not move the head or perform tracking itself. |
 | Face recognition | Optional local LBPH model with explicit sample enrollment in `FaceRegistry`. | Basic image matching, not a reliable identity or liveness check. Sample quality, lighting and false positives need real-world evaluation. Face samples stay in the configured local directory. |
@@ -31,19 +32,19 @@ and a controlled setup.
    battery. Unit-test state transitions and timeouts, then validate on hardware.
    The separate `cozmo-rea` console contains a prototype, but its controller is
    application-specific and is not yet a PyCozmo autonomous controller.
-2. **Text-to-speech.** Port the console's optional external eSpeak NG pipeline
-   into a reusable interface, resampling to the robot audio rate and reporting a
-   missing executable clearly. This supplies a synthetic substitute voice; it
-   does not reproduce the original Cozmo TTS voice. Validate decoded PCM,
-   language selection and playback separately.
+2. **Validate and extend text-to-speech.** The optional eSpeak NG interface now
+   generates substitute voices and converts them to robot packets. Validate
+   playback on hardware and evaluate language/voice behavior. The original
+   Cozmo TTS voice is not implemented.
 3. **Original animation audio.** Relate animation audio event IDs to extracted
    Wwise sound-bank metadata and WEM assets; implement deterministic selection,
    timing and mixing, with tests for missing events and overlapping sounds.
    `AnimRobotAudio` is parsed but is currently skipped during preprocessing.
 4. **Cube interaction APIs.** Expose typed observations for connect/disconnect,
    tap, movement, battery and acceleration on top of the existing packets;
-   handle reused object IDs and disconnection races. Validate each packet type
-   with a real cube before claiming full support.
+   handle reused object IDs and disconnection races. Light and accelerometer
+   stream helpers are available. Validate each packet type with a real cube
+   before claiming full support.
 5. **Visual cube and platform detection.** Implement and evaluate recognition of
    Cozmo's actual markers; Bluetooth presence alone gives neither camera position
    nor distance. Calibration and perspective/pose estimation need image datasets
