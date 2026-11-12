@@ -523,15 +523,23 @@ class Client(event.Dispatcher):
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
         self._next_anim_id += 1
 
-        # Send frames to the animation controller.
+        # Send frames to the animation controller. Each keyframe goes to the frame
+        # index of its trigger time (one frame per 1/30 s), padding with empty
+        # frames in between. The previous pause logic added one extra empty frame
+        # after every keyframe, so consecutive audio frames were interleaved with
+        # silence (choppy sound) and dense clips played up to twice too slowly.
         frames = list(sorted(ppclip.keyframes.keys()))
-        num_frames = len(frames)
-        time_ms = 0
-        for i in range(num_frames):
+        start = frames[0] if frames else 0
+        played = 0
+        for at in frames:
+            target = round((at - start) * robot.FRAME_RATE / 1000)
+            while played < target:
+                self.anim_controller.play_anim_frame(None, None, None)
+                played += 1
             audio_pkt = None
             image_pkt = None
             pkts = []
-            for action in ppclip.keyframes[frames[i]]:
+            for action in ppclip.keyframes[at]:
                 if isinstance(action, protocol_encoder.OutputAudio):
                     audio_pkt = action
                 elif isinstance(action, protocol_encoder.DisplayImage):
@@ -539,14 +547,7 @@ class Client(event.Dispatcher):
                 elif isinstance(action, protocol_encoder.Packet):
                     pkts.append(action)
             self.anim_controller.play_anim_frame(audio_pkt, image_pkt, pkts)
-            time_ms += 33
-
-            # Pause.
-            if i < num_frames - 1:
-                target_ms = time_ms + frames[i + 1] - frames[i]
-                while target_ms > time_ms:
-                    self.anim_controller.play_anim_frame(None, None, None)
-                    time_ms += 33
+            played += 1
 
         # End animation.
         pkt = protocol_encoder.EndAnimation()

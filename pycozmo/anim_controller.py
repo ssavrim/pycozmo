@@ -82,12 +82,23 @@ class AnimationQueue:
 class AnimationController:
     """ Animation controller class. """
 
+    #: Frames kept queued on the robot ahead of playback. The robot buffers
+    #: animation frames and plays them on its own 30 fps clock; streaming each
+    #: frame just in time turned every Wi-Fi delay longer than one frame into an
+    #: audible gap. The lead is measured with AnimationState.num_audio_frames_played.
+    LEAD_FRAMES = 14
+    #: Extra lead tolerated before slowing down, to absorb clock drift.
+    LEAD_SLACK = 3
+
     def __init__(self, cli):
         self.cli = cli
         self.thread = None
         self.stop_flag = False
         self.queue = AnimationQueue()
         self.num_frames_played = -1
+        self.num_audio_frames_played = None
+        self.frames_sent = 0
+        self._played_base = None
         self.playing_audio = False
         self.playing_animation = False
         self.last_image_pkt = protocol_encoder.DisplayImage(image=b"\x3f\x3f")
@@ -99,6 +110,9 @@ class AnimationController:
         self.last_image_pkt = protocol_encoder.DisplayImage(image=b"\x3f\x3f")
 
     def start(self):
+        self.frames_sent = 0
+        self.num_audio_frames_played = None
+        self._played_base = None
         self.thread = Thread(daemon=True, name=__class__.__name__, target=self._run)
         self.stop_flag = False
         self.thread.start()
@@ -117,7 +131,28 @@ class AnimationController:
             self.thread = None
 
     def _on_animation_state(self, cli, pkt: protocol_encoder.AnimationState):
+        if self._played_base is None:
+            # Assume everything sent so far has been played; this underestimates
+            # the lead by the frames in flight, which only adds margin.
+            self._played_base = pkt.num_audio_frames_played - self.frames_sent
         self.num_audio_frames_played = pkt.num_audio_frames_played
+
+    def lead(self) -> Optional[int]:
+        """ Frames sent but not yet played by the robot, or None before the first report. """
+        if self._played_base is None or self.num_audio_frames_played is None:
+            return None
+        return self.frames_sent - (self.num_audio_frames_played - self._played_base)
+
+    def frame_sleeps(self) -> int:
+        """ Timer periods to wait after a frame: 0 to fill the lead, 2 to drain an excess. """
+        lead = self.lead()
+        if lead is None:
+            return 1
+        if lead < self.LEAD_FRAMES:
+            return 0
+        if lead > self.LEAD_FRAMES + self.LEAD_SLACK:
+            return 2
+        return 1
 
     def _on_keyframe(self, cli, pkt: protocol_encoder.Keyframe):
         pass
@@ -188,8 +223,11 @@ class AnimationController:
                         self.cli.conn.send(pkt)
 
                 num_frames += 1
-
-            timer.sleep()
+                self.frames_sent = num_frames
+                for _ in range(self.frame_sleeps()):
+                    timer.sleep()
+            else:
+                timer.sleep()
 
         logger.debug("Animation controller stopped...")
 

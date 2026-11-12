@@ -16,10 +16,31 @@ def test_pcm_encoding_is_a_byte_for_all_16_bit_samples():
         encoded = audio.bytes_to_cozmo(struct.pack(f'<{len(samples)}h', *samples), 1, 1)
         assert len(encoded) == 744
         assert list(encoded[:len(samples)]) == [audio.u_law_encoding(s) for s in samples]
-    assert audio.u_law_encoding(-32768) == 255
-    assert audio.u_law_encoding(0) == 1
-    assert audio.u_law_encoding(-10000) == 228
-    assert audio.u_law_encoding(10000) == 100
+    # Silence is code 0 and positive/negative magnitudes are symmetric
+    # (no bias, no +1).
+    assert audio.u_law_encoding(-32768) == 0xFF
+    assert audio.u_law_encoding(32767) == 0x7F
+    assert audio.u_law_encoding(0) == 0x00
+    assert audio.u_law_encoding(-1) == 0x80
+    assert audio.u_law_encoding(1000) == 0x2F
+    assert audio.u_law_encoding(-10000) == 0xE3
+    assert audio.u_law_encoding(10000) == 0x63
+
+
+def test_animation_controller_keeps_a_lead_on_the_robot():
+    from types import SimpleNamespace
+    from pycozmo import anim_controller
+    ctrl = anim_controller.AnimationController(SimpleNamespace())
+    assert ctrl.frame_sleeps() == 1                 # no report yet: real time
+    ctrl.frames_sent = 3
+    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=500))
+    assert ctrl.lead() == 0 and ctrl.frame_sleeps() == 0   # fill the lead at once
+    ctrl.frames_sent = 3 + ctrl.LEAD_FRAMES
+    assert ctrl.frame_sleeps() == 1
+    ctrl.frames_sent += ctrl.LEAD_SLACK + 1
+    assert ctrl.frame_sleeps() == 2                 # drain an excess
+    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=500 + ctrl.LEAD_SLACK + 1))
+    assert ctrl.lead() == ctrl.LEAD_FRAMES
 
 
 @pytest.mark.parametrize('shape', ['rectangle', 'chord', 'pieslice'])
@@ -172,3 +193,18 @@ def test_decode_wem_rejects_audio_over_duration_limit():
     with patch('pycozmo.audio.subprocess.run', side_effect=fake_decoder):
         with pytest.raises(ValueError, match='duration'):
             audio.load_wem('voice.wem', max_seconds=0.5)
+
+
+def test_play_anim_ppclip_places_keyframes_on_consecutive_frames():
+    # Consecutive 33 ms keyframes (an audio stream) must not get empty frames
+    # in between; a 99 ms gap gets exactly two empty frames.
+    from types import SimpleNamespace
+    from pycozmo import anim, client, protocol_encoder
+    frames = []
+    ctrl = SimpleNamespace(play_anim_frame=lambda a, i, p: frames.append(a), cancel_anim=lambda: None)
+    cli = SimpleNamespace(anim_controller=ctrl, _next_anim_id=0, cancel_anim=lambda: None)
+    audio = [protocol_encoder.OutputAudio(samples=bytes([n]) * 744) for n in range(4)]
+    clip = anim.PreprocessedClip({0: [audio[0]], 33: [audio[1]], 66: [audio[2]], 165: [audio[3]]})
+    client.Client.play_anim_ppclip(cli, clip)
+    body = frames[1:-1]                      # StartAnimation / EndAnimation frames
+    assert [f.samples[0] if f else None for f in body] == [0, 1, 2, None, None, 3]
