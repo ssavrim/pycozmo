@@ -85,7 +85,7 @@ Actuators:
 - [x] Head motor
 - [x] Lift motor
 - [x] OLED display
-- [x] Speaker
+- [x] Speaker (8-bit audio, 744 samples per frame at 30 frames/s; playback verified on a robot)
 - [x] Backpack LEDs
 - [x] IR LED
 - [x] Cube LEDs
@@ -101,7 +101,7 @@ On-board functions (see [docs/functions.md](docs/functions.md) for details):
 
 Off-board functions (see [docs/offboard_functions.md](docs/offboard_functions.md) for details):
 - [x] Procedural face generation
-- [x] Cozmo animations from FlatBuffers .bin files (audio and some tracks are not played)
+- [x] Cozmo animations from FlatBuffers .bin files (frame timing verified on a robot; audio events and some tracks are not played)
 - [ ] Personality engine - partial, work in progress
 - [ ] Cozmo behaviors - partial, work in progress
 - [x] Basic camera motion detection (OpenCV; sensitive to camera motion)

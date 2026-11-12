@@ -200,8 +200,18 @@ See `examples/display_image.py` and `examples/display_lines.py` for example usag
 Speaker
 -------
 
-The `OutputAudio` message can be used to transmit 744 audio samples at a time.
-The samples are 8-bit and [u-law](https://en.wikipedia.org/wiki/%CE%9C-law_algorithm) encoded.
+The `OutputAudio` message can be used to transmit 744 audio samples at a time, one message per animation frame
+(30 frames per second), i.e. 22,320 samples per second. `OutputSilence` fills a frame without sound.
+
+The samples are 8-bit and companded like [u-law](https://en.wikipedia.org/wiki/%CE%9C-law_algorithm), but without
+the u-law bias and inversion: bit 7 is the sign, bits 4-6 the segment (position of the highest set bit of
+`magnitude >> 8`, 0 for magnitudes below 256) and bits 0-3 the mantissa (`magnitude >> 4` in segment 0, otherwise
+`(magnitude >> (segment + 3)) & 0xf`), with `magnitude = |sample|` (`-sample - 1` for negative samples). Silence is
+therefore code 0. See `audio.u_law_encoding`.
+
+The robot buffers frames sent ahead of playback and plays them on its own clock. Sending each frame just in time makes
+any network delay longer than one frame audible as a gap; `AnimationController` keeps a lead of 14 frames, measured
+with `AnimationState.num_audio_frames_played`.
 
 Speaker volume can be adjusted with the `SetRobotVolume` message.
  
