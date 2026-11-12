@@ -12,6 +12,12 @@ Unreleased
 - Add a deterministic companion decision policy independent of robot I/O.
 - Add optional local face recognition and motion detection via OpenCV.
 - Add optional eSpeak NG text-to-speech and cube light/accelerometer helpers.
+- Encode audio in the robot's 8-bit format without mu-law bias or +1 offset: silence
+    no longer becomes a +/-132 square wave and loud positive samples no longer flip sign.
+- Keep a 14-frame lead of animation frames on the robot, regulated with
+    AnimationState, so Wi-Fi jitter no longer interrupts audio playback.
+- Fix play_anim_ppclip padding: it inserted an empty frame after every keyframe,
+    interleaving animation audio with silence and slowing dense clips.
 
 v0.8.0 (Nov 12, 2020)
 ---------------------

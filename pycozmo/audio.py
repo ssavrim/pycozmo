@@ -73,23 +73,21 @@ def bytes_to_cozmo(byte_string: bytes, rate_correction: int, channels: int) -> b
 
 
 def u_law_encoding(sample: int) -> int:
-    """ U-law encode a 16-bit PCM sample. """
-    mask = 0x4000
-    position = 14
-    sign = 0
-    if sample < 0:
-        sample = -sample
-        sign = 0x80
-    sample += MULAW_BIAS
-    if sample > MULAW_MAX:
-        sample = MULAW_MAX
+    """ Encode a 16-bit PCM sample as the robot expects it.
 
-    while (sample & mask) != mask and position >= 7:
-        mask >>= 1
-        position -= 1
-
-    lsb = (sample >> (position - 4)) & 0x0f
-    return min(255, -(~(sign | ((position - 7) << 4) | lsb)))
+    Sign bit 0x80, a 3-bit segment given by the highest set bit of
+    ``magnitude >> 8`` and a 4-bit mantissa, with ``magnitude`` = |s|
+    (-s - 1 for negatives). Unlike textbook mu-law there is no bias and no
+    inversion. The previous bias of 132 plus one turned silence into a +/-132
+    square wave at every zero crossing, heard as a constant distortion.
+    """
+    sample = max(-32768, min(32767, int(sample)))
+    sign = 0x80 if sample < 0 else 0
+    magnitude = -sample - 1 if sample < 0 else sample
+    high = magnitude >> 8
+    segment = high.bit_length()
+    mantissa = magnitude >> 4 if segment == 0 else (magnitude >> (segment + 3)) & 0x0f
+    return sign | (segment << 4) | mantissa
 
 
 def load_wem(filename: str, decoder: str = "vgmstream-cli", max_seconds: float = 60.0):
