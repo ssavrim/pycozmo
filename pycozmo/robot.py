@@ -110,6 +110,7 @@ class RobotOrientation(enum.Enum):
     ON_FACE = 2
     ON_LEFT_SIDE = 3
     ON_RIGHT_SIDE = 4
+    UPSIDE_DOWN = 5
 
 
 class LiftPosition(object):

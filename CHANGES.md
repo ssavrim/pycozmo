@@ -18,6 +18,11 @@ Unreleased
     AnimationState, so Wi-Fi jitter no longer interrupts audio playback.
 - Fix play_anim_ppclip padding: it inserted an empty frame after every keyframe,
     interleaving animation audio with silence and slowing dense clips.
+- Detect body orientation from gravity (IMU reading rotated by the head angle) with
+    hysteresis; the pose heading no longer reports the robot as lying on a side.
+    Add RobotOrientation.UPSIDE_DOWN.
+- Add EvtRobotTapped, detected from IMU readings while the robot is still, and
+    Client.battery_percent, an indicative charge estimate (pycozmo.sensors).
 
 v0.8.0 (Nov 12, 2020)
 ---------------------

@@ -38,6 +38,7 @@ __all__ = [
     "EvtChargerOOSChange",
     "EvtRobotStateUpdated",
     "EvtRobotOrientationChange",
+    "EvtRobotTapped",
     "EvtAudioCompleted",
     "EvtAnimationCompleted",
     "EvtReactionTrigger",
@@ -172,6 +173,10 @@ class EvtRobotStateUpdated(Event):
 
 class EvtRobotOrientationChange(Event):
     """ Triggered when the robot orientation changes. """
+
+
+class EvtRobotTapped(Event):
+    """ Triggered when a tap on the still robot is detected from its IMU readings. """
 
 
 class EvtAudioCompleted(Event):
