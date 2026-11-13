@@ -29,6 +29,7 @@ from . import protocol_encoder
 from . import protocol_utils
 from . import lights
 from . import camera
+from . import sensors
 from . import object
 from . import filter
 from . import anim

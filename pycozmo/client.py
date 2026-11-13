@@ -28,6 +28,7 @@ from . import lights
 from . import image_encoder
 from . import anim
 from . import anim_encoder
+from . import sensors
 from . import audio
 from . import anim_controller
 from . import robot_debug
@@ -78,6 +79,7 @@ class Client(event.Dispatcher):
         self.gyro = util.Vector3(0.0, 0.0, 0.0)
         self.robot_status = 0
         self.robot_orientation = robot.RobotOrientation.ON_THREADS
+        self.tap_detector = sensors.TapDetector()
         self.robot_picked_up = False
         self.robot_moving = False
         # Animation state
@@ -304,20 +306,31 @@ class Client(event.Dispatcher):
                 state = (pkt.status & flag) != 0
                 logger.debug("%s: %i", robot.RobotStatusFlagNames[flag], state)
                 self.dispatch(evt, self, state)
-        # Orientation
-        if pkt.pose_angle_rad < -0.4:
-            robot_orientation = robot.RobotOrientation.ON_LEFT_SIDE
-        elif pkt.pose_angle_rad > 0.4:
-            robot_orientation = robot.RobotOrientation.ON_RIGHT_SIDE
-        elif pkt.pose_pitch_rad < -1.0:
-            robot_orientation = robot.RobotOrientation.ON_FACE
-        elif pkt.pose_pitch_rad > 1.0:
-            robot_orientation = robot.RobotOrientation.ON_BACK
-        else:
-            robot_orientation = robot.RobotOrientation.ON_THREADS
+        # Orientation, from gravity in the body frame (the pose angle is a heading).
+        robot_orientation = sensors.detect_orientation(
+            (pkt.accel_x, pkt.accel_y, pkt.accel_z), pkt.head_angle_rad, pkt.pose_pitch_rad,
+            previous=self.robot_orientation)
         if self.robot_orientation != robot_orientation:
             self.robot_orientation = robot_orientation
             self.dispatch(event.EvtRobotOrientationChange, self, robot_orientation)
+        # Taps, only while the robot is still.
+        flags = pkt.status
+        still = (flags & (robot.RobotStatusFlag.LIFT_IN_POS | robot.RobotStatusFlag.HEAD_IN_POS)
+                 == robot.RobotStatusFlag.LIFT_IN_POS | robot.RobotStatusFlag.HEAD_IN_POS
+                 and not flags & (robot.RobotStatusFlag.IS_PICKED_UP | robot.RobotStatusFlag.IS_FALLING
+                                  | robot.RobotStatusFlag.IS_ANIMATING | robot.RobotStatusFlag.ARE_WHEELS_MOVING)
+                 and abs(pkt.lwheel_speed_mmps) + abs(pkt.rwheel_speed_mmps) < 1.0
+                 and robot_orientation == robot.RobotOrientation.ON_THREADS)
+        if self.tap_detector.update(time.monotonic(), (pkt.accel_x, pkt.accel_y, pkt.accel_z),
+                                    (pkt.gyro_x, pkt.gyro_y, pkt.gyro_z), still):
+            self.dispatch(event.EvtRobotTapped, self)
+
+    @property
+    def battery_percent(self) -> Optional[int]:
+        """ Indicative charge in %, from the battery voltage; None on the charger or if unknown. """
+        if self.robot_status & robot.RobotStatusFlag.IS_ON_CHARGER:
+            return None
+        return sensors.estimate_battery_percent(self.battery_voltage)
 
     def _on_robot_picked_up(self, cli, state):
         del cli
