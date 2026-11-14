@@ -241,6 +241,11 @@ DOCKING_RESULT = Enum("DockingResult", members=[
     EnumMember("DOCK_FAILURE_TOO_HIGH", 7),
     EnumMember("DOCK_FAILURE_RETRY", 8),
 ])
+CARRY_STATE = Enum("CarryState", members=[
+    EnumMember("CARRY_NONE", 0),
+    EnumMember("CARRY_1_BLOCK", 1),
+    EnumMember("CARRY_2_BLOCK", 2),
+])
 
 LIGHT_STATE = Struct("LightState", arguments=[
     UInt16Argument("on_color"),
@@ -275,6 +280,7 @@ PROTOCOL = Protocol(
         DOCK_ACTION,
         DOCKING_METHOD,
         DOCKING_RESULT,
+        CARRY_STATE,
         PATH_EVENT_TYPE,
     ],
 
@@ -436,6 +442,9 @@ PROTOCOL = Protocol(
             FloatArgument("angle_err_rad", description="Marker yaw error; 0 when facing it squarely."),
             BoolArgument("is_approximate"),
             BoolArgument("did_tracking_succeed"),
+        ]),
+        Command(0x49, "SetCarryState", group="docking", arguments=[
+            EnumArgument("state", CARRY_STATE),
         ]),
         Command(0x4b, "SyncTime", group="system", arguments=[
             UInt32Argument("timestamp"),
