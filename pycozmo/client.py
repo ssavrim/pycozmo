@@ -534,7 +534,8 @@ class Client(event.Dispatcher):
         # Start animation.
         pkt = protocol_encoder.StartAnimation(anim_id=self._next_anim_id)
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
-        self._next_anim_id += 1
+        # The ID is one byte: wrap around (1-255) instead of failing after 255 animations.
+        self._next_anim_id = self._next_anim_id % 255 + 1
 
         # Send frames to the animation controller. Each keyframe goes to the frame
         # index of its trigger time (one frame per 1/30 s), padding with empty
