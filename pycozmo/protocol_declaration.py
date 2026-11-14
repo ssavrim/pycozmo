@@ -207,6 +207,40 @@ PATH_EVENT_TYPE = Enum("PathEventType", members=[
     EnumMember("PATH_INTERRUPTED", 1),
     EnumMember("PATH_COMPLETED", 2),
 ])
+DOCK_ACTION = Enum("DockAction", members=[
+    EnumMember("DA_PICKUP_LOW", 0),
+    EnumMember("DA_PICKUP_HIGH", 1),
+    EnumMember("DA_PLACE_HIGH", 2),
+    EnumMember("DA_PLACE_LOW", 3),
+    EnumMember("DA_PLACE_LOW_BLIND", 4),
+    EnumMember("DA_ROLL_LOW", 5),
+    EnumMember("DA_DEEP_ROLL_LOW", 6),
+    EnumMember("DA_POST_DOCK_ROLL", 7),
+    EnumMember("DA_FACE_PLANT", 8),
+    EnumMember("DA_POP_A_WHEELIE", 9),
+    EnumMember("DA_ALIGN", 10),
+    EnumMember("DA_ALIGN_SPECIAL", 11),
+    EnumMember("DA_RAMP_ASCEND", 12),
+    EnumMember("DA_RAMP_DESCEND", 13),
+    EnumMember("DA_CROSS_BRIDGE", 14),
+])
+DOCKING_METHOD = Enum("DockingMethod", members=[
+    EnumMember("BLIND_DOCKING", 0),
+    EnumMember("TRACKER_DOCKING", 1),
+    EnumMember("HYBRID_DOCKING", 2),
+    EnumMember("EVEN_BLINDER_DOCKING", 3),
+])
+DOCKING_RESULT = Enum("DockingResult", members=[
+    EnumMember("DOCK_UNKNOWN", 0),
+    EnumMember("DOCK_INTERRUPTED", 1),
+    EnumMember("DOCK_SUCCESS", 2),
+    EnumMember("DOCK_SUCCESS_RETRY", 3),
+    EnumMember("DOCK_SUCCESS_HANNS_MANEUVER", 4),
+    EnumMember("DOCK_FAILURE", 5),
+    EnumMember("DOCK_FAILURE_TOO_LONG_WITHOUT_BLOCKPOSE", 6),
+    EnumMember("DOCK_FAILURE_TOO_HIGH", 7),
+    EnumMember("DOCK_FAILURE_RETRY", 8),
+])
 
 LIGHT_STATE = Struct("LightState", arguments=[
     UInt16Argument("on_color"),
@@ -238,6 +272,9 @@ PROTOCOL = Protocol(
         IMAGE_RESOLUTION,
         IMAGE_SEND_MODE,
         MOTOR_ID,
+        DOCK_ACTION,
+        DOCKING_METHOD,
+        DOCKING_RESULT,
         PATH_EVENT_TYPE,
     ],
 
@@ -366,6 +403,21 @@ PROTOCOL = Protocol(
             UInt16Argument("event_id"),
             BoolArgument("unknown"),
         ]),
+        # Docking: the robot's own controller drives to a marker reported each frame by
+        # DockingErrorSignal, then lifts, places or rolls (layouts recovered for firmware 2381,
+        # not yet validated on hardware).
+        Command(0x42, "DockWithObject", group="docking", arguments=[
+            UInt32Argument("reserved", description="Observed as 0."),
+            FloatArgument("speed_mmps", default=60.0),
+            FloatArgument("accel_mmps2", default=200.0),
+            FloatArgument("decel_mmps2", default=500.0),
+            EnumArgument("action", DOCK_ACTION),
+            BoolArgument("do_lift_load_check"),
+            UInt8Argument("num_retries"),
+            EnumArgument("docking_method", DOCKING_METHOD),
+            BoolArgument("back_up_while_lifting_cube"),
+        ]),
+        Command(0x43, "AbortDocking", group="docking"),
         Command(0x45, "SetOrigin", group="localization", arguments=[
             UInt32Argument("unknown0"),
             UInt32Argument("pose_frame_id"),
@@ -373,6 +425,17 @@ PROTOCOL = Protocol(
             FloatArgument("pose_x"),
             FloatArgument("pose_y"),
             UInt32Argument("unknown5", default=0x80000000),
+        ]),
+        Command(0x48, "DockingErrorSignal", group="docking", arguments=[
+            UInt32Argument("timestamp", description="Robot timestamp of the image the marker was seen in."),
+            FloatArgument("x_dist_err_mm",
+                          description="Marker distance ahead of the robot, minus a placement offset."),
+            FloatArgument("y_hor_err_mm",
+                          description="Marker lateral offset (left positive), plus a placement offset."),
+            FloatArgument("z_height_mm", description="Marker height."),
+            FloatArgument("angle_err_rad", description="Marker yaw error; 0 when facing it squarely."),
+            BoolArgument("is_approximate"),
+            BoolArgument("did_tracking_succeed"),
         ]),
         Command(0x4b, "SyncTime", group="system", arguments=[
             UInt32Argument("timestamp"),
@@ -383,6 +446,7 @@ PROTOCOL = Protocol(
             EnumArgument("image_send_mode", IMAGE_SEND_MODE, default=1),
             EnumArgument("image_resolution", IMAGE_RESOLUTION, default=4),
         ]),
+        Command(0x4f, "CheckLiftLoad", group="docking"),
         Command(0x57, "SetCameraParams", group="camera", arguments=[
             FloatArgument("gain"),
             UInt16Argument("exposure_ms"),
@@ -477,6 +541,12 @@ PROTOCOL = Protocol(
             Int8Argument("tap_neg"),
             Int8Argument("tap_pos"),
         ]),
+        Command(0xb8, "PickAndPlaceResult", group="docking", arguments=[
+            UInt32Argument("timestamp"),
+            BoolArgument("did_succeed"),
+            EnumArgument("result", DOCKING_RESULT),
+            UInt8Argument("block_status"),
+        ]),
         Command(0xb9, "ObjectTapFiltered", group="objects", arguments=[
             UInt32Argument("timestamp"),
             UInt32Argument("object_id"),
@@ -488,6 +558,9 @@ PROTOCOL = Protocol(
         ]),
         Command(0xc2, "RobotDelocalized", group="localization"),
         Command(0xc3, "RobotPoked", group="localization"),
+        Command(0xc5, "MovingLiftPostDock", group="docking", arguments=[
+            UInt8Argument("value"),
+        ]),
         Command(0xc6, "PathFollowingEvent", group="motors", arguments=[
             UInt16Argument("event_id"),
             EnumArgument("event_type", PATH_EVENT_TYPE, data_type=UInt8Argument()),
@@ -526,10 +599,17 @@ PROTOCOL = Protocol(
             BoolArgument("calib_started"),
             BoolArgument("auto_started"),
         ]),
+        Command(0xd3, "DockingStatus", group="docking", arguments=[
+            UInt32Argument("timestamp"),
+            UInt8Argument("status"),
+        ]),
         Command(0xd7, "ObjectUpAxisChanged", group="objects", arguments=[
             UInt32Argument("timestamp"),
             UInt32Argument("object_id"),
             EnumArgument("axis", UP_AXIS, data_type=UInt8Argument(), default=7),
+        ]),
+        Command(0xda, "LiftLoad", group="docking", arguments=[
+            BoolArgument("has_load"),
         ]),
         Command(0xdb, "ButtonPressed", group="system", arguments=[
             BoolArgument("pressed"),
