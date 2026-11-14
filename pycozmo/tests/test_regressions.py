@@ -208,3 +208,17 @@ def test_play_anim_ppclip_places_keyframes_on_consecutive_frames():
     client.Client.play_anim_ppclip(cli, clip)
     body = frames[1:-1]                      # StartAnimation / EndAnimation frames
     assert [f.samples[0] if f else None for f in body] == [0, 1, 2, None, None, 3]
+
+
+def test_animation_ids_wrap_around_after_255():
+    from unittest.mock import patch
+    import pycozmo
+    from pycozmo import anim
+    client = pycozmo.Client()
+    client._next_anim_id = 255
+    clip = anim.PreprocessedClip()
+    with patch.object(client, 'cancel_anim'), patch.object(client.anim_controller, 'play_anim_frame'):
+        client.play_anim_ppclip(clip)
+        assert client._next_anim_id == 1
+        client.play_anim_ppclip(clip)
+        assert client._next_anim_id == 2
