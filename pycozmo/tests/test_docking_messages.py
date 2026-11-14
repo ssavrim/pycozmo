@@ -37,3 +37,9 @@ def test_docking_events_decode():
     assert pe.MovingLiftPostDock.from_bytes(b'\x01').value == 1
     assert [pe.PickAndPlaceResult().id, pe.MovingLiftPostDock().id, pe.DockingStatus().id, pe.LiftLoad().id] == [
         0xb8, 0xc5, 0xd3, 0xda]
+
+
+def test_set_carry_state():
+    pkt = pe.SetCarryState(state=pe.CarryState.CARRY_NONE)
+    assert pkt.to_bytes() == b'\x00' and pkt.id == 0x49
+    assert pe.SetCarryState(state=pe.CarryState.CARRY_1_BLOCK).to_bytes() == b'\x01'

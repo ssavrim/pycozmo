@@ -238,6 +238,12 @@ class DockingResult(enum.Enum):
     DOCK_FAILURE_RETRY = 8
 
 
+class CarryState(enum.Enum):
+    CARRY_NONE = 0
+    CARRY_1_BLOCK = 1
+    CARRY_2_BLOCK = 2
+
+
 class PathEventType(enum.Enum):
     PATH_STARTED = 0
     PATH_INTERRUPTED = 1
@@ -3133,6 +3139,57 @@ class DockingErrorSignal(Packet):
             angle_err_rad=angle_err_rad,
             is_approximate=is_approximate,
             did_tracking_succeed=did_tracking_succeed)
+
+
+class SetCarryState(Packet):
+
+    __slots__ = (
+        "_state",  # CarryState
+    )
+
+    def __init__(self,
+                 state=0):
+        super().__init__(PacketType.COMMAND, packet_id=0x49)
+        self.state = CarryState(state)
+
+    @property
+    def state(self) -> CarryState:
+        return self._state
+
+    @state.setter
+    def state(self, value: CarryState) -> None:
+        self._state = value
+        validate_integer("state", value.value, -128, 127)
+
+    def __len__(self):
+        return \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "state={state})".format(
+                type=type(self).__name__,
+                state=self._state)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._state.value, "b")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        state = reader.read("b")
+        return cls(
+            state=state)
 
 
 class SyncTime(Packet):
@@ -7743,6 +7800,7 @@ PACKETS_BY_ID = {
     0x43: AbortDocking,  # 67
     0x45: SetOrigin,  # 69
     0x48: DockingErrorSignal,  # 72
+    0x49: SetCarryState,  # 73
     0x4b: SyncTime,  # 75
     0x4c: EnableCamera,  # 76
     0x4f: CheckLiftLoad,  # 79
@@ -7839,6 +7897,7 @@ PACKETS_BY_GROUP = {
         0x42,  # DockWithObject
         0x43,  # AbortDocking
         0x48,  # DockingErrorSignal
+        0x49,  # SetCarryState
         0x4f,  # CheckLiftLoad
         0xb8,  # PickAndPlaceResult
         0xc5,  # MovingLiftPostDock
