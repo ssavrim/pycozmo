@@ -41,6 +41,7 @@ __all__ = [
     "EvtRobotTapped",
     "EvtAudioCompleted",
     "EvtAnimationCompleted",
+    "EvtAnimationEvent",
     "EvtReactionTrigger",
     "EvtBehaviorDone",
 
@@ -185,6 +186,15 @@ class EvtAudioCompleted(Event):
 
 class EvtAnimationCompleted(Event):
     pass
+
+
+class EvtAnimationEvent(Event):
+    """
+    Triggered when the robot plays an AnimEvent keyframe of the current animation.
+
+    Handlers receive ``(cli, event_id, timestamp)``: a ``protocol_encoder.AnimEventType``
+    and the robot time in milliseconds at which the event was played.
+    """
 
 
 class EvtReactionTrigger(Event):
