@@ -286,8 +286,16 @@ cli.play_anim(name, allowed_types=(anim_encoder.AnimProceduralFace,
 
 Wwise `.wem` audio can be played with `cli.play_wem(path)` after installing
 `vgmstream-cli` separately. Supply its executable path as `decoder=` if needed.
-Only the audio file itself is decoded; animation sound-event mappings are not
-played automatically. The default decoded duration limit is 60 seconds.
+The default decoded duration limit is 60 seconds. To play original animations
+with their sound, enable it on the animation library (needs `vgmstream-cli`):
+
+```python
+from pycozmo import anim_library
+
+lib = anim_library.AnimationLibrary.load()
+lib.enable_audio()
+cli.play_anim_ppclip(lib.preprocess(lib.choose("CodeLabHappy")))
+```
 `cli.set_volume(level)` accepts an integer from 0 to 65535.
 
 For text-to-speech, install [eSpeak NG](https://github.com/espeak-ng/espeak-ng)

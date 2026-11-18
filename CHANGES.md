@@ -18,6 +18,13 @@ Unreleased
     Client.play_anim_group use it; groups whose weights are all zero no longer fail.
 - Play face animation keyframes (PNG frames, one per animation frame) in
     PreprocessedClip; they replace procedural faces while they play.
+- Play the sound of original animations: pycozmo.audiokinetic.hierarchy reads Wwise
+    version 120 banks (events, actions, sounds, containers, properties, embedded media);
+    pycozmo.anim_audio chooses the event of each RobotAudio keyframe with its
+    probabilities, resolves it (random/shuffle/sequence containers, avoid-repeat, switches,
+    layers, volume, pitch, filters, delays, loops, Stop, Seek), decodes media with
+    vgmstream-cli and mixes them at 22,320 Hz into OutputAudio packets.
+    AnimationLibrary.enable_audio() turns it on.
 - Require Python 3.12 or later; add uv project management and Python 3.12/3.13/3.14 CI.
 - Correct procedural face rendering for inverted shapes in original animations.
 - Clamp u-law output to valid bytes and decode PCM as little-endian.

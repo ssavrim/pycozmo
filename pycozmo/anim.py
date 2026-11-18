@@ -137,7 +137,8 @@ class PreprocessedClip(object):
     @classmethod
     def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types=None,
                        rng: Optional[random.Random] = None,
-                       face_anim_dir: Optional[Union[str, os.PathLike]] = None) -> "PreprocessedClip":
+                       face_anim_dir: Optional[Union[str, os.PathLike]] = None,
+                       audio=None) -> "PreprocessedClip":
         """
         Preprocess all tracks, or only keyframes of the supplied types.
 
@@ -145,6 +146,8 @@ class PreprocessedClip(object):
         ``face_anim_dir`` contains face animation frames (``faceAnimations`` of the
         standard resources by default). While a face animation plays, it replaces
         procedural faces.
+        ``audio`` is an ``anim_audio.AnimAudioRenderer``; without it, RobotAudio keyframes
+        are not played.
         """
         keyframes = defaultdict(list)   # type: Dict[int, List[protocol_encoder.Packet]]
         face_spans = []     # type: List[Tuple[int, int]]
@@ -215,7 +218,7 @@ class PreprocessedClip(object):
                 pkt = protocol_encoder.DisplayImage(image=buf)
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimRobotAudio):
-                # TODO
+                # The whole track is rendered at once below: sounds overlap and are mixed.
                 pass
             elif isinstance(keyframe, anim_encoder.AnimEvent):
                 # Sent in the stream; the robot reports it back with AnimationEvent when played.
@@ -228,6 +231,12 @@ class PreprocessedClip(object):
                 keyframes[keyframe.trigger_time_ms].append(protocol_encoder.AnimEvent(event_id=event_type))
             else:
                 raise RuntimeError("Unexpected keyframe type '{}'".format(type(keyframe)))
+        if audio is not None and (allowed_types is None or anim_encoder.AnimRobotAudio in tuple(allowed_types)):
+            track = audio.render(clip)
+            for line in track.log:
+                logger.debug("%s: %s", clip.name, line)
+            for at, pkt in track.packets.items():
+                keyframes[at].append(pkt)
         # Face animations replace procedural faces while they play.
         if face_spans:
             for at, pkts in list(keyframes.items()):
