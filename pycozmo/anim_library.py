@@ -114,8 +114,10 @@ class AnimationLibrary:
     """
 
     def __init__(self, root: PathLike, *, rng: Optional[random.Random] = None,
-                 clock: Callable[[], float] = time.monotonic) -> None:
+                 clock: Callable[[], float] = time.monotonic, audio=None) -> None:
         self.root = pathlib.Path(root)
+        #: ``anim_audio.AnimAudioRenderer`` used by ``preprocess()``, see ``enable_audio()``.
+        self.audio = audio
         self.rng = rng or random.Random()
         self.clock = clock
         assets = self.root / "cozmo_resources" / "assets"
@@ -157,9 +159,27 @@ class AnimationLibrary:
         return self._clips[name]
 
     def preprocess(self, name: str, **kwargs) -> anim.PreprocessedClip:
-        """ PreprocessedClip of a clip, with face animations of this library. """
+        """ PreprocessedClip of a clip, with face animations and, if enabled, sound of this library. """
         kwargs.setdefault("face_anim_dir", self.face_anim_dir)
+        kwargs.setdefault("audio", self.audio)
         return anim.PreprocessedClip.from_anim_clip(self.clip(name), **kwargs)
+
+    def audio_dir(self) -> pathlib.Path:
+        """ Directory of sound banks and media; the former flat layout is accepted. """
+        sound = self.root / "cozmo_resources" / "sound"
+        return sound / "AudioAssets" if (sound / "AudioAssets").is_dir() else sound
+
+    def enable_audio(self, **kwargs):
+        """
+        Play the sound of clips: load the sound banks and create the renderer.
+
+        Keyword arguments go to ``AnimAudioRenderer`` (e.g. ``decoder``). Decoding needs a
+        separately installed vgmstream-cli.
+        """
+        from . import anim_audio
+        kwargs.setdefault("rng", self.rng)
+        self.audio = anim_audio.AnimAudioRenderer.from_audio_dir(self.audio_dir(), **kwargs)
+        return self.audio
 
     # Groups and triggers
 
