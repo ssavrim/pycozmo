@@ -21,6 +21,7 @@ from .event import *
 
 from . import exception
 from . import util
+from . import resources
 from . import window
 from . import protocol_base
 from . import protocol_declaration

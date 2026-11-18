@@ -31,6 +31,12 @@ Unreleased
     layers, volume, pitch, filters, delays, loops, Stop, Seek), decodes media with
     vgmstream-cli and mixes them at 22,320 Hz into OutputAudio packets.
     AnimationLibrary.enable_audio() turns it on.
+- Prepare resources from the user's copy of the Cozmo application (XAPK, APK and OBB,
+    or OBB alone) with pycozmo.resources.prepare() and 'pycozmo_resources.py prepare':
+    version and signer checks, safe extraction (no path traversal, links or archive bombs),
+    atomic replacement, and a manifest with checksums checked by 'verify'. Sound banks go
+    to cozmo_resources/sound/AudioAssets. The automatic download from a third-party mirror,
+    which disabled TLS certificate verification, is removed. See docs/specs/resources.md.
 - Require Python 3.12 or later; add uv project management and Python 3.12/3.13/3.14 CI.
 - Correct procedural face rendering for inverted shapes in original animations.
 - Clamp u-law output to valid bytes and decode PCM as little-endian.

@@ -272,9 +272,24 @@ This project is not affiliated with [Digital Dream Labs](https://www.digitaldrea
 Original resources and cube connections
 ---------------------------------------
 
-PyCozmo does not include Cozmo's proprietary resources. If you have extracted
-animation files, load their directory explicitly with `cli.load_anims(path)` and
-inspect `cli.anim_names`. `cli.play_anim(name)` may move the robot. To restrict a
+PyCozmo does not include Cozmo's proprietary resources. Prepare them from your
+own copy of the Cozmo Android application 3.4.0 (an XAPK, or the APK with
+`main.1204.com.anki.cozmo.obb`, or the OBB alone):
+
+```bash
+pycozmo_resources.py prepare cozmo-3.4.0.xapk      # or: prepare app.apk --obb main.1204.com.anki.cozmo.obb
+pycozmo_resources.py verify
+```
+
+Resources go to `~/.pycozmo/assets` (or `$PYCOZMO_DIR/assets`, or `--dest`), with
+a `resources-manifest.json` that records the version, the checksums of the
+package and of the extracted files. The tool checks the version and Anki's
+signing certificate; it does not extract the TTS voices nor the robot firmware
+(`--include-firmware` to get the firmware). From Python, use
+`pycozmo.resources.prepare()`.
+
+If you have extracted animation files otherwise, load their directory explicitly
+with `cli.load_anims(path)` and inspect `cli.anim_names`. `cli.play_anim(name)` may move the robot. To restrict a
 clip to face and head tracks, use:
 
 ```python

@@ -797,7 +797,8 @@ def check_assets() -> None:
     asset_dir = get_cozmo_asset_dir()
     if not os.path.exists(asset_dir / "resources.txt"):
         raise exception.ResourcesNotFound(
-            f"Resources not found in {asset_dir} . Try running 'pycozmo_resources.py download'.")
+            f"Resources not found in {asset_dir} . Prepare them from the Cozmo application with "
+            f"'pycozmo_resources.py prepare <file>'.")
 
 
 def get_cozmo_anim_dir() -> pathlib.Path:
