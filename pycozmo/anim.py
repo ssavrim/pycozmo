@@ -4,11 +4,12 @@ Animation clip representation, reading, and preprocessing.
 
 """
 
-import math
 import os
+import pathlib
 import random
 import time
 from collections import defaultdict
+from functools import lru_cache
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from PIL import Image
@@ -20,6 +21,7 @@ from . import image_encoder
 from . import lights
 from . import procedural_face
 from . import protocol_encoder
+from . import util
 from .json_loader import find_file, load_json_file
 
 
@@ -58,6 +60,37 @@ def _vary(value: int, variability: int, rng: Optional[random.Random]) -> int:
     if variability <= 0:
         return value
     return (rng or random).randint(value - variability, value + variability)
+
+
+#: Face animation frames are played one per animation frame (30 per second).
+FACE_ANIMATION_FRAME_MS = 1000.0 / 30
+
+
+def default_face_anim_dir() -> pathlib.Path:
+    """ Face animation directory of the standard resource installation. """
+    return util.get_cozmo_asset_dir() / "cozmo_resources" / "assets" / "faceAnimations"
+
+
+@lru_cache(maxsize=8)
+def _face_animation_frames(directory: str, name: str) -> Tuple[Optional[bytes], ...]:
+    """
+    Encoded DisplayImage payloads of a face animation, None for empty frames.
+
+    Frames are 128x64 grayscale PNG files. Like procedural faces, the robot gets one
+    line out of two (128x32); pixels brighter than mid-gray are lit.
+    """
+    path = pathlib.Path(directory) / name
+    frames = []
+    for fspec in sorted(path.glob("*.png")):
+        with Image.open(fspec) as im:
+            pixels = np.array(im.convert("L"))
+        lines = pixels[::2] > 127
+        if not lines.any():
+            frames.append(None)
+            continue
+        im = Image.fromarray(lines.astype(np.uint8) * 255).convert("1", dither=Image.Dither.NONE)
+        frames.append(bytes(image_encoder.ImageEncoder(im).encode()))
+    return tuple(frames)
 
 
 def body_motion_command(radius_mm: Union[float, str], speed: int) -> Tuple[int, int]:
@@ -103,13 +136,19 @@ class PreprocessedClip(object):
 
     @classmethod
     def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types=None,
-                       rng: Optional[random.Random] = None) -> "PreprocessedClip":
+                       rng: Optional[random.Random] = None,
+                       face_anim_dir: Optional[Union[str, os.PathLike]] = None) -> "PreprocessedClip":
         """
         Preprocess all tracks, or only keyframes of the supplied types.
 
         ``rng`` draws head and lift variability (the module generator by default).
+        ``face_anim_dir`` contains face animation frames (``faceAnimations`` of the
+        standard resources by default). While a face animation plays, it replaces
+        procedural faces.
         """
         keyframes = defaultdict(list)   # type: Dict[int, List[protocol_encoder.Packet]]
+        face_spans = []     # type: List[Tuple[int, int]]
+        face_packets = set()
         for keyframe in clip.keyframes:
             if allowed_types is not None and not isinstance(keyframe, allowed_types):
                 continue
@@ -153,8 +192,22 @@ class PreprocessedClip(object):
                                                                   off_light))
                 keyframes[keyframe.trigger_time_ms + keyframe.duration_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimFaceAnimation):
-                # TODO
-                pass
+                directory = pathlib.Path(face_anim_dir) if face_anim_dir is not None else default_face_anim_dir()
+                frames = _face_animation_frames(str(directory), keyframe.anim_name)
+                if not frames:
+                    logger.warning("Face animation '%s' of clip '%s' not found in %s.",
+                                   keyframe.anim_name, clip.name, directory)
+                    continue
+                start = keyframe.trigger_time_ms
+                end = start + round(len(frames) * FACE_ANIMATION_FRAME_MS)
+                face_spans.append((start, end))
+                for i, payload in enumerate(frames):
+                    if payload is None:
+                        # Empty frames take their time but send nothing.
+                        continue
+                    pkt = protocol_encoder.DisplayImage(image=payload)
+                    face_packets.add(id(pkt))
+                    keyframes[start + round(i * FACE_ANIMATION_FRAME_MS)].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimProceduralFace):
                 im = cls.keyframe_to_im(keyframe)
                 encoder = image_encoder.ImageEncoder(im)
@@ -175,6 +228,14 @@ class PreprocessedClip(object):
                 keyframes[keyframe.trigger_time_ms].append(protocol_encoder.AnimEvent(event_id=event_type))
             else:
                 raise RuntimeError("Unexpected keyframe type '{}'".format(type(keyframe)))
+        # Face animations replace procedural faces while they play.
+        if face_spans:
+            for at, pkts in list(keyframes.items()):
+                if any(start <= at < end for start, end in face_spans):
+                    pkts[:] = [p for p in pkts
+                               if not isinstance(p, protocol_encoder.DisplayImage) or id(p) in face_packets]
+                    if not pkts:
+                        del keyframes[at]
         ppclip = cls(keyframes=keyframes)
         return ppclip
 
@@ -299,31 +360,30 @@ class AnimationGroup:
 
     def __init__(self, members: Iterable[AnimationGroupMember]) -> None:
         self.members = list(members)
-        self.member_probabilities = []
-
-        # Calculate normalized probabilities for members.
-        weight_sum = 0.0
-        for member in self.members:
-            self.member_probabilities.append(member.weight)
-            weight_sum += member.weight
-        if not weight_sum and len(self.members) == 1:
-            # Fix special case of a single member with weight 0.
-            weight_sum = 1.0
-            self.member_probabilities[0] = 1.0
-        for i in range(len(self.member_probabilities)):
-            self.member_probabilities[i] /= weight_sum
-        assert math.isclose(sum(self.member_probabilities), 1.0)
+        # Normalized weights, for information; selection is done by choose_member().
+        weight_sum = sum(m.weight for m in self.members)
+        if weight_sum > 0:
+            self.member_probabilities = [m.weight / weight_sum for m in self.members]
+        else:
+            self.member_probabilities = [1.0 / len(self.members)] * len(self.members) if self.members else []
 
     @classmethod
     def from_json(cls, data: Dict):
         animations = [AnimationGroupMember.from_json(a) for a in data['Animations']]
         return cls(animations)
 
-    def choose_member(self):
-        """ Choose member by weight. """
-        i = np.random.choice(len(self.members), p=self.member_probabilities)
-        member = self.members[i]
-        return member
+    def choose_member(self, *, cooldowns: Optional[Dict[str, float]] = None, now: Optional[float] = None,
+                      head_angle_rad: Optional[float] = None, mood: str = "Default",
+                      rng: Optional[random.Random] = None) -> Optional[AnimationGroupMember]:
+        """
+        Choose a member (see ``anim_library.select_member`` and docs/specs/animation-library.md).
+
+        Without ``cooldowns``, cooldowns are not remembered between calls.
+        """
+        from .anim_library import select_member
+        return select_member(self.members, cooldowns={} if cooldowns is None else cooldowns,
+                             now=time.monotonic() if now is None else now,
+                             head_angle_rad=head_angle_rad, mood=mood, rng=rng)
 
 
 def load_trigger_map(resource_dir: str, map_relative_path: str) -> Tuple[str, str, Dict]:

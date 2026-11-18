@@ -106,6 +106,7 @@ class Client(event.Dispatcher):
         self._next_anim_id = 1
         self._current_anim_id = None    # type: Optional[int]
         self.animation_groups = {}
+        self._anim_cooldowns = {}   # clip name -> end of cooldown (time.monotonic)
 
     def start(self) -> None:
         logger.debug("Starting client...")
@@ -604,7 +605,11 @@ class Client(event.Dispatcher):
         if not animation_group:
             logger_animation.error("Failed to find animation group {}.".format(anim_group_name))
             return
-        member = animation_group.choose_member()
+        member = animation_group.choose_member(cooldowns=self._anim_cooldowns,
+                                               head_angle_rad=self.head_angle.radians)
+        if member is None:
+            logger_animation.error("No animation of group {} can be played.".format(anim_group_name))
+            return
         logger_animation.info("Playing animation {}".format(member.name))
         self.play_anim(member.name)
 

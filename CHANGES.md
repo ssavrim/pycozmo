@@ -12,6 +12,12 @@ Unreleased
     variability argument and AnimBody.unknown becomes curvature_radius_mm.
 - Add AnimEvent (0x95) and AnimationEvent (0xd5); stream event keyframes and dispatch
     EvtAnimationEvent when the robot plays them.
+- Add pycozmo.anim_library.AnimationLibrary: clips, animation groups and triggers of the
+    prepared resources, with the selection of docs/specs/animation-library.md (shared per-clip cooldowns,
+    head angle ranges in radians, mood and fallbacks). AnimationGroup.choose_member and
+    Client.play_anim_group use it; groups whose weights are all zero no longer fail.
+- Play face animation keyframes (PNG frames, one per animation frame) in
+    PreprocessedClip; they replace procedural faces while they play.
 - Require Python 3.12 or later; add uv project management and Python 3.12/3.13/3.14 CI.
 - Correct procedural face rendering for inverted shapes in original animations.
 - Clamp u-law output to valid bytes and decode PCM as little-endian.
