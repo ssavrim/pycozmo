@@ -3,136 +3,126 @@
 
 Cozmo resource manager.
 
+Prepares the resources of the Cozmo Android application for PyCozmo, from a copy
+of the application supplied by the user: an XAPK, or an APK with its OBB file,
+or the OBB file alone. The reference version is 3.4.0 (version code 1204).
+
 """
 
-import sys
-import os
-import urllib.request
-import ssl
-import zipfile
 import argparse
 import pathlib
 import shutil
+import sys
 
-import pycozmo
-
-ssl._create_default_https_context = ssl._create_unverified_context  # noqa
-
-
-OBB_URL = "https://media.githubusercontent.com/media/cristobalraya/cozmo-archive/" \
-          "master/applications/com.anki.cozmo_3.4.0-1204_plus_OBB.zip"
+from pycozmo import resources
 
 
-def download(fspec: pathlib.Path) -> bool:
-    try:
-        with urllib.request.urlopen(OBB_URL) as response, open(fspec, "wb") as f:
-            while True:
-                data = response.read(8192)
-                if not data:
-                    break
-                f.write(data)
-        return True
-    except Exception:   # noqa
-        return False
+def progress_printer():
+    last = {"stage": None, "step": -1}
+
+    def show(stage: str, fraction: float) -> None:
+        step = int(fraction * 10)
+        if stage != last["stage"] or step != last["step"]:
+            last["stage"], last["step"] = stage, step
+            print(f"  {stage}: {step * 10:3d}%", flush=True)
+
+    return show
 
 
-def extract(fspec: pathlib.Path, dspec: pathlib.Path) -> bool:
-    """ Extract an archive to a directory. """
-    try:
-        os.makedirs(str(dspec))
-    except FileExistsError:
-        pass
-    try:
-        with zipfile.ZipFile(str(fspec), "r") as f:
-            f.extractall(str(dspec))
-        return True
-    except Exception:   # noqa
-        return False
+def dest_dir(args) -> pathlib.Path:
+    return pathlib.Path(args.dest) if args.dest else resources.resource_root()
 
 
-def do_status() -> None:
+def do_status(args) -> int:
     """ Check whether resources are available. """
-    asset_dir = pycozmo.util.get_cozmo_asset_dir()
-    if os.path.exists(asset_dir / "resources.txt"):
-        print(f"Resources found in {asset_dir}")
-    else:
-        print(f"Resources NOT found in {asset_dir}")
-        sys.exit(1)
-
-
-def do_download() -> None:
-    """ Download and extract resources. """
-
-    asset_dir = pycozmo.util.get_cozmo_asset_dir()
-    resource_file = asset_dir / "obb.zip"
-
-    # Check whether resources have already been downloaded.
-    if os.path.exists(asset_dir / "resources.txt"):
-        print(f"Resources already available in {asset_dir}")
-        sys.exit(1)
-
-    # Create directory structure.
+    root = dest_dir(args)
+    if not (root / "resources.txt").exists():
+        print(f"Resources NOT found in {root}")
+        return 1
+    print(f"Resources found in {root}")
     try:
-        os.makedirs(asset_dir)
-    except FileExistsError:
-        pass
-
-    print("Downloading...")
-
-    res = download(resource_file)
-    if not res:
-        print("ERROR: Download failed.")
-        sys.exit(2)
-
-    print("Extracting...")
-
-    res = extract(
-        resource_file,
-        asset_dir / "obb")
-    if not res:
-        print("ERROR: Extraction failed.")
-        sys.exit(3)
-    os.remove(str(resource_file))
-
-    res = extract(
-        asset_dir / "obb" / "Android" / "obb" / "com.anki.cozmo" / "main.1204.com.anki.cozmo.obb",
-        asset_dir / "..")
-    if not res:
-        print("ERROR: Secondary extraction failed.")
-        sys.exit(4)
-    shutil.rmtree(asset_dir / "obb")
-
-    res = extract(
-        asset_dir / "cozmo_resources" / "sound" / "AudioAssets.zip",
-        asset_dir / "cozmo_resources" / "sound")
-    if not res:
-        print("ERROR: Sound extraction failed.")
-        sys.exit(5)
-
-    print(f"Resources downloaded successfully in {asset_dir}")
+        manifest = resources.load_manifest(root)
+    except resources.ResourceError as e:
+        print(f"  {e}")
+        return 1
+    if manifest is None:
+        print("  No manifest: prepared by an older tool. Run 'prepare' again to record versions and checksums.")
+        return 0
+    print(f"  Version {manifest.version_name} ({manifest.version_code}), prepared {manifest.prepared_at}")
+    for warning in manifest.warnings:
+        print(f"  Warning: {warning}")
+    return 0
 
 
-def do_remove() -> None:
+def do_prepare(args) -> int:
+    """ Extract resources from the user's application package. """
+    root = dest_dir(args)
+    print(f"Preparing resources in {root}...")
+    try:
+        manifest = resources.prepare(
+            args.source, obb=args.obb, dest=root, force=args.force, include_firmware=args.include_firmware,
+            allow_other_version=args.allow_other_version, allow_other_signer=args.allow_other_signer,
+            progress=progress_printer())
+    except resources.ResourceError as e:
+        print(f"ERROR: {e}")
+        return 2
+    for warning in manifest.warnings:
+        print(f"Warning: {warning}")
+    print(f"Resources of version {manifest.version_name} ({manifest.version_code}) prepared in {root}")
+    return 0
+
+
+def do_verify(args) -> int:
+    """ Check prepared resources against their manifest. """
+    root = dest_dir(args)
+    problems = resources.verify(root)
+    for problem in problems:
+        print(problem)
+    if problems:
+        return 1
+    print(f"Resources in {root} match their manifest.")
+    return 0
+
+
+def do_download(args) -> int:
+    """ Former automatic download: the resources now come from the user's copy of the application. """
+    del args
+    print("Automatic download has been removed: PyCozmo no longer fetches the Cozmo application from a "
+          "third-party mirror.\n"
+          "Obtain the Cozmo Android application 3.4.0 (XAPK, or APK and main.1204.com.anki.cozmo.obb), then run:\n"
+          "  pycozmo_resources.py prepare <file> [--obb <obb file>]")
+    return 1
+
+
+def do_remove(args) -> int:
     """ Remove resources. """
-
-    asset_dir = pycozmo.util.get_cozmo_asset_dir()
-
-    # Check whether resources exist.
-    if not os.path.exists(asset_dir / "resources.txt"):
-        print(f"Resources NOT available in {asset_dir}")
-        sys.exit(1)
-
-    shutil.rmtree(asset_dir)
-
-    print(f"Resources successfully removed from {asset_dir}")
+    root = dest_dir(args)
+    if not (root / "resources.txt").exists():
+        print(f"Resources NOT available in {root}")
+        return 1
+    shutil.rmtree(root)
+    print(f"Resources successfully removed from {root}")
+    return 0
 
 
 def parse_args() -> argparse.Namespace:
     """ Parse command-line arguments. """
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--dest", help="resource directory (default: $PYCOZMO_DIR/assets)")
     subparsers = parser.add_subparsers(dest="cmd")
     subparsers.add_parser("status", help="show resource status")
-    subparsers.add_parser("download", help="download and extract resources")
+    prepare = subparsers.add_parser("prepare", help="extract resources from the Cozmo application")
+    prepare.add_argument("source", help="XAPK, APK or OBB file of the Cozmo application")
+    prepare.add_argument("--obb", help="OBB file, when SOURCE is an APK")
+    prepare.add_argument("--force", action="store_true", help="replace existing resources")
+    prepare.add_argument("--include-firmware", action="store_true",
+                         help="also extract robot firmware images (not needed by PyCozmo)")
+    prepare.add_argument("--allow-other-version", action="store_true",
+                         help="accept a version other than 3.4.0 (1204)")
+    prepare.add_argument("--allow-other-signer", action="store_true",
+                         help="accept an APK not signed by Anki")
+    subparsers.add_parser("verify", help="check resources against their manifest")
+    subparsers.add_parser("download", help="removed: use 'prepare'")
     subparsers.add_parser("remove", help="remove resources")
     args = parser.parse_args()
     if not args.cmd:
@@ -142,18 +132,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def main():
-
-    # Parse command-line.
     args = parse_args()
-
-    if args.cmd == "status":
-        do_status()
-    elif args.cmd == "download":
-        do_download()
-    elif args.cmd == "remove":
-        do_remove()
-    else:
-        assert False
+    commands = {
+        "status": do_status,
+        "prepare": do_prepare,
+        "verify": do_verify,
+        "download": do_download,
+        "remove": do_remove,
+    }
+    sys.exit(commands[args.cmd](args))
 
 
 if __name__ == '__main__':
