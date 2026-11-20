@@ -4,7 +4,7 @@ Cozmo protocol client and high-level API.
 
 """
 
-from threading import Event
+from threading import Event, Lock
 from typing import Any
 import json
 import time
@@ -29,6 +29,7 @@ from . import lights
 from . import image_encoder
 from . import anim
 from . import anim_encoder
+from . import sensors
 from . import audio
 from . import anim_controller
 from . import robot_debug
@@ -51,6 +52,8 @@ class Client(event.Dispatcher):
         super().__init__()
         # Whether to automatically initialize the robot when connection is established.
         self.auto_initialize = bool(auto_initialize)
+        self._robot_found = Event()
+        self._robot_ready = Event()
 
         self.conn = conn.Connection(robot_addr, protocol_log_messages)
         self.conn.add_child_dispatcher(self)
@@ -81,6 +84,7 @@ class Client(event.Dispatcher):
         self.gyro = util.Vector3(0.0, 0.0, 0.0)
         self.robot_status = 0
         self.robot_orientation = robot.RobotOrientation.ON_THREADS
+        self.tap_detector = sensors.TapDetector()
         self.robot_picked_up = False
         self.robot_moving = False
         # Animation state
@@ -94,6 +98,7 @@ class Client(event.Dispatcher):
         # Object state
         self.available_objects: dict[int, object.Object] = dict()
         self.connected_objects: dict[int, dict[str, Any]] = dict()
+        self._cube_light_lock = Lock()
         # Filters
         self.packet_type_filter = filter.Filter()
         self.packet_type_filter.deny_ids({protocol_declaration.PacketType.PING.value})
@@ -104,7 +109,9 @@ class Client(event.Dispatcher):
         self._clips: dict[str, anim_encoder.AnimClip] = {}
         self._ppclips: dict[str, anim.PreprocessedClip] = {}
         self._next_anim_id = 1
+        self._current_anim_id: int | None = None
         self.animation_groups: dict[str, anim.AnimationGroup] = {}
+        self._anim_cooldowns: dict[str, float] = {}   # clip name -> end of cooldown (time.monotonic)
 
     def start(self) -> None:
         logger.debug("Starting client...")
@@ -117,6 +124,7 @@ class Client(event.Dispatcher):
         self.add_handler(protocol_encoder.ObjectAvailable, self._on_object_available)
         self.add_handler(protocol_encoder.ObjectConnectionState, self._on_object_connection_state)
         self.add_handler(protocol_encoder.DebugData, self._on_debug_data)
+        self.add_handler(protocol_encoder.AnimationEvent, self._on_animation_event)
         self.add_handler(protocol_encoder.NvStorageOpResult, self._on_nv_storage_op_result)
         self.add_handler(event.EvtRobotPickedUpChange, self._on_robot_picked_up)
         self.add_handler(event.EvtRobotWheelsMovingChange, self._on_robot_moving)
@@ -130,10 +138,14 @@ class Client(event.Dispatcher):
 
     def connect(self) -> None:
         logger.debug("Connecting...")
+        self._robot_found.clear()
+        self._robot_ready.clear()
         self.conn.connect()
 
     def disconnect(self) -> None:
         logger.debug("Disconnecting...")
+        self._robot_found.clear()
+        self._robot_ready.clear()
         self.conn.disconnect()
 
     def _enable_robot(self) -> None:
@@ -159,6 +171,7 @@ class Client(event.Dispatcher):
 
         self.anim_controller.start()
 
+        self._robot_ready.set()
         self.dispatch(event.EvtRobotReady, self)
 
     def _on_hardware_info(self, cli: Any, pkt: protocol_encoder.HardwareInfo) -> None:
@@ -187,20 +200,19 @@ class Client(event.Dispatcher):
                     pkt.serial_number, pkt.body_hw_version, pkt.body_color.value)
         if self.auto_initialize:
             self._initialize_robot()
+        self._robot_found.set()
         self.dispatch(event.EvtRobotFound, self)
 
     def wait_for_robot(self, timeout: float = 5.0) -> None:
-        if not self.robot_fw_sig:
-            try:
-                self.wait_for(event.EvtRobotFound, timeout=timeout)
-            except exception.Timeout as e:
-                raise exception.ConnectionTimeout("Failed to connect to Cozmo.") from e
+        """Wait for initialization, including events that arrived before this call.
 
-        if not self.serial_number:
-            try:
-                self.wait_for(event.EvtRobotReady, timeout=timeout)
-            except exception.Timeout as e:
-                raise exception.ConnectionTimeout("Failed to initialize Cozmo.") from e
+        With automatic initialization disabled, wait for body information instead.
+        The timeout applies to the complete wait.
+        """
+        ready = self._robot_ready if self.auto_initialize else self._robot_found
+        if not ready.wait(timeout):
+            message = "Failed to initialize Cozmo." if self.auto_initialize else "Failed to connect to Cozmo."
+            raise exception.ConnectionTimeout(message)
 
     def _reset_partial_state(self) -> None:
         self._partial_image_timestamp: int | None = None
@@ -308,20 +320,31 @@ class Client(event.Dispatcher):
                 state = (pkt.status & flag) != 0
                 logger.debug("%s: %i", robot.RobotStatusFlagNames[flag], state)
                 self.dispatch(evt, self, state)
-        # Orientation
-        if pkt.pose_angle_rad < -0.4:
-            robot_orientation = robot.RobotOrientation.ON_LEFT_SIDE
-        elif pkt.pose_angle_rad > 0.4:
-            robot_orientation = robot.RobotOrientation.ON_RIGHT_SIDE
-        elif pkt.pose_pitch_rad < -1.0:
-            robot_orientation = robot.RobotOrientation.ON_FACE
-        elif pkt.pose_pitch_rad > 1.0:
-            robot_orientation = robot.RobotOrientation.ON_BACK
-        else:
-            robot_orientation = robot.RobotOrientation.ON_THREADS
+        # Orientation, from gravity in the body frame (the pose angle is a heading).
+        robot_orientation = sensors.detect_orientation(
+            (pkt.accel_x, pkt.accel_y, pkt.accel_z), pkt.head_angle_rad, pkt.pose_pitch_rad,
+            previous=self.robot_orientation)
         if self.robot_orientation != robot_orientation:
             self.robot_orientation = robot_orientation
             self.dispatch(event.EvtRobotOrientationChange, self, robot_orientation)
+        # Taps, only while the robot is still.
+        flags = pkt.status
+        still = (flags & (robot.RobotStatusFlag.LIFT_IN_POS | robot.RobotStatusFlag.HEAD_IN_POS)
+                 == robot.RobotStatusFlag.LIFT_IN_POS | robot.RobotStatusFlag.HEAD_IN_POS
+                 and not flags & (robot.RobotStatusFlag.IS_PICKED_UP | robot.RobotStatusFlag.IS_FALLING
+                                  | robot.RobotStatusFlag.IS_ANIMATING | robot.RobotStatusFlag.ARE_WHEELS_MOVING)
+                 and abs(pkt.lwheel_speed_mmps) + abs(pkt.rwheel_speed_mmps) < 1.0
+                 and robot_orientation == robot.RobotOrientation.ON_THREADS)
+        if self.tap_detector.update(time.monotonic(), (pkt.accel_x, pkt.accel_y, pkt.accel_z),
+                                    (pkt.gyro_x, pkt.gyro_y, pkt.gyro_z), still):
+            self.dispatch(event.EvtRobotTapped, self)
+
+    @property
+    def battery_percent(self) -> int | None:
+        """ Indicative charge in %, from the battery voltage; None on the charger or if unknown. """
+        if self.robot_status & robot.RobotStatusFlag.IS_ON_CHARGER:
+            return None
+        return sensors.estimate_battery_percent(self.battery_voltage)
 
     def _on_robot_picked_up(self, cli: Any, state: bool) -> None:
         del cli
@@ -345,6 +368,14 @@ class Client(event.Dispatcher):
         self.tag = pkt.tag
         self.client_drop_count = pkt.client_drop_count
 
+    def _on_animation_event(self, cli: Any, pkt: protocol_encoder.AnimationEvent) -> None:
+        del cli
+        # Ignore events of an animation other than the current one.
+        if self._current_anim_id is not None and pkt.anim_id != self._current_anim_id:
+            logger.debug("Ignoring %s of animation %d.", pkt.event_id.name, pkt.anim_id)
+            return
+        self.dispatch(event.EvtAnimationEvent, self, pkt.event_id, pkt.timestamp)
+
     def _on_object_available(self, cli: Any, pkt: protocol_encoder.ObjectAvailable) -> None:
         del cli
         factory_id = pkt.factory_id
@@ -364,8 +395,33 @@ class Client(event.Dispatcher):
             }
         else:
             # Disconnected
-            if pkt.object_id in self.connected_objects:
+            current = self.connected_objects.get(pkt.object_id)
+            if current and (pkt.factory_id == 0 or current["factory_id"] == pkt.factory_id):
                 del self.connected_objects[pkt.object_id]
+
+    def set_object_connection(self, factory_id: int, connect: bool = True) -> None:
+        """Request a connection to a discovered cube or other Bluetooth object.
+
+        Completion is asynchronous; listen for ObjectConnectionState and use its
+        object_id when addressing the cube. Some robots reuse a single object slot.
+        """
+        self.conn.send(protocol_encoder.ObjectConnect(factory_id=factory_id, connect=connect))
+
+    def set_cube_lights(self, object_id: int, states, *, rotation_period_frames: int = 0) -> None:
+        """Set four cube lights by connected object ID.
+
+        Calls to this method serialize selection and light packets. Direct sends
+        of CubeId or CubeLights must also be coordinated by the application.
+        """
+        select = protocol_encoder.CubeId(object_id=object_id, rotation_period_frames=rotation_period_frames)
+        command = protocol_encoder.CubeLights(states=states)
+        with self._cube_light_lock:
+            self.conn.send(select)
+            self.conn.send(command)
+
+    def set_object_accel_stream(self, object_id: int, enable: bool = True) -> None:
+        """Enable or disable ObjectAccel packets for a connected object ID."""
+        self.conn.send(protocol_encoder.StreamObjectAccel(object_id=object_id, enable=enable))
 
     def _on_debug_data(self, cli: Any, pkt: protocol_encoder.DebugData) -> None:
         del cli
@@ -534,51 +590,51 @@ class Client(event.Dispatcher):
 
         # Start animation.
         pkt: protocol_encoder.Packet = protocol_encoder.StartAnimation(anim_id=self._next_anim_id)
+        self._current_anim_id = self._next_anim_id
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
-        self._next_anim_id += 1
+        # The ID is one byte: wrap around (1-255) instead of failing after 255 animations.
+        self._next_anim_id = self._next_anim_id % 255 + 1
 
-        # Send frames to the animation controller.
-        frames = list(sorted(ppclip.keyframes.keys()))
-        num_frames = len(frames)
-        time_ms = 0
-        for i in range(num_frames):
-            audio_pkt = None
-            image_pkt = None
-            pkts = []
-            for action in ppclip.keyframes[frames[i]]:
+        # Send frames to the animation controller, one per 1/30 s. Keyframes whose trigger
+        # times fall in the same frame share it: a frame per keyframe stretched the animation
+        # and put silent frames between consecutive audio frames (choppy sound).
+        frames = {}
+        start = min(ppclip.keyframes) if ppclip.keyframes else 0
+        for at in sorted(ppclip.keyframes):
+            index = round((at - start) * robot.FRAME_RATE / 1000)
+            frame = frames.setdefault(index, [None, None, {}])
+            for action in ppclip.keyframes[at]:
                 if isinstance(action, protocol_encoder.OutputAudio):
-                    audio_pkt = action
+                    frame[0] = action
                 elif isinstance(action, protocol_encoder.DisplayImage):
-                    image_pkt = action
+                    frame[1] = action
                 elif isinstance(action, protocol_encoder.Packet):
-                    pkts.append(action)
-            self.anim_controller.play_anim_frame(audio_pkt, image_pkt, pkts)
-            time_ms += 33
-
-            # Pause.
-            if i < num_frames - 1:
-                target_ms = time_ms + frames[i + 1] - frames[i]
-                while target_ms > time_ms:
-                    self.anim_controller.play_anim_frame(None, None, None)
-                    time_ms += 33
+                    # The robot takes one keyframe of each kind per frame: the latest wins.
+                    frame[2].pop(type(action), None)
+                    frame[2][type(action)] = action
+        for index in range(max(frames) + 1 if frames else 0):
+            audio_pkt, image_pkt, pkts = frames.get(index, (None, None, {}))
+            self.anim_controller.play_anim_frame(audio_pkt, image_pkt, list(pkts.values()))
 
         # End animation.
         pkt = protocol_encoder.EndAnimation()
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
 
-    def play_anim(self, name: str) -> None:
+    def play_anim(self, name: str, *, allowed_types=None) -> None:
+        """Play an original clip, optionally filtering to specified keyframe types."""
         if not self._clip_metadata:
             raise ValueError("Animations not loaded.")
         elif name not in self._clip_metadata:
             raise ValueError("Unknown clip name.")
 
-        if name not in self._ppclips:
-            if name not in self._clips:
-                self._load_clips(self._clip_metadata[name].fspec)
-            clip = self._clips[name]
-            self._ppclips[name] = anim.PreprocessedClip.from_anim_clip(clip)
-
-        ppclip = self._ppclips[name]
+        if name not in self._clips:
+            self._load_clips(self._clip_metadata[name].fspec)
+        if allowed_types is not None:
+            ppclip = anim.PreprocessedClip.from_anim_clip(self._clips[name], allowed_types=allowed_types)
+        else:
+            if name not in self._ppclips:
+                self._ppclips[name] = anim.PreprocessedClip.from_anim_clip(self._clips[name])
+            ppclip = self._ppclips[name]
         self.play_anim_ppclip(ppclip)
 
     def cancel_anim(self) -> None:
@@ -590,17 +646,29 @@ class Client(event.Dispatcher):
         if not animation_group:
             logger_animation.error("Failed to find animation group {}.".format(anim_group_name))
             return
-        member = animation_group.choose_member()
+        member = animation_group.choose_member(cooldowns=self._anim_cooldowns,
+                                               head_angle_rad=self.head_angle.radians)
+        if member is None:
+            logger_animation.error("No animation of group {} can be played.".format(anim_group_name))
+            return
         logger_animation.info("Playing animation {}".format(member.name))
         self.play_anim(member.name)
 
-    def load_anims(self) -> None:
-        util.check_assets()
-        anim_dir = str(util.get_cozmo_anim_dir())
-        self._clip_metadata = anim_encoder.get_clip_metadata(anim_dir)
+    def load_anims(self, anim_dir: str | None = None) -> None:
+        """Load animation clips; optionally provide a directory of extracted assets.
+
+        Animation groups are loaded only for the standard asset installation.
+        """
+        standard_assets = anim_dir is None
+        if standard_assets:
+            util.check_assets()
+            anim_dir = str(util.get_cozmo_anim_dir())
+        metadata = anim_encoder.get_clip_metadata(str(anim_dir))
+        groups = anim.load_animation_groups(str(util.get_cozmo_asset_dir())) if standard_assets else {}
+        self._clip_metadata = metadata
         self._clips = {}
-        resource_dir = str(util.get_cozmo_asset_dir())
-        self.animation_groups = anim.load_animation_groups(resource_dir)
+        self._ppclips = {}
+        self.animation_groups = groups
 
     def get_anim_names(self) -> set:
         return set(self._clip_metadata.keys())
@@ -617,6 +685,17 @@ class Client(event.Dispatcher):
     def play_audio(self, fspec: str) -> None:
         pkts = audio.load_wav(fspec)
         self.anim_controller.play_audio(pkts)
+
+    def play_wem(self, fspec: str, decoder: str = "vgmstream-cli") -> None:
+        """Decode and play a Wwise WEM using an externally installed decoder."""
+        self.anim_controller.play_audio(audio.load_wem(fspec, decoder=decoder))
+
+    def say_text(self, text: str, *, voice: str = "en", words_per_minute: int = 175,
+                 executable: str = "espeak-ng") -> None:
+        """Speak text using a separately installed eSpeak NG executable."""
+        packets = audio.synthesize_speech(text, voice=voice, words_per_minute=words_per_minute,
+                                          executable=executable)
+        self.anim_controller.play_audio(packets)
 
     def activate_behavior(self, behavior):
         self.add_child_dispatcher(behavior)

@@ -4,12 +4,14 @@ Animation clip representation, reading, and preprocessing.
 
 """
 
-import math
 import os
+import pathlib
+import random
 import time
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
-from typing import Any, Self
+from functools import lru_cache
+from typing import Any, Dict, Optional, Self, Tuple, Union
 
 from PIL import Image
 import numpy as np
@@ -20,11 +22,16 @@ from . import image_encoder
 from . import lights
 from . import procedural_face
 from . import protocol_encoder
-from . import robot
+from . import util
 from .json_loader import find_file, load_json_file
 
 
 __all__ = [
+    "BODY_STRAIGHT_RADIUS_MM",
+    "BODY_TURN_IN_PLACE_RADIUS_MM",
+    "MAX_BODY_SPEED_MMPS",
+    "MAX_BODY_TURN_SPEED_DEGPS",
+
     "PreprocessedClip",
     "AnimationGroupMember",
     "AnimationGroup",
@@ -33,6 +40,81 @@ __all__ = [
     "load_cube_animation_groups",
     "load_backpack_light_patterns"
 ]
+
+
+#: AnimBody curvature radius that drives straight.
+BODY_STRAIGHT_RADIUS_MM = 0x7fff
+#: AnimBody curvature radius that turns in place (speed in deg/s).
+BODY_TURN_IN_PLACE_RADIUS_MM = 0
+#: Speed limit of straight and arc motions (docs/specs/animation-stream.md).
+MAX_BODY_SPEED_MMPS = 220
+#: Speed limit of turns in place (docs/specs/animation-stream.md).
+MAX_BODY_TURN_SPEED_DEGPS = 300
+
+
+def _clamp(value: int, low: int, high: int) -> int:
+    return max(low, min(high, value))
+
+
+def _vary(value: int, variability: int, rng: Optional[random.Random]) -> int:
+    """Draw from [value - variability, value + variability]."""
+    if variability <= 0:
+        return value
+    return (rng or random).randint(value - variability, value + variability)
+
+
+#: Face animation frames are played one per animation frame (30 per second).
+FACE_ANIMATION_FRAME_MS = 1000.0 / 30
+
+
+def default_face_anim_dir() -> pathlib.Path:
+    """ Face animation directory of the standard resource installation. """
+    return util.get_cozmo_asset_dir() / "cozmo_resources" / "assets" / "faceAnimations"
+
+
+@lru_cache(maxsize=8)
+def _face_animation_frames(directory: str, name: str) -> Tuple[Optional[bytes], ...]:
+    """
+    Encoded DisplayImage payloads of a face animation, None for empty frames.
+
+    Frames are 128x64 grayscale PNG files. Like procedural faces, the robot gets one
+    line out of two (128x32); pixels brighter than mid-gray are lit.
+    """
+    path = pathlib.Path(directory) / name
+    frames = []
+    for fspec in sorted(path.glob("*.png")):
+        with Image.open(fspec) as im:
+            pixels = np.array(im.convert("L"))
+        lines = pixels[::2] > 127
+        if not lines.any():
+            frames.append(None)
+            continue
+        im = Image.fromarray(lines.astype(np.uint8) * 255).convert("1", dither=Image.Dither.NONE)
+        frames.append(bytes(image_encoder.ImageEncoder(im).encode()))
+    return tuple(frames)
+
+
+def body_motion_command(radius_mm: Union[float, str], speed: int) -> Tuple[int, int]:
+    """
+    Convert a BodyMotion keyframe to the (speed, curvature_radius_mm) pair of AnimBody.
+
+    The robot drives arcs itself. Speeds are limited to 220 mm/s straight or on an
+    arc and 300 deg/s when turning in place (docs/specs/animation-stream.md).
+    """
+    if isinstance(radius_mm, str):
+        if radius_mm == "STRAIGHT":
+            return _clamp(speed, -MAX_BODY_SPEED_MMPS, MAX_BODY_SPEED_MMPS), BODY_STRAIGHT_RADIUS_MM
+        if radius_mm in ("TURN_IN_PLACE", "POINT_TURN"):
+            return (_clamp(speed, -MAX_BODY_TURN_SPEED_DEGPS, MAX_BODY_TURN_SPEED_DEGPS),
+                    BODY_TURN_IN_PLACE_RADIUS_MM)
+        radius_mm = float(radius_mm)
+    # Values beyond int16 become straight (0x7fff) or the minimum.
+    radius = int(radius_mm)
+    if radius >= 0x8000:
+        radius = BODY_STRAIGHT_RADIUS_MM
+    elif radius < -0x8000:
+        radius = -0x8000
+    return _clamp(speed, -MAX_BODY_SPEED_MMPS, MAX_BODY_SPEED_MMPS), radius
 
 
 class PreprocessedClip(object):
@@ -54,21 +136,35 @@ class PreprocessedClip(object):
         return im
 
     @classmethod
-    def from_anim_clip(cls, clip: anim_encoder.AnimClip) -> "PreprocessedClip":
-        keyframes: dict[int, list[protocol_encoder.Packet]] = defaultdict(list)
-        pkt: protocol_encoder.Packet
+    def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types=None,
+                       rng: Optional[random.Random] = None,
+                       face_anim_dir: Optional[Union[str, os.PathLike]] = None,
+                       audio=None) -> "PreprocessedClip":
+        """
+        Preprocess all tracks, or only keyframes of the supplied types.
+
+        ``rng`` draws head and lift variability (the module generator by default).
+        ``face_anim_dir`` contains face animation frames (``faceAnimations`` of the
+        standard resources by default). While a face animation plays, it replaces
+        procedural faces.
+        ``audio`` is an ``anim_audio.AnimAudioRenderer``; without it, RobotAudio keyframes
+        are not played.
+        """
+        keyframes = defaultdict(list)   # type: Dict[int, List[protocol_encoder.Packet]]
+        face_spans = []     # type: List[Tuple[int, int]]
+        face_packets = set()
         for keyframe in clip.keyframes:
+            if allowed_types is not None and not isinstance(keyframe, allowed_types):
+                continue
             if isinstance(keyframe, anim_encoder.AnimHeadAngle):
-                # FIXME: Why can duration be larger than 255?
-                pkt = protocol_encoder.AnimHead(duration_ms=min(keyframe.duration_ms, 255),
-                                                variability_deg=keyframe.variability_deg,
-                                                angle_deg=keyframe.angle_deg)
+                angle = _vary(keyframe.angle_deg, keyframe.variability_deg, rng)
+                pkt = protocol_encoder.AnimHead(duration_ms=_clamp(keyframe.duration_ms, 0, 0xffff),
+                                                angle_deg=_clamp(angle, -128, 127))
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimLiftHeight):
-                # FIXME: Why can duration be larger than 255?
-                pkt = protocol_encoder.AnimLift(duration_ms=min(keyframe.duration_ms, 255),
-                                                variability_mm=keyframe.variability_mm,
-                                                height_mm=keyframe.height_mm)
+                height = _vary(keyframe.height_mm, keyframe.variability_mm or 0, rng)
+                pkt = protocol_encoder.AnimLift(duration_ms=_clamp(keyframe.duration_ms, 0, 0xffff),
+                                                height_mm=_clamp(height, 0, 255))
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimRecordHeading):
                 pkt = protocol_encoder.RecordHeading()
@@ -77,18 +173,12 @@ class PreprocessedClip(object):
                 pkt = protocol_encoder.TurnToRecordedHeading()
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimBodyMotion):
-                if keyframe.radius_mm == "STRAIGHT":
-                    pkt = protocol_encoder.AnimBody(speed=keyframe.speed, unknown=32767)
-                elif keyframe.radius_mm == "TURN_IN_PLACE":
-                    pkt = protocol_encoder.TurnInPlaceAtSpeed(wheel_speed_mmps=keyframe.speed,
-                                                              direction=math.copysign(1.0, keyframe.speed))
-                else:
-                    assert isinstance(keyframe.radius_mm, float)
-                    vl = keyframe.speed * (keyframe.radius_mm - robot.TRACK_WIDTH.mm / 2.0)
-                    vr = keyframe.speed * (keyframe.radius_mm + robot.TRACK_WIDTH.mm / 2.0)
-                    pkt = protocol_encoder.DriveWheels(lwheel_speed_mmps=vl, rwheel_speed_mmps=vr)
+                # The robot drives straight, in place, or on an arc from (speed, radius).
+                speed, radius = body_motion_command(keyframe.radius_mm, keyframe.speed)
+                pkt = protocol_encoder.AnimBody(speed=speed, curvature_radius_mm=radius)
                 keyframes[keyframe.trigger_time_ms].append(pkt)
-                pkt = protocol_encoder.DriveWheels()
+                # Stop at the end of the keyframe.
+                pkt = protocol_encoder.AnimBody(speed=0, curvature_radius_mm=BODY_STRAIGHT_RADIUS_MM)
                 keyframes[keyframe.trigger_time_ms + keyframe.duration_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimBackpackLights):
                 left = lights.Color(rgb=(keyframe.left.red, keyframe.left.green, keyframe.left.blue))
@@ -106,8 +196,22 @@ class PreprocessedClip(object):
                                                                   off_light))
                 keyframes[keyframe.trigger_time_ms + keyframe.duration_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimFaceAnimation):
-                # TODO
-                pass
+                directory = pathlib.Path(face_anim_dir) if face_anim_dir is not None else default_face_anim_dir()
+                frames = _face_animation_frames(str(directory), keyframe.anim_name)
+                if not frames:
+                    logger.warning("Face animation '%s' of clip '%s' not found in %s.",
+                                   keyframe.anim_name, clip.name, directory)
+                    continue
+                start = keyframe.trigger_time_ms
+                end = start + round(len(frames) * FACE_ANIMATION_FRAME_MS)
+                face_spans.append((start, end))
+                for i, payload in enumerate(frames):
+                    if payload is None:
+                        # Empty frames take their time but send nothing.
+                        continue
+                    pkt = protocol_encoder.DisplayImage(image=payload)
+                    face_packets.add(id(pkt))
+                    keyframes[start + round(i * FACE_ANIMATION_FRAME_MS)].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimProceduralFace):
                 im = cls.keyframe_to_im(keyframe)
                 encoder = image_encoder.ImageEncoder(im)
@@ -115,13 +219,33 @@ class PreprocessedClip(object):
                 pkt = protocol_encoder.DisplayImage(image=buf)
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimRobotAudio):
-                # TODO
+                # The whole track is rendered at once below: sounds overlap and are mixed.
                 pass
             elif isinstance(keyframe, anim_encoder.AnimEvent):
-                # TODO
-                pass
+                # Sent in the stream; the robot reports it back with AnimationEvent when played.
+                try:
+                    event_type = protocol_encoder.AnimEventType[keyframe.event_id]
+                except KeyError:
+                    logger.warning("Ignoring unknown animation event '%s' in clip '%s'.",
+                                   keyframe.event_id, clip.name)
+                    continue
+                keyframes[keyframe.trigger_time_ms].append(protocol_encoder.AnimEvent(event_id=event_type))
             else:
                 raise RuntimeError("Unexpected keyframe type '{}'".format(type(keyframe)))
+        if audio is not None and (allowed_types is None or anim_encoder.AnimRobotAudio in tuple(allowed_types)):
+            track = audio.render(clip)
+            for line in track.log:
+                logger.debug("%s: %s", clip.name, line)
+            for at, pkt in track.packets.items():
+                keyframes[at].append(pkt)
+        # Face animations replace procedural faces while they play.
+        if face_spans:
+            for at, pkts in list(keyframes.items()):
+                if any(start <= at < end for start, end in face_spans):
+                    pkts[:] = [p for p in pkts
+                               if not isinstance(p, protocol_encoder.DisplayImage) or id(p) in face_packets]
+                    if not pkts:
+                        del keyframes[at]
         ppclip = cls(keyframes=keyframes)
         return ppclip
 
@@ -246,31 +370,30 @@ class AnimationGroup:
 
     def __init__(self, members: Iterable[AnimationGroupMember]) -> None:
         self.members = list(members)
-        self.member_probabilities: list[float] = []
-
-        # Calculate normalized probabilities for members.
-        weight_sum = 0.0
-        for member in self.members:
-            self.member_probabilities.append(member.weight)
-            weight_sum += member.weight
-        if not weight_sum and len(self.members) == 1:
-            # Fix special case of a single member with weight 0.
-            weight_sum = 1.0
-            self.member_probabilities[0] = 1.0
-        for i in range(len(self.member_probabilities)):
-            self.member_probabilities[i] /= weight_sum
-        assert math.isclose(sum(self.member_probabilities), 1.0)
+        # Normalized weights, for information; selection is done by choose_member().
+        weight_sum = sum(m.weight for m in self.members)
+        if weight_sum > 0:
+            self.member_probabilities = [m.weight / weight_sum for m in self.members]
+        else:
+            self.member_probabilities = [1.0 / len(self.members)] * len(self.members) if self.members else []
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> Self:
         animations = [AnimationGroupMember.from_json(a) for a in data['Animations']]
         return cls(animations)
 
-    def choose_member(self) -> AnimationGroupMember:
-        """ Choose member by weight. """
-        i = np.random.choice(len(self.members), p=self.member_probabilities)
-        member = self.members[i]
-        return member
+    def choose_member(self, *, cooldowns: Optional[Dict[str, float]] = None, now: Optional[float] = None,
+                      head_angle_rad: Optional[float] = None, mood: str = "Default",
+                      rng: Optional[random.Random] = None) -> Optional[AnimationGroupMember]:
+        """
+        Choose a member (see ``anim_library.select_member`` and docs/specs/animation-library.md).
+
+        Without ``cooldowns``, cooldowns are not remembered between calls.
+        """
+        from .anim_library import select_member
+        return select_member(self.members, cooldowns={} if cooldowns is None else cooldowns,
+                             now=time.monotonic() if now is None else now,
+                             head_angle_rad=head_angle_rad, mood=mood, rng=rng)
 
 
 def load_trigger_map(resource_dir: str, map_relative_path: str) -> Iterator[tuple[str, str, Any]]:
