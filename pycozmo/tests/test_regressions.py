@@ -248,3 +248,39 @@ def test_play_anim_ppclip_puts_keyframes_of_a_frame_together():
     assert [type(p) for p in sent[1][2]] == [pe.AnimHead, pe.AnimBody]
     assert sent[1][2][1].speed == 20
     assert sent[2][0] is audio[1] and sent[3][0] is audio[2]
+
+
+def test_animation_completion_from_the_frame_count():
+    from types import SimpleNamespace
+    from pycozmo import anim_controller, event
+    posted = []
+    cli = SimpleNamespace(conn=SimpleNamespace(post_event=lambda *args: posted.append(args[0])))
+    ctrl = anim_controller.AnimationController(cli)
+    ctrl.frames_sent = 10
+    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=100))      # base: 90
+    ctrl.frames_sent = 40
+    ctrl._end_frame = 40                                    # EndAnimation was the 40th frame sent
+    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=120))      # 30 frames played
+    assert posted == []
+    ctrl.frames_sent = 60                                   # idle frames after the end
+    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=135))      # 45 frames played
+    assert posted == [event.EvtAnimationCompleted]
+    ctrl._on_animation_ended(None, None)                    # a late AnimationEnded is not reported twice
+    assert posted == [event.EvtAnimationCompleted]
+    ctrl._on_animation_ended(None, None)                    # one that stands alone is
+    assert posted == [event.EvtAnimationCompleted] * 2
+
+
+def test_animation_ended_during_streaming_is_the_reply_to_a_cancel():
+    from types import SimpleNamespace
+    from pycozmo import anim_controller, event
+    posted = []
+    cli = SimpleNamespace(conn=SimpleNamespace(post_event=lambda *args: posted.append(args[0]), send=lambda pkt: None))
+    ctrl = anim_controller.AnimationController(cli)
+    ctrl.streaming_animation = True
+    ctrl._on_animation_ended(None, None)
+    assert posted == []
+    ctrl.cancel_anim()
+    assert not ctrl.streaming_animation
+    ctrl._on_animation_ended(None, None)
+    assert posted == [event.EvtAnimationCompleted]

@@ -103,6 +103,10 @@ class AnimationController:
         self.playing_animation = False
         #: True between the StartAnimation and the EndAnimation sent to the robot.
         self.streaming_animation = False
+        #: Frames sent when EndAnimation went out; the animation is over when the robot has played them.
+        self._end_frame = None
+        #: The completion of the animation was already reported from the frame count.
+        self._completed_by_count = False
         self.last_image_pkt = protocol_encoder.DisplayImage(image=b"\x3f\x3f")
         self.face_generator = iter(procedural_face.ProceduralFaceGenerator())
         self.animations_enabled = False
@@ -138,6 +142,18 @@ class AnimationController:
             # the lead by the frames in flight, which only adds margin.
             self._played_base = pkt.num_audio_frames_played - self.frames_sent
         self.num_audio_frames_played = pkt.num_audio_frames_played
+        # The robot does not always send AnimationEnded (not when the animation has sound): the
+        # animation is also over when it has played every frame sent up to EndAnimation.
+        lead = self.lead()
+        if self._end_frame is not None and lead is not None and lead <= self.frames_sent - self._end_frame:
+            self._end_frame = None
+            self._completed_by_count = True
+            self._finish_animation()
+
+    def _finish_animation(self):
+        self.playing_animation = False
+        self._clear_last_image_pkt()
+        self.cli.conn.post_event(event.EvtAnimationCompleted, self.cli)
 
     def lead(self) -> Optional[int]:
         """ Frames sent but not yet played by the robot, or None before the first report. """
@@ -167,9 +183,16 @@ class AnimationController:
         self.playing_animation = True
 
     def _on_animation_ended(self, cli, pkt: protocol_encoder.AnimationEnded):
-        self.playing_animation = False
-        self._clear_last_image_pkt()
-        self.cli.conn.post_event(event.EvtAnimationCompleted, self.cli)
+        if self.streaming_animation:
+            # The reply to the EndAnimation of cancel_anim() of a previous animation, which arrives
+            # after the next animation has started: not the end of this one.
+            return
+        self._end_frame = None
+        if self._completed_by_count:
+            # Already reported from the frame count.
+            self._completed_by_count = False
+            return
+        self._finish_animation()
 
     def _on_animating_change(self):
         pass
@@ -229,8 +252,10 @@ class AnimationController:
                         self.cli.conn.send(pkt)
                         if isinstance(pkt, protocol_encoder.StartAnimation):
                             self.streaming_animation = True
+                            self._completed_by_count = False
                         elif isinstance(pkt, protocol_encoder.EndAnimation):
                             self.streaming_animation = False
+                            self._end_frame = num_frames + 1
 
                 num_frames += 1
                 self.frames_sent = num_frames
@@ -256,6 +281,8 @@ class AnimationController:
 
     def cancel_anim(self):
         self.queue.clear()
+        self.streaming_animation = False
+        self._end_frame = None
         pkt = protocol_encoder.EndAnimation()
         self.cli.conn.send(pkt)
 
