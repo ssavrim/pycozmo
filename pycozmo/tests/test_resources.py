@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import zipfile
+from typing import Any
 
 import pytest
 
@@ -33,7 +34,7 @@ def pkcs7(cert: bytes) -> bytes:
     return der(0x30, signed_data_oid + der(0xa0, signed_data))
 
 
-def zip_bytes(files: dict, symlinks=()) -> bytes:
+def zip_bytes(files: dict, symlinks: Any = ()) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         for name, data in files.items():
@@ -45,7 +46,7 @@ def zip_bytes(files: dict, symlinks=()) -> bytes:
     return buf.getvalue()
 
 
-def obb_bytes(extra=None, symlinks=()) -> bytes:
+def obb_bytes(extra: Any = None, symlinks: Any = ()) -> bytes:
     audio = zip_bytes({
         "SoundbanksInfo.xml": "<SoundBanksInfo/>",
         "Init.bnk": b"BKHD",
@@ -70,7 +71,7 @@ def obb_bytes(extra=None, symlinks=()) -> bytes:
     return zip_bytes(files, symlinks)
 
 
-def apk_bytes(cert=FAKE_CERT) -> bytes:
+def apk_bytes(cert: Any = FAKE_CERT) -> bytes:
     return zip_bytes({"AndroidManifest.xml": b"\x03\x00", "META-INF/CERT.RSA": pkcs7(cert), "classes.dex": b""})
 
 

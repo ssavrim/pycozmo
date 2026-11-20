@@ -23,7 +23,7 @@ with pycozmo.connect() as cli:
         raise RuntimeError("No cube detected; wake it by moving or tapping it.")
 
     ready = threading.Event()
-    result = {}
+    result: dict[str, int] = {}
 
     def on_connection(_client, packet):
         if packet.factory_id == factory_id and packet.connected:

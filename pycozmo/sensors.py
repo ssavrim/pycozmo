@@ -35,7 +35,7 @@ def body_gravity(accel: Tuple[float, float, float], head_angle_rad: float) -> Tu
     return ax * c - az * s, ay, ax * s + az * c
 
 
-def detect_orientation(accel: Tuple[float, float, float], head_angle_rad: float,
+def detect_orientation(accel: Tuple[float, float, float] | None, head_angle_rad: float,
                        pitch_rad: Optional[float] = None,
                        previous: robot.RobotOrientation = robot.RobotOrientation.ON_THREADS
                        ) -> robot.RobotOrientation:
@@ -86,8 +86,8 @@ class TapDetector:
     SETTLE_S = 0.6            # stillness required after the robot moved itself
 
     def __init__(self):
-        self.baseline = None
-        self.still_since = None
+        self.baseline: float | None = None
+        self.still_since: float | None = None
         self.last_tap = -1e9
 
     def update(self, now: float, accel: Tuple[float, float, float], gyro: Tuple[float, float, float],
@@ -105,6 +105,7 @@ class TapDetector:
                 self.baseline = magnitude
             return False
         spin = math.sqrt(sum(g * g for g in gyro))
+        assert self.baseline is not None
         jolt = abs(magnitude - self.baseline)
         settled = now - self.still_since >= self.SETTLE_S
         if settled and (spin > self.GYRO_RAD_S or jolt > self.ACCEL_MMPS2) \

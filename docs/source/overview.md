@@ -69,9 +69,9 @@ the low-level UDP communication with Cozmo.
 Requirements
 ------------
 
-- Python 3.12 or newer.
-- Pillow, NumPy, FlatBuffers and dpkt (installed automatically).
-- Optionally, OpenCV with its contrib modules for face detection and recognition.
+- Python 3.11 or newer.
+- Pillow, NumPy, FlatBuffers, dpkt and OpenCV (installed automatically).
+- Optionally, the OpenCV contrib modules (`opencv-contrib-python` in place of `opencv-python`) for face recognition.
 
 Installation
 ------------
@@ -86,8 +86,8 @@ python -m venv .venv
 python -m pip install .
 ```
 
-For face recognition, install `.[vision]` instead. For development with uv,
-run `uv sync --extra vision` and see [CONTRIBUTING.md](https://github.com/ssavrim/pycozmo/blob/master/CONTRIBUTING.md).
+For face recognition, install `opencv-contrib-python` in place of `opencv-python`.
+For development, see [CONTRIBUTING.md](https://github.com/ssavrim/pycozmo/blob/master/CONTRIBUTING.md).
 The PyPI package named `pycozmo` may be an older upstream release and does not
 necessarily include this fork's changes.
 

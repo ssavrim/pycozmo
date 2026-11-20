@@ -16,15 +16,15 @@ It is unstable and heavily under development.
 Installation and development
 ----------------------------
 
-Python 3.12 or newer is required. Install [uv](https://docs.astral.sh/uv/), then run:
+Python 3.11 or newer is required. To work on the library, install it with the development
+dependencies (pip 25.1 or newer) and run the checks:
 
 ```bash
-uv sync
-uv run pytest
+python -m pip install -e . --group dev
+flake8
+mypy
+pytest
 ```
-
-For documentation tooling, use `uv sync --group docs`. To install the library in an
-existing environment, use `python -m pip install .`.
 
 Usage
 -----
@@ -107,8 +107,8 @@ Off-board functions (see [docs/offboard_functions.md](docs/offboard_functions.md
 - [x] Basic camera motion detection (OpenCV; sensitive to camera motion)
 - [ ] Visual object detection (cubes and charging platform; Bluetooth discovery is available)
 - [ ] Cube marker recognition
-- [x] Basic face detection (OpenCV Haar cascade; optional vision extra)
-- [x] Basic local face recognition (OpenCV LBPH; optional vision extra)
+- [x] Basic face detection (OpenCV Haar cascade; OpenCV)
+- [x] Basic local face recognition (OpenCV LBPH; OpenCV)
 - [ ] Facial expression estimation
 - [ ] Pet detection
 - [ ] Camera calibration
@@ -225,9 +225,9 @@ the low-level UDP communication with Cozmo.
 Requirements
 ------------
 
-- Python 3.12 or newer.
-- Pillow, NumPy, FlatBuffers and dpkt (installed automatically).
-- Optionally, OpenCV with its contrib modules for face detection and recognition.
+- Python 3.11 or newer.
+- Pillow, NumPy, FlatBuffers, dpkt and OpenCV (installed automatically).
+- Optionally, the OpenCV contrib modules (`opencv-contrib-python` in place of `opencv-python`) for face recognition.
 
 Installation
 ------------
@@ -242,8 +242,8 @@ python -m venv .venv
 python -m pip install .
 ```
 
-For face recognition, install `.[vision]` instead. For development with uv,
-run `uv sync --extra vision` and see [CONTRIBUTING.md](CONTRIBUTING.md).
+For face recognition, install `opencv-contrib-python` in place of `opencv-python`.
+For development, see [CONTRIBUTING.md](CONTRIBUTING.md).
 The PyPI package named `pycozmo` may be an older upstream release and does not
 necessarily include this fork's changes.
 
@@ -335,8 +335,8 @@ commands motors. Applications must provide fresh observations, implement each
 action, stop on `halt`, and enforce movement safety themselves; this is a policy
 building block, not a complete autonomous controller.
 
-For local face and motion detection, install the optional OpenCV dependency
-with `uv sync --extra vision` (or `python -m pip install '.[vision]'` from the checkout).
+For local face and motion detection, OpenCV is a dependency of the package; face
+recognition also needs the contrib modules (`opencv-contrib-python`).
 `pycozmo.vision.FaceVision(callback, face_dir=...)` accepts PIL camera frames via
 `submit`; the callback receives face rectangles, image dimensions, a monotonic
 timestamp, a recognized name or `None`, and a motion score. Call `close()` when

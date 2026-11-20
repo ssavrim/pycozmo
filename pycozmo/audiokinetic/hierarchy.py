@@ -17,7 +17,7 @@ Specification: ``docs/specs/wwise-banks.md``.
 import dataclasses
 import pathlib
 import struct
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from . import exception
 from ..logger import logger
@@ -178,7 +178,7 @@ class _Reader:
         self.pos = pos
         self.end = len(data) if end is None else end
 
-    def _take(self, fmt: str):
+    def _take(self, fmt: str) -> tuple[Any, ...]:
         size = struct.calcsize(fmt)
         if self.pos + size > self.end:
             raise exception.AudioKineticFormatError("Object shorter than expected.")
@@ -187,19 +187,19 @@ class _Reader:
         return value
 
     def u8(self) -> int:
-        return self._take("<B")[0]
+        return int(self._take("<B")[0])
 
     def u16(self) -> int:
-        return self._take("<H")[0]
+        return int(self._take("<H")[0])
 
     def u32(self) -> int:
-        return self._take("<I")[0]
+        return int(self._take("<I")[0])
 
     def s32(self) -> int:
-        return self._take("<i")[0]
+        return int(self._take("<i")[0])
 
     def f32(self) -> float:
-        return self._take("<f")[0]
+        return float(self._take("<f")[0])
 
     def var(self) -> int:
         """ Big-endian base-128 integer. """
@@ -296,7 +296,7 @@ def _read_children(r: _Reader) -> Tuple[int, ...]:
     return r.ids(r.u32())
 
 
-def _read_object(obj_type: int, obj_id: int, r: _Reader, feedback: bool) -> object:
+def _read_object(obj_type: int, obj_id: int, r: _Reader, feedback: bool) -> Any:
     if obj_type == _HIRC_EVENT:
         return Event(obj_id, r.ids(r.u32()))
     if obj_type == _HIRC_ACTION:
@@ -347,22 +347,22 @@ def _read_object(obj_type: int, obj_id: int, r: _Reader, feedback: bool) -> obje
         c.playlist = tuple((r.u32(), r.s32()) for _ in range(r.u16()))
         return c
     if obj_type == _HIRC_SWITCH:
-        c = SwitchContainer(obj_id, obj_type)
-        _read_node_base(r, c, feedback)
-        c.group_type = r.u8()
-        c.group_id = r.u32()
-        c.default_switch = r.u32()
+        sw = SwitchContainer(obj_id, obj_type)
+        _read_node_base(r, sw, feedback)
+        sw.group_type = r.u8()
+        sw.group_id = r.u32()
+        sw.default_switch = r.u32()
         r.u8()                              # continuous validation
-        c.children = _read_children(r)
+        sw.children = _read_children(r)
         for _ in range(r.u32()):
             switch_id = r.u32()
-            c.switches[switch_id] = r.ids(r.u32())
+            sw.switches[switch_id] = r.ids(r.u32())
         r.skip(r.u32() * 14)                # node parameters
-        return c
+        return sw
     if obj_type == _HIRC_LAYER:
-        c = LayerContainer(obj_id, obj_type)
-        _read_node_base(r, c, feedback)
-        c.children = _read_children(r)
+        ly = LayerContainer(obj_id, obj_type)
+        _read_node_base(r, ly, feedback)
+        ly.children = _read_children(r)
         for _ in range(r.u32()):            # layers
             r.u32()                         # layer ID
             _skip_rtpc(r)
@@ -372,12 +372,12 @@ def _read_object(obj_type: int, obj_id: int, r: _Reader, feedback: bool) -> obje
                 r.u32()
                 r.skip(r.u32() * 12)        # crossfade curve
         r.u8()                              # continuous validation
-        return c
+        return ly
     if obj_type == _HIRC_ACTOR_MIXER:
-        c = ActorMixer(obj_id, obj_type)
-        _read_node_base(r, c, feedback)
-        c.children = _read_children(r)
-        return c
+        mx = ActorMixer(obj_id, obj_type)
+        _read_node_base(r, mx, feedback)
+        mx.children = _read_children(r)
+        return mx
     r.pos = r.end
     return Node(obj_id, obj_type)
 
@@ -411,7 +411,7 @@ class Hierarchy:
             size = struct.unpack_from("<I", data, pos + 4)[0]
             start, end = pos + 8, pos + 8 + size
             if end > len(data):
-                raise exception.AudioKineticFormatError("{}: truncated {} chunk.".format(path.name, tag))
+                raise exception.AudioKineticFormatError("{}: truncated {!r} chunk.".format(path.name, tag))
             if tag == b"BKHD":
                 version = struct.unpack_from("<I", data, start)[0]
                 if version != SUPPORTED_VERSION:
@@ -456,16 +456,17 @@ class Hierarchy:
             self.objects.setdefault(obj_id, obj)
             pos = obj_end
 
-    def get(self, obj_id: int):
+    def get(self, obj_id: int) -> Any:
         return self.objects.get(obj_id)
 
     def parents(self, node: Node) -> List[Node]:
         """ The node and its ancestors, nearest first. """
-        chain = []
-        seen = set()
-        while node is not None and node.id not in seen:
-            chain.append(node)
-            seen.add(node.id)
-            parent = self.objects.get(node.parent_id) if node.parent_id else None
-            node = parent if isinstance(parent, Node) else None
+        chain: list[Node] = []
+        seen: set[int] = set()
+        current: Node | None = node
+        while current is not None and current.id not in seen:
+            chain.append(current)
+            seen.add(current.id)
+            parent = self.objects.get(current.parent_id) if current.parent_id else None
+            current = parent if isinstance(parent, Node) else None
         return chain

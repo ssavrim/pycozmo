@@ -6,10 +6,6 @@ PyCozmo - a pure-Python Cozmo robot communication library.
 
 import sys
 
-if sys.version_info < (3, 12):
-    raise RuntimeError("PyCozmo requires Python 3.12 or newer.")
-del sys
-
 from .logger import *
 from .run import *
 
@@ -59,3 +55,7 @@ __all__ = [
     "setup_basic_logging",
     "connect",
 ]
+
+if sys.version_info < (3, 11, 0):
+    sys.exit("ERROR: PyCozmo requires Python 3.11.0 or newer.")
+del sys

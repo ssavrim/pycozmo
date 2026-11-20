@@ -102,15 +102,15 @@ class AnimationController:
         self.stop_flag = False
         self.queue = AnimationQueue()
         self.num_frames_played = -1
-        self.num_audio_frames_played = None
+        self.num_audio_frames_played: int | None = None
         self.frames_sent = 0
-        self._played_base = None
+        self._played_base: int | None = None
         self.playing_audio = False
         self.playing_animation = False
         #: True between the StartAnimation and the EndAnimation sent to the robot.
         self.streaming_animation = False
         #: Frames sent when EndAnimation went out; the animation is over when the robot has played them.
-        self._end_frame = None
+        self._end_frame: int | None = None
         #: The completion of the animation was already reported from the frame count.
         self._completed_by_count = False
         # Whether an image, displayed with display_image(), is shown. Procedural face is paused while it is.
@@ -127,7 +127,7 @@ class AnimationController:
         self.frames_sent = 0
         self.num_audio_frames_played = None
         self._played_base = None
-        self.thread = Thread(daemon=True, name=__class__.__name__, target=self._run)
+        self.thread = Thread(daemon=True, name=AnimationController.__name__, target=self._run)
         self.stop_flag = False
         self.thread.start()
         self.cli.add_handler(protocol_encoder.AnimationState, self._on_animation_state)

@@ -20,7 +20,7 @@ import os
 import pathlib
 import random
 import time
-from typing import Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from . import anim
 from . import anim_encoder
@@ -71,12 +71,12 @@ def select_member(members: Sequence[anim.AnimationGroupMember], *,
     :param strict: return None instead of falling back when no member is eligible.
     :return: the chosen member, or None if the group has no member of the mood (or strict mode).
     """
-    rng = rng or random
+    rng_: Any = rng or random
     eligible = [m for m in members
                 if m.mood == mood and _in_range(m, head_angle_rad) and cooldowns.get(m.name, -math.inf) <= now]
     if eligible:
         total = sum(m.weight for m in eligible)
-        r = rng.random() * total
+        r = rng_.random() * total
         chosen = eligible[-1]   # all weights zero: the last eligible member
         for m in eligible:
             r -= m.weight
@@ -114,7 +114,7 @@ class AnimationLibrary:
     """
 
     def __init__(self, root: PathLike, *, rng: Optional[random.Random] = None,
-                 clock: Callable[[], float] = time.monotonic, audio=None) -> None:
+                 clock: Callable[[], float] = time.monotonic, audio: Any = None) -> None:
         self.root = pathlib.Path(root)
         #: ``anim_audio.AnimAudioRenderer`` used by ``preprocess()``, see ``enable_audio()``.
         self.audio = audio
@@ -132,7 +132,7 @@ class AnimationLibrary:
         self._cooldowns = {}    # type: Dict[str, float]
 
     @classmethod
-    def load(cls, root: Optional[PathLike] = None, **kwargs) -> "AnimationLibrary":
+    def load(cls, root: Optional[PathLike] = None, **kwargs: Any) -> "AnimationLibrary":
         """ Load the library of the resource directory (``$PYCOZMO_DIR/assets`` by default). """
         if root is None:
             util.check_assets()
@@ -158,7 +158,7 @@ class AnimationLibrary:
                 self._clips[clip.name] = clip
         return self._clips[name]
 
-    def preprocess(self, name: str, **kwargs) -> anim.PreprocessedClip:
+    def preprocess(self, name: str, **kwargs: Any) -> anim.PreprocessedClip:
         """ PreprocessedClip of a clip, with face animations and, if enabled, sound of this library. """
         kwargs.setdefault("face_anim_dir", self.face_anim_dir)
         kwargs.setdefault("audio", self.audio)

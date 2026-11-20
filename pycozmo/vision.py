@@ -2,6 +2,7 @@
 import queue
 import threading
 import time
+from typing import Any
 
 from . import logger
 
@@ -14,24 +15,25 @@ class FaceVision:
 
     The callback runs on the worker thread. It receives face rectangles, image
     width and height, a monotonic timestamp, the identified name (or None), and
-    a motion score. Install the ``vision`` extra to use this class.
+    a motion score. Face recognition needs the OpenCV contrib modules (opencv-contrib-python).
     """
 
     def __init__(self, on_detection, face_dir=None):
         import cv2
         self.cv2 = cv2
-        self.detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        if not hasattr(cv2, 'CascadeClassifier') or not hasattr(cv2, 'face'):
+            raise RuntimeError('OpenCV face detection and recognition modules unavailable; '
+                               'install opencv-contrib-python in place of opencv-python.')
+        self.detector = cv2.CascadeClassifier(getattr(cv2, 'data').haarcascades + 'haarcascade_frontalface_default.xml')
         if self.detector.empty():
             raise RuntimeError('Face detection model not found.')
-        if not hasattr(cv2, 'face'):
-            raise RuntimeError('OpenCV face recognition module unavailable; install pycozmo[vision].')
         from .face_registry import FaceRegistry
         self.registry = FaceRegistry(cv2, root=face_dir)
         self.latest_lock = threading.Lock()
         self.latest_crop = None
-        self.latest_at = 0
+        self.latest_at = 0.0
         self.on_detection = on_detection
-        self.queue = queue.Queue(maxsize=1)
+        self.queue: queue.Queue[Any] = queue.Queue(maxsize=1)
         self.closed = threading.Event()
         self.previous_gray = None
         self.thread = threading.Thread(target=self.run, daemon=True)

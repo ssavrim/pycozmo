@@ -9,7 +9,10 @@ from PIL import Image
 from pycozmo.vision import FaceVision
 
 
-pytest.importorskip("cv2")
+cv2 = pytest.importorskip("cv2")
+if not (hasattr(cv2, "CascadeClassifier") and hasattr(cv2, "face")):
+    pytest.skip("OpenCV with face detection and recognition (opencv-contrib-python) is not installed",
+                allow_module_level=True)
 
 
 class BrokenDetector:
@@ -34,7 +37,10 @@ class VisionTests(unittest.TestCase):
         results = []
         ready = threading.Event()
         with tempfile.TemporaryDirectory() as tmp:
-            vision = FaceVision(lambda *args: (results.append(args), ready.set()), face_dir=tmp)
+            def on_detection(*args):
+                results.append(args)
+                ready.set()
+            vision = FaceVision(on_detection, face_dir=tmp)
             try:
                 vision.detector = Detector()
                 vision.submit(Image.new('RGB', (100, 100)))

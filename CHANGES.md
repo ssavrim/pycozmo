@@ -37,7 +37,6 @@ Unreleased
     atomic replacement, and a manifest with checksums checked by 'verify'. Sound banks go
     to cozmo_resources/sound/AudioAssets. The automatic download from a third-party mirror,
     which disabled TLS certificate verification, is removed. See docs/specs/resources.md.
-- Require Python 3.12 or later; add uv project management and Python 3.12/3.13/3.14 CI.
 - Correct procedural face rendering for inverted shapes in original animations.
 - Clamp u-law output to valid bytes and decode PCM as little-endian.
 - Wait reliably for robot initialization and handle reused cube object slots.
@@ -84,7 +83,7 @@ v0.9.0 (Nov 15, 2026)
     (thanks to Hossam Khader / hossamkhader)
 - Updated flake8 and mypy configuration and fixed lint findings.
 - Switched documentation to the MyST Markdown parser and added Read the Docs configuration.
-- Added OpenCV as a dependency (an optional "vision" extra in this fork).
+- Added OpenCV as a dependency.
 - Reading of saved cube IDs from robot NV storage. Exposed as Client.saved_objects .
 - Reading of camera calibration from robot NV storage. Exposed as Client.camera_config, with a camera matrix
     suitable for use with OpenCV.

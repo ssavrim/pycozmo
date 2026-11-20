@@ -89,7 +89,8 @@ def u_law_encoding(sample: int) -> int:
     return sign | (segment << 4) | mantissa
 
 
-def load_wem(filename: str, decoder: str = "vgmstream-cli", max_seconds: float = 60.0):
+def load_wem(filename: str, decoder: str = "vgmstream-cli",
+             max_seconds: float = 60.0) -> list[protocol_encoder.OutputAudio]:
     """Decode a Wwise WEM file into audio packets using the external vgmstream CLI.
 
     The executable is supplied separately. Audio is converted to mono 22,050 Hz
@@ -122,7 +123,7 @@ def _load_resampled_wav(filename: Path, max_seconds: float) -> list[protocol_enc
     samples = np.frombuffer(raw, dtype="<i2").reshape(-1, channels).astype(np.float32).mean(axis=1)
     if rate != 22050 and len(samples):
         positions = np.arange(round(len(samples) * 22050 / rate)) * rate / 22050
-        samples = np.interp(positions, np.arange(len(samples)), samples)
+        samples = np.interp(positions, np.arange(len(samples)), samples).astype(np.float32)
     pcm = np.clip(samples, -32768, 32767).astype("<i2").tobytes()
     return [protocol_encoder.OutputAudio(samples=bytes_to_cozmo(pcm[i:i + 1488], 1, 1))
             for i in range(0, len(pcm), 1488)]

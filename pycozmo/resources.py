@@ -32,7 +32,7 @@ import pathlib
 import re
 import shutil
 import zipfile
-from typing import Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 from . import exception
 from . import util
@@ -182,7 +182,7 @@ class _Source:
             c.close()
 
 
-def _sha256_stream(f, progress: Optional[ProgressCallback] = None, stage: str = "", size: int = 0) -> str:
+def _sha256_stream(f: Any, progress: Optional[ProgressCallback] = None, stage: str = "", size: int = 0) -> str:
     h = hashlib.sha256()
     done = 0
     while True:
@@ -253,6 +253,7 @@ def _open_sources(source: pathlib.Path, obb: Optional[pathlib.Path],
         obb_sha = _sha256_member(z, obb_name, progress, "checksum OBB")
         apk_f = z.open(apk_name)
         obb_f = z.open(obb_name)
+        version_code: int | None
         try:
             version_code = int(manifest.get("version_code"))
         except (TypeError, ValueError):

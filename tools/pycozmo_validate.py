@@ -39,6 +39,7 @@ import pathlib
 import platform
 import sys
 import threading
+from typing import Any
 import time
 
 import pycozmo
@@ -120,9 +121,10 @@ def time_to_90pct(samples, index, start_value, target, t0):
 
 
 class Report:
-    def __init__(self):
-        self.data = dict(date=time.strftime("%Y-%m-%d %H:%M"), python=platform.python_version(),
-                         pycozmo=getattr(pycozmo, "__version__", "?"), tests=[])
+    def __init__(self) -> None:
+        self.data: dict[str, Any] = dict(
+            date=time.strftime("%Y-%m-%d %H:%M"), python=platform.python_version(),
+            pycozmo=getattr(pycozmo, "__version__", "?"), tests=[])
 
     def add(self, name, status, **details):
         self.data["tests"].append(dict(name=name, status=status, **details))

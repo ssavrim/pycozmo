@@ -1,3 +1,5 @@
+# mypy: disable-error-code="arg-type,assignment,dict-item,operator"
+# These tests drive the code with simple stand-ins for the client, the robot packets and the clips.
 import struct
 import subprocess
 import threading

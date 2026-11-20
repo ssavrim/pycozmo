@@ -13,12 +13,13 @@ import argparse
 import pathlib
 import shutil
 import sys
+from typing import Any
 
 from pycozmo import resources
 
 
 def progress_printer():
-    last = {"stage": None, "step": -1}
+    last: dict[str, Any] = {"stage": None, "step": -1}
 
     def show(stage: str, fraction: float) -> None:
         step = int(fraction * 10)
@@ -29,11 +30,11 @@ def progress_printer():
     return show
 
 
-def dest_dir(args) -> pathlib.Path:
+def dest_dir(args: argparse.Namespace) -> pathlib.Path:
     return pathlib.Path(args.dest) if args.dest else resources.resource_root()
 
 
-def do_status(args) -> int:
+def do_status(args: argparse.Namespace) -> int:
     """ Check whether resources are available. """
     root = dest_dir(args)
     if not (root / "resources.txt").exists():
@@ -54,7 +55,7 @@ def do_status(args) -> int:
     return 0
 
 
-def do_prepare(args) -> int:
+def do_prepare(args: argparse.Namespace) -> int:
     """ Extract resources from the user's application package. """
     root = dest_dir(args)
     print(f"Preparing resources in {root}...")
@@ -72,7 +73,7 @@ def do_prepare(args) -> int:
     return 0
 
 
-def do_verify(args) -> int:
+def do_verify(args: argparse.Namespace) -> int:
     """ Check prepared resources against their manifest. """
     root = dest_dir(args)
     problems = resources.verify(root)
@@ -84,7 +85,7 @@ def do_verify(args) -> int:
     return 0
 
 
-def do_download(args) -> int:
+def do_download(args: argparse.Namespace) -> int:
     """ Former automatic download: the resources now come from the user's copy of the application. """
     del args
     print("Automatic download has been removed: PyCozmo no longer fetches the Cozmo application from a "
@@ -94,7 +95,7 @@ def do_download(args) -> int:
     return 1
 
 
-def do_remove(args) -> int:
+def do_remove(args: argparse.Namespace) -> int:
     """ Remove resources. """
     root = dest_dir(args)
     if not (root / "resources.txt").exists():

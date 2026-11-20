@@ -7,7 +7,9 @@ from unittest.mock import patch
 import pytest
 
 
-pytest.importorskip("cv2")
+cv2 = pytest.importorskip("cv2")
+if not hasattr(cv2, "face"):
+    pytest.skip("OpenCV contrib modules (opencv-contrib-python) are not installed", allow_module_level=True)
 
 
 class FaceRegistryTest(unittest.TestCase):

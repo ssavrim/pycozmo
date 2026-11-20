@@ -17,13 +17,14 @@ Specification: ``docs/specs/animation-audio.md``.
 import collections
 import dataclasses
 import math
+import typing
 import os
 import pathlib
 import random
 import subprocess
 import tempfile
 import wave
-from typing import Callable, Deque, Dict, FrozenSet, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Deque, Dict, FrozenSet, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -77,7 +78,7 @@ def choose_audio_event(keyframe: anim_encoder.AnimRobotAudio, rng: Optional[rand
     ids = [int(i) & 0xffffffff for i in keyframe.audio_event_ids]
     if not ids:
         return None
-    probs = [float(p) for p in (keyframe.probabilities or [])] or [1.0 / len(ids)] * len(ids)
+    probs = [float(p) for p in typing.cast("list[float]", keyframe.probabilities or [])] or [1.0 / len(ids)] * len(ids)
     if len(probs) != len(ids):
         raise AudioEventError("{} probabilities for {} audio events".format(len(probs), len(ids)))
     if sum(probs) > 1.0 + 1e-6:
@@ -392,7 +393,8 @@ def _encode_frames(pcm: np.ndarray) -> np.ndarray:
     for bit in range(8):
         segment = np.where(high >= (1 << bit), bit + 1, segment)
     mantissa = np.where(segment == 0, magnitude >> 4, (magnitude >> (segment + 3)) & 0x0f)
-    return (sign | (segment << 4) | mantissa).astype(np.uint8)
+    result: np.ndarray = (sign | (segment << 4) | mantissa).astype(np.uint8)
+    return result
 
 
 class AnimAudioRenderer:
@@ -410,7 +412,7 @@ class AnimAudioRenderer:
         self._cache_size = cache_size
 
     @classmethod
-    def from_audio_dir(cls, audio_dir: PathLike, **kwargs) -> "AnimAudioRenderer":
+    def from_audio_dir(cls, audio_dir: PathLike, **kwargs: Any) -> "AnimAudioRenderer":
         """ Renderer for the sound banks and media of a directory (``SoundbanksInfo.xml``, ``*.bnk``). """
         audio_dir = pathlib.Path(audio_dir)
         banks = sorted(audio_dir.glob("*.bnk")) + sorted(audio_dir.glob("*/*.bnk"))
@@ -422,7 +424,8 @@ class AnimAudioRenderer:
         """ Media at the robot rate, cached. """
         if source_id in self._cache:
             self._cache.move_to_end(source_id)
-            return self._cache[source_id]
+            cached: np.ndarray = self._cache[source_id]
+            return cached
         samples, rate = self.decoder(self.store.read(source_id))
         if rate != SAMPLE_RATE and len(samples):
             positions = np.arange(round(len(samples) * SAMPLE_RATE / rate)) * rate / SAMPLE_RATE
@@ -487,7 +490,7 @@ class AnimAudioRenderer:
         seeks = []      # type: List[SeekCommand]
         end_ms = 0.0
         for keyframe in clip.keyframes:
-            end_ms = max(end_ms, keyframe.trigger_time_ms + getattr(keyframe, "duration_ms", 0))
+            end_ms = max(end_ms, getattr(keyframe, "trigger_time_ms", 0) + getattr(keyframe, "duration_ms", 0))
         keyframes = sorted((k for k in clip.keyframes if isinstance(k, anim_encoder.AnimRobotAudio)),
                            key=lambda k: k.trigger_time_ms)
         for keyframe in keyframes:

@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(not ROOT, reason="PYCOZMO_TEST_RESOURCES not set
 
 @pytest.fixture(scope="module")
 def library():
-    return anim_library.AnimationLibrary(pathlib.Path(ROOT), rng=random.Random(0))
+    return anim_library.AnimationLibrary(pathlib.Path(str(ROOT)), rng=random.Random(0))
 
 
 def test_library_content(library):

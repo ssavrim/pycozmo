@@ -41,7 +41,7 @@ def test_zero_weights_choose_the_last_eligible():
 
 
 def test_cooldown_is_shared_by_clip_name_and_fallback_picks_the_soonest():
-    cooldowns = {}
+    cooldowns: dict[str, float] = {}
     group1 = [member("a", cooldown=10.0), member("b", cooldown=5.0)]
     group2 = [member("a", cooldown=10.0)]
     rng = random.Random(0)
@@ -54,7 +54,7 @@ def test_cooldown_is_shared_by_clip_name_and_fallback_picks_the_soonest():
     before = dict(cooldowns)
     assert pick(group2, cooldowns=cooldowns, now=2.0) == "a" and cooldowns == before
     # In group1 both are on cooldown: the one whose cooldown ends first.
-    soonest = min(before, key=before.get)
+    soonest = min(before, key=lambda name: before[name])
     assert pick(group1, cooldowns=cooldowns, now=2.0) == soonest
     # After the cooldowns, normal selection resumes.
     assert pick(group1, cooldowns=cooldowns, now=20.0, rng=rng) in ("a", "b")
@@ -87,7 +87,8 @@ def test_animation_group_choose_member_is_compatible():
         {"Name": "b", "Weight": 0.0, "CooldownTime_Sec": 0.0, "Mood": "Default"},
     ]})
     assert group.member_probabilities == [0.5, 0.5]
-    assert group.choose_member().name == "b"
+    chosen = group.choose_member()
+    assert chosen is not None and chosen.name == "b"
 
 
 @pytest.fixture

@@ -407,7 +407,7 @@ class Client(event.Dispatcher):
         """
         self.conn.send(protocol_encoder.ObjectConnect(factory_id=factory_id, connect=connect))
 
-    def set_cube_lights(self, object_id: int, states, *, rotation_period_frames: int = 0) -> None:
+    def set_cube_lights(self, object_id: int, states: Any, *, rotation_period_frames: int = 0) -> None:
         """Set four cube lights by connected object ID.
 
         Calls to this method serialize selection and light packets. Direct sends
@@ -598,7 +598,7 @@ class Client(event.Dispatcher):
         # Send frames to the animation controller, one per 1/30 s. Keyframes whose trigger
         # times fall in the same frame share it: a frame per keyframe stretched the animation
         # and put silent frames between consecutive audio frames (choppy sound).
-        frames = {}
+        frames: dict[int, list[Any]] = {}
         start = min(ppclip.keyframes) if ppclip.keyframes else 0
         for at in sorted(ppclip.keyframes):
             index = round((at - start) * robot.FRAME_RATE / 1000)
@@ -620,7 +620,7 @@ class Client(event.Dispatcher):
         pkt = protocol_encoder.EndAnimation()
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
 
-    def play_anim(self, name: str, *, allowed_types=None) -> None:
+    def play_anim(self, name: str, *, allowed_types: Any = None) -> None:
         """Play an original clip, optionally filtering to specified keyframe types."""
         if not self._clip_metadata:
             raise ValueError("Animations not loaded.")

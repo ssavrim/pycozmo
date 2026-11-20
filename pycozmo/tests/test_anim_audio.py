@@ -8,6 +8,7 @@ subset of the version 120 layout read by ``audiokinetic.hierarchy``.
 import collections
 import random
 import struct
+from typing import Any
 
 import numpy as np
 import pytest
@@ -133,7 +134,7 @@ def hierarchy(audio_dir):
     return wh.Hierarchy.load([audio_dir / "Cozmo.bnk"])
 
 
-def fake_decoder(data: bytes):
+def fake_decoder(data: bytes) -> Any:
     """ Media 1001..1004: a constant level of (id - 1000) * 1000 for 0.5 s at 22,320 Hz; embedded: 3000. """
     level = 3000.0 if data == b"EMBEDDED" else (int(data) - 1000) * 1000.0
     return np.full(anim_audio.SAMPLE_RATE // 2, level, np.float32), anim_audio.SAMPLE_RATE

@@ -81,7 +81,7 @@ def _face_animation_frames(directory: str, name: str) -> Tuple[Optional[bytes], 
     line out of two (128x32); pixels brighter than mid-gray are lit.
     """
     path = pathlib.Path(directory) / name
-    frames = []
+    frames: list[bytes | None] = []
     for fspec in sorted(path.glob("*.png")):
         with Image.open(fspec) as im:
             pixels = np.array(im.convert("L"))
@@ -89,8 +89,8 @@ def _face_animation_frames(directory: str, name: str) -> Tuple[Optional[bytes], 
         if not lines.any():
             frames.append(None)
             continue
-        im = Image.fromarray(lines.astype(np.uint8) * 255).convert("1", dither=Image.Dither.NONE)
-        frames.append(bytes(image_encoder.ImageEncoder(im).encode()))
+        bitmap = Image.fromarray(lines.astype(np.uint8) * 255).convert("1", dither=Image.Dither.NONE)
+        frames.append(bytes(image_encoder.ImageEncoder(bitmap).encode()))
     return tuple(frames)
 
 
@@ -136,10 +136,10 @@ class PreprocessedClip(object):
         return im
 
     @classmethod
-    def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types=None,
+    def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types: Any = None,
                        rng: Optional[random.Random] = None,
                        face_anim_dir: Optional[Union[str, os.PathLike]] = None,
-                       audio=None) -> "PreprocessedClip":
+                       audio: Any = None) -> "PreprocessedClip":
         """
         Preprocess all tracks, or only keyframes of the supplied types.
 
@@ -150,9 +150,10 @@ class PreprocessedClip(object):
         ``audio`` is an ``anim_audio.AnimAudioRenderer``; without it, RobotAudio keyframes
         are not played.
         """
-        keyframes = defaultdict(list)   # type: Dict[int, List[protocol_encoder.Packet]]
-        face_spans = []     # type: List[Tuple[int, int]]
-        face_packets = set()
+        keyframes: dict[int, list[protocol_encoder.Packet]] = defaultdict(list)
+        face_spans: list[tuple[int, int]] = []
+        face_packets: set[int] = set()
+        pkt: protocol_encoder.Packet
         for keyframe in clip.keyframes:
             if allowed_types is not None and not isinstance(keyframe, allowed_types):
                 continue
