@@ -307,7 +307,8 @@ class Client(event.Dispatcher):
         self.head_angle = util.Angle(radians=pkt.head_angle_rad)
         self.left_wheel_speed = util.Speed(mmps=pkt.lwheel_speed_mmps)
         self.right_wheel_speed = util.Speed(mmps=pkt.rwheel_speed_mmps)
-        self.lift_position = robot.LiftPosition(height=util.Distance(mm=pkt.lift_height_mm))
+        # Despite its name, the lift_height_mm field of RobotState is the angle of the lift arm in radians.
+        self.lift_position = robot.LiftPosition(angle=util.Angle(radians=pkt.lift_height_mm))
         self.battery_voltage = pkt.battery_voltage
         self.accel = util.Vector3(pkt.accel_x, pkt.accel_y, pkt.accel_z)
         self.gyro = util.Vector3(pkt.gyro_x, pkt.gyro_y, pkt.gyro_z)
