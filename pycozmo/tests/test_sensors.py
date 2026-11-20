@@ -1,7 +1,9 @@
 import math
 
+import pytest
+
 import pycozmo
-from pycozmo import protocol_encoder, sensors
+from pycozmo import protocol_encoder, robot, sensors
 from pycozmo.robot import RobotOrientation, RobotStatusFlag
 
 STILL = RobotStatusFlag.LIFT_IN_POS | RobotStatusFlag.HEAD_IN_POS
@@ -87,3 +89,14 @@ def test_battery_percent_curve():
     assert client.battery_percent == 52
     client.robot_status = RobotStatusFlag.IS_ON_CHARGER
     assert client.battery_percent is None
+
+
+def test_client_lift_position_from_the_arm_angle():
+    """ RobotState.lift_height_mm is the lift arm angle in radians (measured on a robot, firmware 2381). """
+    client = pycozmo.Client()
+    for angle, expected_mm in ((-0.2, 31.9), (0.0, 45.0), (0.7, 87.5)):
+        pkt = protocol_encoder.RobotState(lift_height_mm=angle, status=STILL, cliff_data_raw=[0] * 4)
+        client._on_robot_state(client, pkt)
+        assert client.lift_position.height.mm == pytest.approx(expected_mm, abs=0.1)
+        assert client.lift_position.angle.radians == pytest.approx(angle)
+    assert robot.MIN_LIFT_HEIGHT.mm - 1 <= client.lift_position.height.mm <= robot.MAX_LIFT_HEIGHT.mm
