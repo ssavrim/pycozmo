@@ -9,7 +9,7 @@ import pytest
 
 cv2 = pytest.importorskip("cv2")
 if not hasattr(cv2, "face"):
-    pytest.skip("OpenCV contrib modules (opencv-contrib-python) are not installed", allow_module_level=True)
+    pytest.skip("OpenCV contrib modules (opencv-contrib-python-headless) are not installed", allow_module_level=True)
 
 
 class FaceRegistryTest(unittest.TestCase):

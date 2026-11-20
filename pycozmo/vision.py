@@ -15,7 +15,7 @@ class FaceVision:
 
     The callback runs on the worker thread. It receives face rectangles, image
     width and height, a monotonic timestamp, the identified name (or None), and
-    a motion score. Face recognition needs the OpenCV contrib modules (opencv-contrib-python).
+    a motion score. Face detection and recognition use the OpenCV contrib modules.
     """
 
     def __init__(self, on_detection, face_dir=None):
@@ -23,7 +23,7 @@ class FaceVision:
         self.cv2 = cv2
         if not hasattr(cv2, 'CascadeClassifier') or not hasattr(cv2, 'face'):
             raise RuntimeError('OpenCV face detection and recognition modules unavailable; '
-                               'install opencv-contrib-python in place of opencv-python.')
+                               'install opencv-contrib-python-headless and remove opencv-python.')
         self.detector = cv2.CascadeClassifier(getattr(cv2, 'data').haarcascades + 'haarcascade_frontalface_default.xml')
         if self.detector.empty():
             raise RuntimeError('Face detection model not found.')

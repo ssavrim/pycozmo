@@ -11,7 +11,7 @@ from pycozmo.vision import FaceVision
 
 cv2 = pytest.importorskip("cv2")
 if not (hasattr(cv2, "CascadeClassifier") and hasattr(cv2, "face")):
-    pytest.skip("OpenCV with face detection and recognition (opencv-contrib-python) is not installed",
+    pytest.skip("OpenCV with face detection and recognition (opencv-contrib-python-headless) is not installed",
                 allow_module_level=True)
 
 

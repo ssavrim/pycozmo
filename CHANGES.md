@@ -3,6 +3,10 @@ Revision History
 
 Unreleased
 ----------
+- Depend on opencv-contrib-python-headless (4.12 to 5.x) in place of opencv-python: face
+    recognition and, from OpenCV 5, face detection need the contrib modules, and PyCozmo uses no
+    OpenCV window. Breaking: remove opencv-python from environments that had it, as both
+    provide the cv2 module.
 - Fix Client.lift_position: the lift_height_mm field of RobotState is the angle of the lift arm in
     radians, not a height; the position was read as a few millimeters. Breaking: the field is renamed
     to lift_height_rad (the encoded bytes are unchanged).

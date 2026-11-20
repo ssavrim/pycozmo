@@ -18,7 +18,7 @@ dependencies = [
     "numpy",
     "Pillow>=9.1",
     "flatbuffers>=2.0",
-    "opencv-python>=4.0.0",
+    "opencv-contrib-python-headless>=4.12,<6",
 ]
 keywords = ["ddl", "anki", "cozmo", "robot", "robotics"]
 classifiers = [
