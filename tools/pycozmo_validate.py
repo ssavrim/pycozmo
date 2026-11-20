@@ -42,7 +42,7 @@ import threading
 import time
 
 import pycozmo
-from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe
+from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, robot
 
 
 ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip")
@@ -55,11 +55,17 @@ class State:
         self.lock = threading.Lock()
         self.samples = []
 
+    @staticmethod
+    def lift_height_mm(pkt):
+        """ Lift height from RobotState. Despite its name, the ``lift_height_mm`` field is the arm angle in
+        radians (about -0.2 at rest, 0.7 fully up on firmware 2381). """
+        return robot.LIFT_PIVOT_HEIGHT.mm + robot.LIFT_ARM_LENGTH.mm * math.sin(pkt.lift_height_mm)
+
     def on_state(self, cli, pkt):
         del cli
         with self.lock:
             self.samples.append((time.monotonic(), pkt.pose_x, pkt.pose_y, pkt.pose_angle_rad, pkt.head_angle_rad,
-                                 pkt.lift_height_mm, pkt.lwheel_speed_mmps, pkt.rwheel_speed_mmps))
+                                 self.lift_height_mm(pkt), pkt.lwheel_speed_mmps, pkt.rwheel_speed_mmps))
             del self.samples[:-4000]
 
     def since(self, t0):
