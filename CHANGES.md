@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Fix the animation frame layout: keyframes whose trigger times fall in the same 1/30 s frame
+    share it (one frame per keyframe stretched clips and put silence between audio frames), and
+    frames are no longer sent in bursts while an animation is streamed.
 - Fix animation stream messages (docs/specs/animation-stream.md):
     AnimHead and AnimLift durations are 16-bit (the former variability byte was the high
     byte), so moves longer than 255 ms are no longer truncated; head/lift variability is

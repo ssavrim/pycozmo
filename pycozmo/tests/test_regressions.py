@@ -41,6 +41,11 @@ def test_animation_controller_keeps_a_lead_on_the_robot():
     assert ctrl.frame_sleeps() == 2                 # drain an excess
     ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=500 + ctrl.LEAD_SLACK + 1))
     assert ctrl.lead() == ctrl.LEAD_FRAMES
+    # No burst while an animation is streamed.
+    ctrl.streaming_animation = True
+    ctrl.frames_sent = 3
+    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=500 + 3 + 100))
+    assert ctrl.lead() < 0 and ctrl.frame_sleeps() == 1
 
 
 @pytest.mark.parametrize('shape', ['rectangle', 'chord', 'pieslice'])
@@ -222,3 +227,24 @@ def test_animation_ids_wrap_around_after_255():
         assert client._next_anim_id == 1
         client.play_anim_ppclip(clip)
         assert client._next_anim_id == 2
+
+
+def test_play_anim_ppclip_puts_keyframes_of_a_frame_together():
+    from types import SimpleNamespace
+    from pycozmo import client, protocol_encoder as pe
+    sent = []
+    cli = client.Client.__new__(client.Client)
+    cli._next_anim_id = 1
+    cli.anim_controller = SimpleNamespace(cancel_anim=lambda: None,
+                                          play_anim_frame=lambda a, i, p: sent.append((a, i, p)))
+    audio = [pe.OutputAudio(samples=bytes(744)) for _ in range(3)]
+    keyframes = {0: [audio[0]], 5: [pe.AnimHead(duration_ms=100, angle_deg=5)],
+                 12: [pe.AnimBody(speed=10), pe.AnimBody(speed=20)],
+                 33: [audio[1]], 66: [audio[2]]}
+    cli.play_anim_ppclip(SimpleNamespace(keyframes=keyframes))
+    # StartAnimation, frames 0, 1, 2, EndAnimation: no frame per keyframe, no empty frame in between.
+    assert len(sent) == 5
+    assert sent[1][0] is audio[0]
+    assert [type(p) for p in sent[1][2]] == [pe.AnimHead, pe.AnimBody]
+    assert sent[1][2][1].speed == 20
+    assert sent[2][0] is audio[1] and sent[3][0] is audio[2]
