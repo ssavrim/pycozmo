@@ -102,6 +102,12 @@ class NvResult(enum.Enum):
     NV_CORRUPT = -9
 
 
+class AnimEventType(enum.Enum):
+    DEVICE_AUDIO_TRIGGER = 0
+    ENERGY_DRAINCUBE_END = 1
+    TAPPED_BLOCK = 2
+
+
 class UpAxis(enum.Enum):
     XNegative = 0
     XPositive = 1
@@ -3984,18 +3990,16 @@ class TurnToRecordedHeading(Packet):
 class AnimHead(Packet):
 
     __slots__ = (
-        "_duration_ms",  # uint8
-        "_variability_deg",  # int8
+        "_duration_ms",  # uint16
         "_angle_deg",  # int8
     )
 
     def __init__(self,
                  duration_ms=0,
-                 variability_deg=0,
                  angle_deg=0):
         super().__init__(PacketType.COMMAND, packet_id=0x93)
+        # Time to reach the angle. Up to 65535 ms.
         self.duration_ms = duration_ms
-        self.variability_deg = variability_deg
         self.angle_deg = angle_deg
 
     @property
@@ -4004,15 +4008,7 @@ class AnimHead(Packet):
 
     @duration_ms.setter
     def duration_ms(self, value):
-        self._duration_ms = validate_integer("duration_ms", value, 0, 255)
-
-    @property
-    def variability_deg(self):
-        return self._variability_deg
-
-    @variability_deg.setter
-    def variability_deg(self, value):
-        self._variability_deg = validate_integer("variability_deg", value, -128, 127)
+        self._duration_ms = validate_integer("duration_ms", value, 0, 65535)
 
     @property
     def angle_deg(self):
@@ -4024,18 +4020,15 @@ class AnimHead(Packet):
 
     def __len__(self):
         return \
-            1 + \
-            1 + \
+            2 + \
             1
 
     def __repr__(self):
         return "{type}(" \
                "duration_ms={duration_ms}, " \
-               "variability_deg={variability_deg}, " \
                "angle_deg={angle_deg})".format(
                 type=type(self).__name__,
                 duration_ms=self._duration_ms,
-                variability_deg=self._variability_deg,
                 angle_deg=self._angle_deg)
 
     def to_bytes(self):
@@ -4044,8 +4037,7 @@ class AnimHead(Packet):
         return writer.dumps()
 
     def to_writer(self, writer):
-        writer.write(self._duration_ms, "B")
-        writer.write(self._variability_deg, "b")
+        writer.write(self._duration_ms, "H")
         writer.write(self._angle_deg, "b")
 
     @classmethod
@@ -4056,30 +4048,26 @@ class AnimHead(Packet):
 
     @classmethod
     def from_reader(cls, reader):
-        duration_ms = reader.read("B")
-        variability_deg = reader.read("b")
+        duration_ms = reader.read("H")
         angle_deg = reader.read("b")
         return cls(
             duration_ms=duration_ms,
-            variability_deg=variability_deg,
             angle_deg=angle_deg)
 
 
 class AnimLift(Packet):
 
     __slots__ = (
-        "_duration_ms",  # uint8
-        "_variability_mm",  # uint8
+        "_duration_ms",  # uint16
         "_height_mm",  # uint8
     )
 
     def __init__(self,
                  duration_ms=0,
-                 variability_mm=0,
                  height_mm=0):
         super().__init__(PacketType.COMMAND, packet_id=0x94)
+        # Time to reach the height. Up to 65535 ms.
         self.duration_ms = duration_ms
-        self.variability_mm = variability_mm
         self.height_mm = height_mm
 
     @property
@@ -4088,15 +4076,7 @@ class AnimLift(Packet):
 
     @duration_ms.setter
     def duration_ms(self, value):
-        self._duration_ms = validate_integer("duration_ms", value, 0, 255)
-
-    @property
-    def variability_mm(self):
-        return self._variability_mm
-
-    @variability_mm.setter
-    def variability_mm(self, value):
-        self._variability_mm = validate_integer("variability_mm", value, 0, 255)
+        self._duration_ms = validate_integer("duration_ms", value, 0, 65535)
 
     @property
     def height_mm(self):
@@ -4108,18 +4088,15 @@ class AnimLift(Packet):
 
     def __len__(self):
         return \
-            1 + \
-            1 + \
+            2 + \
             1
 
     def __repr__(self):
         return "{type}(" \
                "duration_ms={duration_ms}, " \
-               "variability_mm={variability_mm}, " \
                "height_mm={height_mm})".format(
                 type=type(self).__name__,
                 duration_ms=self._duration_ms,
-                variability_mm=self._variability_mm,
                 height_mm=self._height_mm)
 
     def to_bytes(self):
@@ -4128,8 +4105,7 @@ class AnimLift(Packet):
         return writer.dumps()
 
     def to_writer(self, writer):
-        writer.write(self._duration_ms, "B")
-        writer.write(self._variability_mm, "B")
+        writer.write(self._duration_ms, "H")
         writer.write(self._height_mm, "B")
 
     @classmethod
@@ -4140,13 +4116,63 @@ class AnimLift(Packet):
 
     @classmethod
     def from_reader(cls, reader):
-        duration_ms = reader.read("B")
-        variability_mm = reader.read("B")
+        duration_ms = reader.read("H")
         height_mm = reader.read("B")
         return cls(
             duration_ms=duration_ms,
-            variability_mm=variability_mm,
             height_mm=height_mm)
+
+
+class AnimEvent(Packet):
+
+    __slots__ = (
+        "_event_id",  # AnimEventType
+    )
+
+    def __init__(self,
+                 event_id=0):
+        super().__init__(PacketType.COMMAND, packet_id=0x95)
+        # Echoed back by the robot in AnimationEvent when played.
+        self.event_id = AnimEventType(event_id)
+
+    @property
+    def event_id(self) -> AnimEventType:
+        return self._event_id
+
+    @event_id.setter
+    def event_id(self, value: AnimEventType) -> None:
+        self._event_id = value
+        validate_integer("event_id", value.value, 0, 255)
+
+    def __len__(self):
+        return \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "event_id={event_id})".format(
+                type=type(self).__name__,
+                event_id=self._event_id)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._event_id.value, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        event_id = reader.read("B")
+        return cls(
+            event_id=event_id)
 
 
 class DisplayImage(Packet):
@@ -4256,15 +4282,17 @@ class AnimBody(Packet):
 
     __slots__ = (
         "_speed",  # int16
-        "_unknown",  # int16
+        "_curvature_radius_mm",  # int16
     )
 
     def __init__(self,
                  speed=0,
-                 unknown=0):
+                 curvature_radius_mm=32767):
         super().__init__(PacketType.COMMAND, packet_id=0x99)
+        # mm/s, or deg/s when turning in place.
         self.speed = speed
-        self.unknown = unknown
+        # 0x7fff drives straight, 0 turns in place, any other value drives an arc.
+        self.curvature_radius_mm = curvature_radius_mm
 
     @property
     def speed(self):
@@ -4275,12 +4303,12 @@ class AnimBody(Packet):
         self._speed = validate_integer("speed", value, -32768, 32767)
 
     @property
-    def unknown(self):
-        return self._unknown
+    def curvature_radius_mm(self):
+        return self._curvature_radius_mm
 
-    @unknown.setter
-    def unknown(self, value):
-        self._unknown = validate_integer("unknown", value, -32768, 32767)
+    @curvature_radius_mm.setter
+    def curvature_radius_mm(self, value):
+        self._curvature_radius_mm = validate_integer("curvature_radius_mm", value, -32768, 32767)
 
     def __len__(self):
         return \
@@ -4290,10 +4318,10 @@ class AnimBody(Packet):
     def __repr__(self):
         return "{type}(" \
                "speed={speed}, " \
-               "unknown={unknown})".format(
+               "curvature_radius_mm={curvature_radius_mm})".format(
                 type=type(self).__name__,
                 speed=self._speed,
-                unknown=self._unknown)
+                curvature_radius_mm=self._curvature_radius_mm)
 
     def to_bytes(self):
         writer = BinaryWriter()
@@ -4302,7 +4330,7 @@ class AnimBody(Packet):
 
     def to_writer(self, writer):
         writer.write(self._speed, "h")
-        writer.write(self._unknown, "h")
+        writer.write(self._curvature_radius_mm, "h")
 
     @classmethod
     def from_bytes(cls, buffer):
@@ -4313,10 +4341,10 @@ class AnimBody(Packet):
     @classmethod
     def from_reader(cls, reader):
         speed = reader.read("h")
-        unknown = reader.read("h")
+        curvature_radius_mm = reader.read("h")
         return cls(
             speed=speed,
-            unknown=unknown)
+            curvature_radius_mm=curvature_radius_mm)
 
 
 class EndAnimation(Packet):
@@ -6143,6 +6171,93 @@ class DockingStatus(Packet):
             status=status)
 
 
+class AnimationEvent(Packet):
+
+    __slots__ = (
+        "_timestamp",  # uint32
+        "_anim_id",  # uint8
+        "_event_id",  # AnimEventType
+    )
+
+    def __init__(self,
+                 timestamp=0,
+                 anim_id=0,
+                 event_id=0):
+        super().__init__(PacketType.COMMAND, packet_id=0xd5)
+        # Robot time in ms when the event was played.
+        self.timestamp = timestamp
+        # Tag of the animation, as sent with StartAnimation.
+        self.anim_id = anim_id
+        self.event_id = AnimEventType(event_id)
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    @timestamp.setter
+    def timestamp(self, value):
+        self._timestamp = validate_integer("timestamp", value, 0, 4294967295)
+
+    @property
+    def anim_id(self):
+        return self._anim_id
+
+    @anim_id.setter
+    def anim_id(self, value):
+        self._anim_id = validate_integer("anim_id", value, 0, 255)
+
+    @property
+    def event_id(self) -> AnimEventType:
+        return self._event_id
+
+    @event_id.setter
+    def event_id(self, value: AnimEventType) -> None:
+        self._event_id = value
+        validate_integer("event_id", value.value, 0, 255)
+
+    def __len__(self):
+        return \
+            4 + \
+            1 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "timestamp={timestamp}, " \
+               "anim_id={anim_id}, " \
+               "event_id={event_id})".format(
+                type=type(self).__name__,
+                timestamp=self._timestamp,
+                anim_id=self._anim_id,
+                event_id=self._event_id)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._timestamp, "L")
+        writer.write(self._anim_id, "B")
+        writer.write(self._event_id.value, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        timestamp = reader.read("L")
+        anim_id = reader.read("B")
+        event_id = reader.read("B")
+        return cls(
+            timestamp=timestamp,
+            anim_id=anim_id,
+            event_id=event_id)
+
+
 class ObjectUpAxisChanged(Packet):
 
     __slots__ = (
@@ -7817,6 +7932,7 @@ PACKETS_BY_ID = {
     0x92: TurnToRecordedHeading,  # 146
     0x93: AnimHead,  # 147
     0x94: AnimLift,  # 148
+    0x95: AnimEvent,  # 149
     0x97: DisplayImage,  # 151
     0x98: AnimBackpackLights,  # 152
     0x99: AnimBody,  # 153
@@ -7845,6 +7961,7 @@ PACKETS_BY_ID = {
     0xd0: ObjectConnectionState,  # 208
     0xd1: MotorCalibration,  # 209
     0xd3: DockingStatus,  # 211
+    0xd5: AnimationEvent,  # 213
     0xd7: ObjectUpAxisChanged,  # 215
     0xda: LiftLoad,  # 218
     0xdb: ButtonPressed,  # 219
@@ -7869,12 +7986,14 @@ PACKETS_BY_GROUP = {
         0x92,  # TurnToRecordedHeading
         0x93,  # AnimHead
         0x94,  # AnimLift
+        0x95,  # AnimEvent
         0x98,  # AnimBackpackLights
         0x99,  # AnimBody
         0x9a,  # EndAnimation
         0x9b,  # StartAnimation
         0xca,  # AnimationStarted
         0xcb,  # AnimationEnded
+        0xd5,  # AnimationEvent
     },
     "audio": {
         0x64,  # SetRobotVolume

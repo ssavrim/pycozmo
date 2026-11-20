@@ -135,11 +135,12 @@ ID                 Min     Max      Name
 0x8d	     	     0	     0		                              
 0x8e	     	   744	   744		OutputAudio                   
 0x8f	     	     0	     0		OutputSilence                     
-0x93	     	     3	     3		                              
-0x94	     	     3	     3		                              
+0x93	     	     3	     3		AnimHead                      
+0x94	     	     3	     3		AnimLift                      
+0x95	     	     1	     1		AnimEvent                     
 0x97	     	     4	   188	*	DisplayImage                  
 0x98	     	    10	    10		                              
-0x99	     	     4	     4		                              
+0x99	     	     4	     4		AnimBody                      
 0x9a	     	     0	     0		                              
 0x9b	     	     1	     1		                              
 0x9d	     	     1	     1		                              
@@ -166,6 +167,7 @@ ID                 Min     Max      Name
 0xd0	     	    13	    13		ObjectConnectionState         
 0xd1	     	     3	     3		                              
 0xd2	     	    44	    44		                              
+0xd5	     	     6	     6		AnimationEvent                
 0xd7	     	     9	     9		ObjectUpAxisChanged           
 0xec	     	     4	     4		                              
 0xed	     	    12	    12		BodyInfo                      

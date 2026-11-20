@@ -417,6 +417,15 @@ To play animations, `AnimationState` message have to be enabled first using the 
 Animations are controlled with the `StartAnimation`, `EndAnimation`, and `AbortAnimation` messages.
 
 Keyframes are transferred with the `AnimHead`, `AnimLift`, `AnimBody`, `AnimBackpackLights`, `RecordHeading`,
-`TurnToRecordedHeading`, and `OutputAudio` messages.
+`TurnToRecordedHeading`, `AnimEvent`, and `OutputAudio` messages.
+
+- `AnimHead` and `AnimLift` carry a 16-bit duration in milliseconds. Angle and height variability of original
+  keyframes is drawn on the host before sending.
+- `AnimBody` carries a speed and a curvature radius: `0x7fff` drives straight, `0` turns in place (speed in
+  degrees per second), any other value drives an arc. The robot computes the wheel speeds. A body motion ends with
+  `AnimBody(speed=0, curvature_radius_mm=0x7fff)`.
+- `AnimEvent` marks a moment of the animation. When the robot plays it, it sends back `AnimationEvent` with its
+  timestamp and the animation ID given in `StartAnimation`. `Client` dispatches `EvtAnimationEvent` for the
+  current animation.
    
 See `examples/anim.py` for example usage.

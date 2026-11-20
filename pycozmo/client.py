@@ -104,6 +104,7 @@ class Client(event.Dispatcher):
         self._clips = {}
         self._ppclips = {}
         self._next_anim_id = 1
+        self._current_anim_id = None    # type: Optional[int]
         self.animation_groups = {}
 
     def start(self) -> None:
@@ -117,6 +118,7 @@ class Client(event.Dispatcher):
         self.add_handler(protocol_encoder.ObjectAvailable, self._on_object_available)
         self.add_handler(protocol_encoder.ObjectConnectionState, self._on_object_connection_state)
         self.add_handler(protocol_encoder.DebugData, self._on_debug_data)
+        self.add_handler(protocol_encoder.AnimationEvent, self._on_animation_event)
         self.add_handler(event.EvtRobotPickedUpChange, self._on_robot_picked_up)
         self.add_handler(event.EvtRobotWheelsMovingChange, self._on_robot_moving)
         self.conn.start()
@@ -354,6 +356,14 @@ class Client(event.Dispatcher):
         self.tag = pkt.tag
         self.client_drop_count = pkt.client_drop_count
 
+    def _on_animation_event(self, cli, pkt: protocol_encoder.AnimationEvent):
+        del cli
+        # Ignore events of an animation other than the current one.
+        if self._current_anim_id is not None and pkt.anim_id != self._current_anim_id:
+            logger.debug("Ignoring %s of animation %d.", pkt.event_id.name, pkt.anim_id)
+            return
+        self.dispatch(event.EvtAnimationEvent, self, pkt.event_id, pkt.timestamp)
+
     def _on_object_available(self, cli, pkt: protocol_encoder.ObjectAvailable):
         del cli
         factory_id = pkt.factory_id
@@ -533,6 +543,7 @@ class Client(event.Dispatcher):
 
         # Start animation.
         pkt = protocol_encoder.StartAnimation(anim_id=self._next_anim_id)
+        self._current_anim_id = self._next_anim_id
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
         # The ID is one byte: wrap around (1-255) instead of failing after 255 animations.
         self._next_anim_id = self._next_anim_id % 255 + 1
