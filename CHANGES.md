@@ -4,7 +4,8 @@ Revision History
 Unreleased
 ----------
 - Fix Client.lift_position: the lift_height_mm field of RobotState is the angle of the lift arm in
-    radians, not a height; the position was read as a few millimeters.
+    radians, not a height; the position was read as a few millimeters. Breaking: the field is renamed
+    to lift_height_rad (the encoded bytes are unchanged).
 - Report the end of an animation from the frame count: the robot does not send AnimationEnded
     for animations with sound, so EvtAnimationCompleted was never dispatched. The AnimationEnded
     that answers the cancel of the previous animation no longer ends the next one.

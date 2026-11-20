@@ -672,7 +672,7 @@ PROTOCOL = Protocol(
             FloatArgument("lwheel_speed_mmps"),
             FloatArgument("rwheel_speed_mmps"),
             FloatArgument("head_angle_rad"),
-            FloatArgument("lift_height_mm"),
+            FloatArgument("lift_height_rad"),
             FloatArgument("accel_x"),
             FloatArgument("accel_y"),
             FloatArgument("accel_z"),

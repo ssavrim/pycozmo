@@ -169,7 +169,8 @@ Lift
 The head motor can be controlled directly, using the `DriveLift` and `SetLiftHeight` messages. `SetLiftHeight` is always
 followed by an `AcknowledgeAction` message before the lift start moving.
 
-The actual lift height can be read through the `lift_height_mm` field of the `RobotState` message. The `lift_inpos` flag
+The actual lift position can be read through the `lift_height_rad` field of the `RobotState` message. It is the angle of
+the lift arm in radians (`Client.lift_position` converts it to a height). The `lift_inpos` flag
 of the `status` field indicates whether the lift is in position or in motion.
 
 The motor can be stopped using the `StopAllMotors` message.

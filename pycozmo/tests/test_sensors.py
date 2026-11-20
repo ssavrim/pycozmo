@@ -92,10 +92,10 @@ def test_battery_percent_curve():
 
 
 def test_client_lift_position_from_the_arm_angle():
-    """ RobotState.lift_height_mm is the lift arm angle in radians (measured on a robot, firmware 2381). """
+    """ RobotState.lift_height_rad is the lift arm angle in radians (measured on a robot, firmware 2381). """
     client = pycozmo.Client()
     for angle, expected_mm in ((-0.2, 31.9), (0.0, 45.0), (0.7, 87.5)):
-        pkt = protocol_encoder.RobotState(lift_height_mm=angle, status=STILL, cliff_data_raw=[0] * 4)
+        pkt = protocol_encoder.RobotState(lift_height_rad=angle, status=STILL, cliff_data_raw=[0] * 4)
         client._on_robot_state(client, pkt)
         assert client.lift_position.height.mm == pytest.approx(expected_mm, abs=0.1)
         assert client.lift_position.angle.radians == pytest.approx(angle)
