@@ -42,7 +42,7 @@ class VisionTests(unittest.TestCase):
                 ready.set()
             vision = FaceVision(on_detection, face_dir=tmp)
             try:
-                vision.detector = Detector()
+                vision.detector = Detector()  # type: ignore[assignment]  # stub detector
                 vision.submit(Image.new('RGB', (100, 100)))
                 self.assertTrue(ready.wait(3))
                 self.assertEqual(results[0][:3], ([[10, 10, 30, 30]], 100, 100))
@@ -72,7 +72,7 @@ class VisionTests(unittest.TestCase):
                 patch('pycozmo.vision.logger.exception', side_effect=lambda *_args: logged.set()):
             vision = FaceVision(lambda *args: events.append(args))
             try:
-                vision.detector = BrokenDetector()
+                vision.detector = BrokenDetector()  # type: ignore[assignment]  # stub detector
                 vision.submit(Image.new('RGB', (100, 100)))
                 self.assertTrue(logged.wait(3))
                 self.assertEqual(events, [])
