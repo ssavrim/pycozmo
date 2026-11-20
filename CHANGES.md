@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Report the end of an animation from the frame count: the robot does not send AnimationEnded
+    for animations with sound, so EvtAnimationCompleted was never dispatched. The AnimationEnded
+    that answers the cancel of the previous animation no longer ends the next one.
 - Fix the animation frame layout: keyframes whose trigger times fall in the same 1/30 s frame
     share it (one frame per keyframe stretched clips and put silence between audio frames), and
     frames are no longer sent in bursts while an animation is streamed.
