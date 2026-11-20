@@ -226,8 +226,8 @@ Requirements
 ------------
 
 - Python 3.11 or newer.
-- Pillow, NumPy, FlatBuffers, dpkt and OpenCV (installed automatically).
-- Optionally, the OpenCV contrib modules (`opencv-contrib-python` in place of `opencv-python`) for face recognition.
+- Pillow, NumPy, FlatBuffers, dpkt and OpenCV with its contrib modules
+  (`opencv-contrib-python-headless`, installed automatically).
 
 Installation
 ------------
@@ -242,7 +242,6 @@ python -m venv .venv
 python -m pip install .
 ```
 
-For face recognition, install `opencv-contrib-python` in place of `opencv-python`.
 For development, see [CONTRIBUTING.md](CONTRIBUTING.md).
 The PyPI package named `pycozmo` may be an older upstream release and does not
 necessarily include this fork's changes.
@@ -335,8 +334,8 @@ commands motors. Applications must provide fresh observations, implement each
 action, stop on `halt`, and enforce movement safety themselves; this is a policy
 building block, not a complete autonomous controller.
 
-For local face and motion detection, OpenCV is a dependency of the package; face
-recognition also needs the contrib modules (`opencv-contrib-python`).
+For local face and motion detection and face recognition, OpenCV with its contrib
+modules (`opencv-contrib-python-headless`) is a dependency of the package.
 `pycozmo.vision.FaceVision(callback, face_dir=...)` accepts PIL camera frames via
 `submit`; the callback receives face rectangles, image dimensions, a monotonic
 timestamp, a recognized name or `None`, and a motion score. Call `close()` when

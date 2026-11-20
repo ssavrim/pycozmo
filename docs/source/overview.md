@@ -70,8 +70,8 @@ Requirements
 ------------
 
 - Python 3.11 or newer.
-- Pillow, NumPy, FlatBuffers, dpkt and OpenCV (installed automatically).
-- Optionally, the OpenCV contrib modules (`opencv-contrib-python` in place of `opencv-python`) for face recognition.
+- Pillow, NumPy, FlatBuffers, dpkt and OpenCV with its contrib modules
+  (`opencv-contrib-python-headless`, installed automatically).
 
 Installation
 ------------
@@ -86,7 +86,6 @@ python -m venv .venv
 python -m pip install .
 ```
 
-For face recognition, install `opencv-contrib-python` in place of `opencv-python`.
 For development, see [CONTRIBUTING.md](https://github.com/ssavrim/pycozmo/blob/master/CONTRIBUTING.md).
 The PyPI package named `pycozmo` may be an older upstream release and does not
 necessarily include this fork's changes.
