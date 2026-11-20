@@ -64,6 +64,19 @@ On `AnimationEvent`, `Client` dispatches `EvtAnimationEvent(cli, event_id, times
 `anim_id` is that of the current animation, or if no animation was started by the client;
 events of other animations are ignored.
 
+## Validation on a robot
+
+`tools/pycozmo_validate.py` plays these messages on a robot and measures the result with
+`RobotState` (see its help for the tests). Results with firmware 2381, body HW 5:
+
+| Item | Result |
+| --- | --- |
+| `AnimEvent` → `AnimationEvent` | Verified (`anim_energy_eat_01`, `ENERGY_DRAINCUBE_END`) |
+| `AnimBody` straight, 40 mm/s × 1.5 s | 56 mm for 60 mm, heading 0° |
+| `AnimBody` turn in place, 45 deg/s × 1 s | +41° for +45°: `speed` is in deg/s |
+| `AnimBody` arcs, 40 mm/s × 2 s | Positive radius turns left; distance 75–79 mm for 80 mm; odometry heading about 0.4 times `distance / radius` (radii 75 to 300 mm). Open: whether the robot's heading or its arc differs; to be measured on the floor (`--tests arcs`). The radius is sent unchanged. |
+| `AnimHead` / `AnimLift` longer than 255 ms | To be measured (`--tests head,lift`) |
+
 ## Uses of the events (informative)
 
 - `TAPPED_BLOCK`: in a reaction-speed game, the `timestamp` is the moment the robot taps;
