@@ -111,6 +111,11 @@ NV_RESULT = Enum("NvResult", members=[
     EnumMember("NV_LOOP", -8),
     EnumMember("NV_CORRUPT", -9),
 ])
+ANIM_EVENT = Enum("AnimEventType", members=[
+    EnumMember("DEVICE_AUDIO_TRIGGER", 0),
+    EnumMember("ENERGY_DRAINCUBE_END", 1),
+    EnumMember("TAPPED_BLOCK", 2),
+])
 UP_AXIS = Enum("UpAxis", members=[
     EnumMember("XNegative", 0),
     EnumMember("XPositive", 1),
@@ -271,6 +276,7 @@ PROTOCOL = Protocol(
         NV_ENTRY_TAG,
         NV_OPERATION,
         NV_RESULT,
+        ANIM_EVENT,
         UP_AXIS,
         OBJECT_TYPE,
         IMAGE_ENCODING,
@@ -489,14 +495,16 @@ PROTOCOL = Protocol(
         Command(0x91, "RecordHeading", group="anim"),
         Command(0x92, "TurnToRecordedHeading", group="anim"),
         Command(0x93, "AnimHead", group="anim", arguments=[
-            UInt8Argument("duration_ms"),
-            Int8Argument("variability_deg"),
+            UInt16Argument("duration_ms", description="Time to reach the angle. Up to 65535 ms."),
             Int8Argument("angle_deg"),
         ]),
         Command(0x94, "AnimLift", group="anim", arguments=[
-            UInt8Argument("duration_ms"),
-            UInt8Argument("variability_mm"),
+            UInt16Argument("duration_ms", description="Time to reach the height. Up to 65535 ms."),
             UInt8Argument("height_mm"),
+        ]),
+        Command(0x95, "AnimEvent", group="anim", arguments=[
+            EnumArgument("event_id", ANIM_EVENT, data_type=UInt8Argument(),
+                         description="Echoed back by the robot in AnimationEvent when played."),
         ]),
         Command(0x97, "DisplayImage", group="display", arguments=[
             VArrayArgument("image"),
@@ -506,8 +514,9 @@ PROTOCOL = Protocol(
                            description="Left, front, middle, back, and right."),
         ]),
         Command(0x99, "AnimBody", group="anim", arguments=[
-            Int16Argument("speed"),
-            Int16Argument("unknown"),
+            Int16Argument("speed", description="mm/s, or deg/s when turning in place."),
+            Int16Argument("curvature_radius_mm", default=0x7fff,
+                          description="0x7fff drives straight, 0 turns in place, any other value drives an arc."),
         ]),
         Command(0x9a, "EndAnimation", group="anim"),
         Command(0x9b, "StartAnimation", group="anim", arguments=[
@@ -611,6 +620,11 @@ PROTOCOL = Protocol(
         Command(0xd3, "DockingStatus", group="docking", arguments=[
             UInt32Argument("timestamp"),
             UInt8Argument("status"),
+        ]),
+        Command(0xd5, "AnimationEvent", group="anim", arguments=[
+            UInt32Argument("timestamp", description="Robot time in ms when the event was played."),
+            UInt8Argument("anim_id", description="Tag of the animation, as sent with StartAnimation."),
+            EnumArgument("event_id", ANIM_EVENT, data_type=UInt8Argument()),
         ]),
         Command(0xd7, "ObjectUpAxisChanged", group="objects", arguments=[
             UInt32Argument("timestamp"),

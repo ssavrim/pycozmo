@@ -6,9 +6,10 @@ Animation clip representation, reading, and preprocessing.
 
 import math
 import os
+import random
 import time
 from collections import defaultdict
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from PIL import Image
 import numpy as np
@@ -19,11 +20,15 @@ from . import image_encoder
 from . import lights
 from . import procedural_face
 from . import protocol_encoder
-from . import robot
 from .json_loader import find_file, load_json_file
 
 
 __all__ = [
+    "BODY_STRAIGHT_RADIUS_MM",
+    "BODY_TURN_IN_PLACE_RADIUS_MM",
+    "MAX_BODY_SPEED_MMPS",
+    "MAX_BODY_TURN_SPEED_DEGPS",
+
     "PreprocessedClip",
     "AnimationGroupMember",
     "AnimationGroup",
@@ -32,6 +37,50 @@ __all__ = [
     "load_cube_animation_groups",
     "load_backpack_light_patterns"
 ]
+
+
+#: AnimBody curvature radius that drives straight.
+BODY_STRAIGHT_RADIUS_MM = 0x7fff
+#: AnimBody curvature radius that turns in place (speed in deg/s).
+BODY_TURN_IN_PLACE_RADIUS_MM = 0
+#: Speed limit of straight and arc motions (docs/specs/animation-stream.md).
+MAX_BODY_SPEED_MMPS = 220
+#: Speed limit of turns in place (docs/specs/animation-stream.md).
+MAX_BODY_TURN_SPEED_DEGPS = 300
+
+
+def _clamp(value: int, low: int, high: int) -> int:
+    return max(low, min(high, value))
+
+
+def _vary(value: int, variability: int, rng: Optional[random.Random]) -> int:
+    """Draw from [value - variability, value + variability]."""
+    if variability <= 0:
+        return value
+    return (rng or random).randint(value - variability, value + variability)
+
+
+def body_motion_command(radius_mm: Union[float, str], speed: int) -> Tuple[int, int]:
+    """
+    Convert a BodyMotion keyframe to the (speed, curvature_radius_mm) pair of AnimBody.
+
+    The robot drives arcs itself. Speeds are limited to 220 mm/s straight or on an
+    arc and 300 deg/s when turning in place (docs/specs/animation-stream.md).
+    """
+    if isinstance(radius_mm, str):
+        if radius_mm == "STRAIGHT":
+            return _clamp(speed, -MAX_BODY_SPEED_MMPS, MAX_BODY_SPEED_MMPS), BODY_STRAIGHT_RADIUS_MM
+        if radius_mm in ("TURN_IN_PLACE", "POINT_TURN"):
+            return (_clamp(speed, -MAX_BODY_TURN_SPEED_DEGPS, MAX_BODY_TURN_SPEED_DEGPS),
+                    BODY_TURN_IN_PLACE_RADIUS_MM)
+        radius_mm = float(radius_mm)
+    # Values beyond int16 become straight (0x7fff) or the minimum.
+    radius = int(radius_mm)
+    if radius >= 0x8000:
+        radius = BODY_STRAIGHT_RADIUS_MM
+    elif radius < -0x8000:
+        radius = -0x8000
+    return _clamp(speed, -MAX_BODY_SPEED_MMPS, MAX_BODY_SPEED_MMPS), radius
 
 
 class PreprocessedClip(object):
@@ -53,23 +102,26 @@ class PreprocessedClip(object):
         return im
 
     @classmethod
-    def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types=None) -> "PreprocessedClip":
-        """Preprocess all tracks, or only keyframes of the supplied types."""
+    def from_anim_clip(cls, clip: anim_encoder.AnimClip, *, allowed_types=None,
+                       rng: Optional[random.Random] = None) -> "PreprocessedClip":
+        """
+        Preprocess all tracks, or only keyframes of the supplied types.
+
+        ``rng`` draws head and lift variability (the module generator by default).
+        """
         keyframes = defaultdict(list)   # type: Dict[int, List[protocol_encoder.Packet]]
         for keyframe in clip.keyframes:
             if allowed_types is not None and not isinstance(keyframe, allowed_types):
                 continue
             if isinstance(keyframe, anim_encoder.AnimHeadAngle):
-                # FIXME: Why can duration be larger than 255?
-                pkt = protocol_encoder.AnimHead(duration_ms=min(keyframe.duration_ms, 255),
-                                                variability_deg=keyframe.variability_deg,
-                                                angle_deg=keyframe.angle_deg)
+                angle = _vary(keyframe.angle_deg, keyframe.variability_deg, rng)
+                pkt = protocol_encoder.AnimHead(duration_ms=_clamp(keyframe.duration_ms, 0, 0xffff),
+                                                angle_deg=_clamp(angle, -128, 127))
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimLiftHeight):
-                # FIXME: Why can duration be larger than 255?
-                pkt = protocol_encoder.AnimLift(duration_ms=min(keyframe.duration_ms, 255),
-                                                variability_mm=keyframe.variability_mm,
-                                                height_mm=keyframe.height_mm)
+                height = _vary(keyframe.height_mm, keyframe.variability_mm or 0, rng)
+                pkt = protocol_encoder.AnimLift(duration_ms=_clamp(keyframe.duration_ms, 0, 0xffff),
+                                                height_mm=_clamp(height, 0, 255))
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimRecordHeading):
                 pkt = protocol_encoder.RecordHeading()
@@ -78,18 +130,12 @@ class PreprocessedClip(object):
                 pkt = protocol_encoder.TurnToRecordedHeading()
                 keyframes[keyframe.trigger_time_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimBodyMotion):
-                if keyframe.radius_mm == "STRAIGHT":
-                    pkt = protocol_encoder.AnimBody(speed=keyframe.speed, unknown=32767)
-                elif keyframe.radius_mm == "TURN_IN_PLACE":
-                    pkt = protocol_encoder.TurnInPlaceAtSpeed(wheel_speed_mmps=keyframe.speed,
-                                                              direction=math.copysign(1.0, keyframe.speed))
-                else:
-                    assert isinstance(keyframe.radius_mm, float)
-                    vl = keyframe.speed * (keyframe.radius_mm - robot.TRACK_WIDTH.mm / 2.0)
-                    vr = keyframe.speed * (keyframe.radius_mm + robot.TRACK_WIDTH.mm / 2.0)
-                    pkt = protocol_encoder.DriveWheels(lwheel_speed_mmps=vl, rwheel_speed_mmps=vr)
+                # The robot drives straight, in place, or on an arc from (speed, radius).
+                speed, radius = body_motion_command(keyframe.radius_mm, keyframe.speed)
+                pkt = protocol_encoder.AnimBody(speed=speed, curvature_radius_mm=radius)
                 keyframes[keyframe.trigger_time_ms].append(pkt)
-                pkt = protocol_encoder.DriveWheels()
+                # Stop at the end of the keyframe.
+                pkt = protocol_encoder.AnimBody(speed=0, curvature_radius_mm=BODY_STRAIGHT_RADIUS_MM)
                 keyframes[keyframe.trigger_time_ms + keyframe.duration_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimBackpackLights):
                 left = lights.Color(rgb=(keyframe.left.red, keyframe.left.green, keyframe.left.blue))
@@ -119,8 +165,14 @@ class PreprocessedClip(object):
                 # TODO
                 pass
             elif isinstance(keyframe, anim_encoder.AnimEvent):
-                # TODO
-                pass
+                # Sent in the stream; the robot reports it back with AnimationEvent when played.
+                try:
+                    event_type = protocol_encoder.AnimEventType[keyframe.event_id]
+                except KeyError:
+                    logger.warning("Ignoring unknown animation event '%s' in clip '%s'.",
+                                   keyframe.event_id, clip.name)
+                    continue
+                keyframes[keyframe.trigger_time_ms].append(protocol_encoder.AnimEvent(event_id=event_type))
             else:
                 raise RuntimeError("Unexpected keyframe type '{}'".format(type(keyframe)))
         ppclip = cls(keyframes=keyframes)

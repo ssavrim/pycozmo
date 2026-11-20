@@ -3,6 +3,15 @@ Revision History
 
 Unreleased
 ----------
+- Fix animation stream messages (docs/specs/animation-stream.md):
+    AnimHead and AnimLift durations are 16-bit (the former variability byte was the high
+    byte), so moves longer than 255 ms are no longer truncated; head/lift variability is
+    drawn on the host. AnimBody's second field is the curvature radius: body motions are
+    sent as-is (straight, in place, or arc) and stopped at the end, instead of host-computed
+    wheel speeds with a wrong arc formula. Breaking: AnimHead/AnimLift lose the
+    variability argument and AnimBody.unknown becomes curvature_radius_mm.
+- Add AnimEvent (0x95) and AnimationEvent (0xd5); stream event keyframes and dispatch
+    EvtAnimationEvent when the robot plays them.
 - Require Python 3.12 or later; add uv project management and Python 3.12/3.13/3.14 CI.
 - Correct procedural face rendering for inverted shapes in original animations.
 - Clamp u-law output to valid bytes and decode PCM as little-endian.
