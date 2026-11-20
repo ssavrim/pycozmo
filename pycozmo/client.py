@@ -5,7 +5,7 @@ Cozmo protocol client and high-level API.
 """
 
 from threading import Event, Lock
-from typing import Optional, Tuple
+from typing import Any
 import json
 import time
 import io
@@ -13,8 +13,9 @@ import io
 import numpy as np
 from PIL import Image
 
-from . import logger, logger_robot, logger_animation
+from .logger import logger, logger_robot, logger_animation
 from . import protocol_encoder
+from . import protocol_utils
 from . import event
 from . import camera
 from . import object
@@ -43,8 +44,8 @@ class Client(event.Dispatcher):
     """ Cozmo protocol client and high-level API class. """
 
     def __init__(self,
-                 robot_addr: Optional[Tuple[str, int]] = None,
-                 protocol_log_messages: Optional[list] = None,
+                 robot_addr: tuple[str, int] | None = None,
+                 protocol_log_messages: list | None = None,
                  auto_initialize: bool = True,
                  enable_animations: bool = True,
                  enable_procedural_face: bool = True) -> None:
@@ -60,11 +61,15 @@ class Client(event.Dispatcher):
         self.anim_controller.enable_animations(auto_initialize and enable_animations)
         self.anim_controller.enable_procedural_face(auto_initialize and enable_animations and enable_procedural_face)
 
-        self.serial_number_head = None
-        self.robot_fw_sig = None
-        self.serial_number = None
-        self.body_hw_version = None
-        self.body_color = None
+        self.serial_number_head: int | None = None
+        self.robot_fw_sig: dict[str, Any] | None = None
+        self.serial_number: int | None = None
+        self.body_hw_version: int | None = None
+        self.body_color: protocol_encoder.BodyColor | None = None
+        # Camera parameters.
+        self.camera_config: camera.CameraConfig | None = None
+        # Saved object IDs.
+        self.saved_objects: list[int] = []
         # Robot state
         # Heading in X-Y plane.
         self.pose_frame_id = 0
@@ -89,10 +94,10 @@ class Client(event.Dispatcher):
         self.tag = 0
         self.client_drop_count = 0
         # Camera state
-        self.last_image_timestamp = None
+        self.last_image_timestamp: int | None = None
         # Object state
-        self.available_objects = dict()
-        self.connected_objects = dict()
+        self.available_objects: dict[int, object.Object] = dict()
+        self.connected_objects: dict[int, dict[str, Any]] = dict()
         self._cube_light_lock = Lock()
         # Filters
         self.packet_type_filter = filter.Filter()
@@ -100,13 +105,13 @@ class Client(event.Dispatcher):
         self.packet_id_filter = filter.Filter()
         self._reset_partial_state()
         # Animations
-        self._clip_metadata = {}
-        self._clips = {}
-        self._ppclips = {}
+        self._clip_metadata: dict[str, anim_encoder.ClipMetadata] = {}
+        self._clips: dict[str, anim_encoder.AnimClip] = {}
+        self._ppclips: dict[str, anim.PreprocessedClip] = {}
         self._next_anim_id = 1
-        self._current_anim_id = None    # type: Optional[int]
-        self.animation_groups = {}
-        self._anim_cooldowns = {}   # clip name -> end of cooldown (time.monotonic)
+        self._current_anim_id: int | None = None
+        self.animation_groups: dict[str, anim.AnimationGroup] = {}
+        self._anim_cooldowns: dict[str, float] = {}   # clip name -> end of cooldown (time.monotonic)
 
     def start(self) -> None:
         logger.debug("Starting client...")
@@ -120,6 +125,7 @@ class Client(event.Dispatcher):
         self.add_handler(protocol_encoder.ObjectConnectionState, self._on_object_connection_state)
         self.add_handler(protocol_encoder.DebugData, self._on_debug_data)
         self.add_handler(protocol_encoder.AnimationEvent, self._on_animation_event)
+        self.add_handler(protocol_encoder.NvStorageOpResult, self._on_nv_storage_op_result)
         self.add_handler(event.EvtRobotPickedUpChange, self._on_robot_picked_up)
         self.add_handler(event.EvtRobotWheelsMovingChange, self._on_robot_moving)
         self.conn.start()
@@ -142,13 +148,17 @@ class Client(event.Dispatcher):
         self._robot_ready.clear()
         self.conn.disconnect()
 
-    def _enable_robot(self):
+    def _enable_robot(self) -> None:
         # Enable
         pkt = protocol_encoder.Enable()
         self.conn.send(pkt)
         self.conn.send(pkt)  # This repetition seems to trigger BodyInfo
 
-    def _initialize_robot(self):
+    def _initialize_robot(self) -> None:
+        # Get camera configuration
+        pkt: protocol_encoder.Packet = protocol_encoder.NvStorageOp(
+            tag=protocol_encoder.NvEntryTag.NVEntry_CameraCalib, length=1, op=protocol_encoder.NvOperation.NVOP_READ)
+        self.conn.send(pkt)
         # Set world frame origin to (0,0,0), frame ID to 0, and origin ID to 1.
         pkt = protocol_encoder.SetOrigin()
         self.conn.send(pkt)
@@ -164,39 +174,34 @@ class Client(event.Dispatcher):
         self._robot_ready.set()
         self.dispatch(event.EvtRobotReady, self)
 
-    def _on_hardware_info(self, cli, pkt: protocol_encoder.HardwareInfo):
+    def _on_hardware_info(self, cli: Any, pkt: protocol_encoder.HardwareInfo) -> None:
         del cli
         self.serial_number_head = pkt.serial_number_head
 
-    def _on_firmware_signature(self, cli, pkt: protocol_encoder.FirmwareSignature):
+    def _on_firmware_signature(self, cli: Any, pkt: protocol_encoder.FirmwareSignature) -> None:
         del cli
-        self.robot_fw_sig = json.loads(pkt.signature)
-        logger.info("Firmware version %s.", self.robot_fw_sig["version"])
-        if self.robot_fw_sig.get("build") == "FACTORY":
+        fw_sig = json.loads(pkt.signature)
+        self.robot_fw_sig = fw_sig
+        logger.info("Firmware version %s.", fw_sig["version"])
+        if fw_sig.get("build") == "FACTORY":
             logger.warning("Factory/recovery firmware detected. Functionality is degraded.")
-        elif self.robot_fw_sig["version"] < protocol_declaration.FIRMWARE_VERSION:
+        elif fw_sig["version"] < protocol_declaration.FIRMWARE_VERSION:
             logger.warning(
                 "Old firmware detected. PyCozmo works best with v{}. Functionality may be degraded.".format(
                     protocol_declaration.FIRMWARE_VERSION))
         self._enable_robot()
 
-    def _on_body_info(self, cli, pkt: protocol_encoder.BodyInfo):
+    def _on_body_info(self, cli: Any, pkt: protocol_encoder.BodyInfo) -> None:
         del cli
         self.serial_number = pkt.serial_number
         self.body_hw_version = pkt.body_hw_version
         self.body_color = pkt.body_color
         logger.info("Body S/N 0x%08x, HW version %i, color %i.",
-                    self.serial_number, self.body_hw_version, self.body_color.value)
+                    pkt.serial_number, pkt.body_hw_version, pkt.body_color.value)
         if self.auto_initialize:
             self._initialize_robot()
         self._robot_found.set()
         self.dispatch(event.EvtRobotFound, self)
-
-    def wait_for(self, evt, timeout: Optional[float] = None):
-        e = Event()
-        self.add_handler(evt, lambda cli: e.set(), one_shot=True)
-        if not e.wait(timeout):
-            raise exception.Timeout("Timeout waiting for event {}".format(evt))
 
     def wait_for_robot(self, timeout: float = 5.0) -> None:
         """Wait for initialization, including events that arrived before this call.
@@ -209,17 +214,17 @@ class Client(event.Dispatcher):
             message = "Failed to initialize Cozmo." if self.auto_initialize else "Failed to connect to Cozmo."
             raise exception.ConnectionTimeout(message)
 
-    def _reset_partial_state(self):
-        self._partial_image_timestamp = None
-        self._partial_data = None
-        self._partial_image_id = None
+    def _reset_partial_state(self) -> None:
+        self._partial_image_timestamp: int | None = None
+        self._partial_data: np.ndarray | None = None
+        self._partial_image_id: int | None = None
         self._partial_invalid = False
         self._partial_size = 0
-        self._partial_image_encoding = None
-        self._partial_image_resolution = None
+        self._partial_image_encoding: protocol_encoder.ImageEncoding | None = None
+        self._partial_image_resolution: protocol_encoder.ImageResolution | None = None
         self._last_chunk_id = -1
 
-    def _on_image_chunk(self, cli, pkt: protocol_encoder.ImageChunk):
+    def _on_image_chunk(self, cli: Any, pkt: protocol_encoder.ImageChunk) -> None:
         del cli
         if self._partial_image_id is not None and pkt.chunk_id == 0:
             if not self._partial_invalid:
@@ -251,6 +256,9 @@ class Client(event.Dispatcher):
             self._partial_invalid = True
             return
 
+        if self._partial_data is None:
+            # No image in progress.
+            return
         offset = self._partial_size
         self._partial_data[offset:offset + len(pkt.data)] = np.frombuffer(pkt.data, dtype=np.uint8)
         self._partial_size += len(pkt.data)
@@ -260,7 +268,10 @@ class Client(event.Dispatcher):
             self._process_completed_image()
             self._reset_partial_state()
 
-    def _process_completed_image(self):
+    def _process_completed_image(self) -> None:
+        if self._partial_data is None or self._partial_image_resolution is None:
+            # No image in progress.
+            return
         data = self._partial_data[0:self._partial_size]
 
         # The first byte of the image is whether or not it is in color
@@ -276,7 +287,7 @@ class Client(event.Dispatcher):
             else:
                 data = camera.minigray_to_jpeg(data, width, height)
 
-        image = Image.open(io.BytesIO(data)).convert('RGB')
+        image = Image.open(io.BytesIO(data.tobytes())).convert('RGB')
 
         # Color images need to be resized to the proper resolution
         if is_color_image:
@@ -287,7 +298,7 @@ class Client(event.Dispatcher):
         self.last_image_timestamp = self._partial_image_timestamp
         self.dispatch(event.EvtNewRawCameraImage, self, image)
 
-    def _on_robot_state(self, cli, pkt: protocol_encoder.RobotState):
+    def _on_robot_state(self, cli: Any, pkt: protocol_encoder.RobotState) -> None:
         del cli
         self.pose_frame_id = pkt.pose_frame_id
         self.pose = util.Pose(pkt.pose_x, pkt.pose_y, pkt.pose_z,
@@ -329,13 +340,13 @@ class Client(event.Dispatcher):
             self.dispatch(event.EvtRobotTapped, self)
 
     @property
-    def battery_percent(self) -> Optional[int]:
+    def battery_percent(self) -> int | None:
         """ Indicative charge in %, from the battery voltage; None on the charger or if unknown. """
         if self.robot_status & robot.RobotStatusFlag.IS_ON_CHARGER:
             return None
         return sensors.estimate_battery_percent(self.battery_voltage)
 
-    def _on_robot_picked_up(self, cli, state):
+    def _on_robot_picked_up(self, cli: Any, state: bool) -> None:
         del cli
         if state:
             self.robot_picked_up = True
@@ -346,10 +357,10 @@ class Client(event.Dispatcher):
                 pose_frame_id=self.pose_frame_id + 1, pose_origin_id=self.pose.origin_id + 1)
             self.conn.send(pkt)
 
-    def _on_robot_moving(self, cli, state):
+    def _on_robot_moving(self, cli: Any, state: bool) -> None:
         self.robot_moving = state
 
-    def _on_animation_state(self, cli, pkt: protocol_encoder.AnimationState):
+    def _on_animation_state(self, cli: Any, pkt: protocol_encoder.AnimationState) -> None:
         del cli
         self.num_anim_bytes_played = pkt.num_anim_bytes_played
         self.num_audio_frames_played = pkt.num_audio_frames_played
@@ -357,7 +368,7 @@ class Client(event.Dispatcher):
         self.tag = pkt.tag
         self.client_drop_count = pkt.client_drop_count
 
-    def _on_animation_event(self, cli, pkt: protocol_encoder.AnimationEvent):
+    def _on_animation_event(self, cli: Any, pkt: protocol_encoder.AnimationEvent) -> None:
         del cli
         # Ignore events of an animation other than the current one.
         if self._current_anim_id is not None and pkt.anim_id != self._current_anim_id:
@@ -365,7 +376,7 @@ class Client(event.Dispatcher):
             return
         self.dispatch(event.EvtAnimationEvent, self, pkt.event_id, pkt.timestamp)
 
-    def _on_object_available(self, cli, pkt: protocol_encoder.ObjectAvailable):
+    def _on_object_available(self, cli: Any, pkt: protocol_encoder.ObjectAvailable) -> None:
         del cli
         factory_id = pkt.factory_id
         object_type = protocol_encoder.ObjectType(pkt.object_type)
@@ -374,7 +385,7 @@ class Client(event.Dispatcher):
             self.available_objects[factory_id] = obj
             logger.debug("Object of type %s with S/N 0x%08x available.", str(obj.object_type), obj.factory_id)
 
-    def _on_object_connection_state(self, cli, pkt: protocol_encoder.ObjectConnectionState):
+    def _on_object_connection_state(self, cli: Any, pkt: protocol_encoder.ObjectConnectionState) -> None:
         del cli
         if pkt.connected:
             # Connected
@@ -412,13 +423,36 @@ class Client(event.Dispatcher):
         """Enable or disable ObjectAccel packets for a connected object ID."""
         self.conn.send(protocol_encoder.StreamObjectAccel(object_id=object_id, enable=enable))
 
-    def _on_debug_data(self, cli, pkt: protocol_encoder.DebugData):
+    def _on_debug_data(self, cli: Any, pkt: protocol_encoder.DebugData) -> None:
         del cli
         msg = robot_debug.get_debug_message(pkt.name_id, pkt.format_id, pkt.args)
         logger_robot.log(robot_debug.get_log_level(pkt.level), msg)
 
+    def _on_nv_storage_op_result(self, cli: Any, pkt: protocol_encoder.NvStorageOpResult) -> None:
+        logger.debug("NV storage operation result: {}".format(pkt))
+        if pkt.op == protocol_encoder.NvOperation.NVOP_READ:
+            if pkt.result == protocol_encoder.NvResult.NV_OKAY:
+                if pkt.tag == protocol_encoder.NvEntryTag.NVEntry_CameraCalib and len(pkt.data) == 56:
+                    values = protocol_utils.BinaryReader(pkt.data).read_farray("f", 14)
+                    self.camera_config = camera.CameraConfig(
+                        values[0], values[1],
+                        values[2], values[3],
+                        57.82, 45.0, 1, 67, 0.1, 3.984375)
+                    # Get saved cube IDs
+                    req = protocol_encoder.NvStorageOp(
+                        tag=protocol_encoder.NvEntryTag.NVEntry_SavedCubeIDs, length=28,
+                        op=protocol_encoder.NvOperation.NVOP_READ)
+                    self.conn.send(req)
+                elif pkt.tag == protocol_encoder.NvEntryTag.NVEntry_SavedCubeIDs and len(pkt.data) == 28:
+                    values = protocol_utils.BinaryReader(pkt.data).read_farray("L", 7)
+                    self.saved_objects = [value for value in values[-3:] if value]
+                    logger.debug("Saved cube IDs: {}".format(
+                        ", ".join("0x{:08x}".format(i) for i in self.saved_objects)))
+                    # Remove handler.
+                    self.del_handler(protocol_encoder.NvStorageOpResult, self._on_nv_storage_op_result)
+
     def set_head_angle(self, angle: float, accel: float = 10.0, max_speed: float = 10.0,
-                       duration: float = 0.0):
+                       duration: float = 0.0) -> None:
         pkt = protocol_encoder.SetHeadAngle(angle_rad=angle, accel_rad_per_sec2=accel,
                                             max_speed_rad_per_sec=max_speed, duration_sec=duration)
         self.conn.send(pkt)
@@ -428,7 +462,7 @@ class Client(event.Dispatcher):
         self.conn.send(pkt)
 
     def set_lift_height(self, height: float, accel: float = 10.0, max_speed: float = 10.0,
-                        duration: float = 0.0):
+                        duration: float = 0.0) -> None:
         pkt = protocol_encoder.SetLiftHeight(height_mm=height, accel_rad_per_sec2=accel,
                                              max_speed_rad_per_sec=max_speed, duration_sec=duration)
         self.conn.send(pkt)
@@ -438,8 +472,8 @@ class Client(event.Dispatcher):
         self.conn.send(pkt)
 
     def drive_wheels(self, lwheel_speed: float, rwheel_speed: float,
-                     lwheel_acc: Optional[float] = 0.0, rwheel_acc: Optional[float] = 0.0,
-                     duration: Optional[float] = None) -> None:
+                     lwheel_acc: float | None = 0.0, rwheel_acc: float | None = 0.0,
+                     duration: float | None = None) -> None:
         pkt = protocol_encoder.DriveWheels(lwheel_speed_mmps=lwheel_speed, rwheel_speed_mmps=rwheel_speed,
                                            lwheel_accel_mmps2=lwheel_acc, rwheel_accel_mmps2=rwheel_acc)
         self.conn.send(pkt)
@@ -458,7 +492,7 @@ class Client(event.Dispatcher):
             pose = util.Pose(self.pose.position.x, self.pose.position.y,
                              self.pose.position.z, angle_z=self.pose.rotation.angle_z).define_pose_relative_this(pose)
 
-        pkt = protocol_encoder.AppendPathSegLine(
+        pkt: protocol_encoder.Packet = protocol_encoder.AppendPathSegLine(
             from_x=self.pose.position.x, from_y=self.pose.position.y,
             to_x=pose.position.x, to_y=pose.position.y,
             speed_mmps=100.0, accel_mmps2=20.0, decel_mmps2=20.0)
@@ -474,23 +508,28 @@ class Client(event.Dispatcher):
 
         e = Event()
 
-        def event_wait(_, pkt2: protocol_encoder.PathFollowingEvent):
+        def event_wait(_: Any, pkt2: protocol_encoder.PathFollowingEvent) -> None:
             if pkt2.event_type != protocol_encoder.PathEventType.PATH_STARTED:
                 e.set()
 
         self.add_handler(protocol_encoder.PathFollowingEvent, event_wait)
         e.wait()
 
-    def set_backpack_lights(self, left_light, front_light, center_light, rear_light, right_light) -> None:
-        pkt = protocol_encoder.LightStateCenter(states=(front_light, center_light, rear_light))
+    def set_backpack_lights(self,
+                            left_light: protocol_encoder.LightState,
+                            front_light: protocol_encoder.LightState,
+                            center_light: protocol_encoder.LightState,
+                            rear_light: protocol_encoder.LightState,
+                            right_light: protocol_encoder.LightState) -> None:
+        pkt: protocol_encoder.Packet = protocol_encoder.LightStateCenter(states=(front_light, center_light, rear_light))
         self.conn.send(pkt)
         pkt = protocol_encoder.LightStateSide(states=(left_light, right_light))
         self.conn.send(pkt)
 
-    def set_center_backpack_lights(self, light) -> None:
+    def set_center_backpack_lights(self, light: protocol_encoder.LightState) -> None:
         self.set_backpack_lights(lights.off_light, light, light, light, lights.off_light)
 
-    def set_all_backpack_lights(self, light) -> None:
+    def set_all_backpack_lights(self, light: protocol_encoder.LightState) -> None:
         self.set_backpack_lights(light, light, light, light, light)
 
     def set_backpack_lights_off(self) -> None:
@@ -504,16 +543,23 @@ class Client(event.Dispatcher):
     def enable_camera(self, enable: bool = True, color: bool = False) -> None:
         """ Enable or disable camera image streaming in color or grayscale. """
         image_send_mode = protocol_encoder.ImageSendMode.Stream if enable else protocol_encoder.ImageSendMode.Off
-        pkt = protocol_encoder.EnableCamera(image_send_mode=image_send_mode)
+        pkt: protocol_encoder.Packet = protocol_encoder.EnableCamera(image_send_mode=image_send_mode)
         self.conn.send(pkt)
         pkt = protocol_encoder.EnableColorImages(enable=color)
         self.conn.send(pkt)
 
     def clear_screen(self) -> None:
-        pkt = protocol_encoder.DisplayImage(image=b"\x3f\x3f")
-        self.anim_controller.display_image(pkt)
+        """ Clear the screen and resume procedural face, if enabled. """
+        self.anim_controller.clear_screen()
 
-    def display_image(self, im: Image, duration: Optional[float] = None) -> None:
+    def display_image(self, im: Image.Image, duration: float | None = None) -> None:
+        """
+        Display a 128x32 binary image on the robot screen.
+
+        Procedural face, if enabled, is paused while the image is shown. If duration is given, the image is shown
+        for duration seconds and the screen is cleared. Otherwise, the image is shown until clear_screen() is called
+        or another image is displayed.
+        """
         encoder = image_encoder.ImageEncoder(im)
         buf = bytes(encoder.encode())
         pkt = protocol_encoder.DisplayImage(image=buf)
@@ -543,7 +589,7 @@ class Client(event.Dispatcher):
         self.cancel_anim()
 
         # Start animation.
-        pkt = protocol_encoder.StartAnimation(anim_id=self._next_anim_id)
+        pkt: protocol_encoder.Packet = protocol_encoder.StartAnimation(anim_id=self._next_anim_id)
         self._current_anim_id = self._next_anim_id
         self.anim_controller.play_anim_frame(None, None, (pkt, ))
         # The ID is one byte: wrap around (1-255) instead of failing after 255 animations.
@@ -608,7 +654,7 @@ class Client(event.Dispatcher):
         logger_animation.info("Playing animation {}".format(member.name))
         self.play_anim(member.name)
 
-    def load_anims(self, anim_dir: Optional[str] = None) -> None:
+    def load_anims(self, anim_dir: str | None = None) -> None:
         """Load animation clips; optionally provide a directory of extracted assets.
 
         Animation groups are loaded only for the standard asset installation.

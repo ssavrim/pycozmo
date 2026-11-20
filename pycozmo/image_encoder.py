@@ -4,9 +4,9 @@ Cozmo image run-length encoding and decoding.
 
 """
 
-from typing import Optional
 import sys
 from io import StringIO
+from typing import cast
 
 from PIL import Image
 
@@ -43,10 +43,12 @@ def image_to_str(image):
     return s.getvalue()
 
 
-def str_to_image(sim: str) -> Image:
+def str_to_image(sim: str) -> Image.Image:
     s = StringIO(sim)
     im = Image.new("1", (128, 32), color=0)
     px = im.load()
+    if px is None:
+        raise ValueError("Failed to access image pixels.")
     for y in range(32):
         while True:
             line = s.readline().strip()
@@ -61,7 +63,7 @@ def str_to_image(sim: str) -> Image:
 
 class ImageDecoder(object):
 
-    def __init__(self, buffer: bytes):
+    def __init__(self, buffer: bytes | bytearray) -> None:
         self.buffer = buffer
         self.image = bytearray(128 * 32)
         self.x = 0
@@ -153,7 +155,7 @@ class ImageDecoder(object):
                 self.repeat_column_shift = False
             self.last_draw = False
 
-    def decode(self) -> bytes:
+    def decode(self) -> bytearray:
         for i, b in enumerate(self.buffer):
             if self.debug:
                 sys.stdout.write("{}: ".format(i))
@@ -163,13 +165,16 @@ class ImageDecoder(object):
 
 class ImageEncoder(object):
 
-    def __init__(self, im: Image):
+    def __init__(self, im: Image.Image):
         if im.size[0] != 128 or im.size[1] != 32:
             raise ValueError("Invalid image dimensions. Only 128x32 images are supported. {}x{} given.".format(
                 im.size[0], im.size[1]))
         if im.mode != "1":
             raise ValueError("Invalid pixel format. Only binary images are supported.")
-        self.px = im.load()
+        px = im.load()
+        if px is None:
+            raise ValueError("Failed to access image pixels.")
+        self.px = px
         self.buffer = bytearray()
         self.last_col = bytearray()
         self.cur_col = bytearray()
@@ -178,9 +183,9 @@ class ImageEncoder(object):
         self.x = 0
         self.y = 0
 
-    def _encode_seq(self, color: int, cnt: int) -> Optional[int]:
+    def _encode_seq(self, color: int, cnt: int) -> int | None:
         """ Encode a sequence of pixels with the same color. """
-        cmd = None  # type: Optional[int]
+        cmd: int | None = None
         if color:
             # Draw
             if cnt <= 15:
@@ -253,7 +258,8 @@ class ImageEncoder(object):
 
     def encode(self) -> bytearray:
         while self.x < 128 and self.y < 32:
-            color = self.px[self.x, self.y]
+            # Binary images have integer pixel values.
+            color = cast(int, self.px[self.x, self.y])
             self.y += 1
             cnt = self._count_color(color)
             cmd = self._encode_seq(color, cnt)

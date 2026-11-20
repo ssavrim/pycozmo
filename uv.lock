@@ -860,7 +860,6 @@ wheels = [
 
 [[package]]
 name = "pycozmo"
-version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "dpkt" },
@@ -879,35 +878,52 @@ vision = [
 dev = [
     { name = "flake8" },
     { name = "mypy" },
+    { name = "myst-parser" },
     { name = "pytest" },
+    { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
 ]
 docs = [
     { name = "myst-parser" },
     { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
 ]
+lint = [
+    { name = "flake8" },
+    { name = "mypy" },
+]
+test = [
+    { name = "pytest" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "dpkt" },
-    { name = "flatbuffers" },
+    { name = "flatbuffers", specifier = ">=2.0" },
     { name = "numpy" },
     { name = "opencv-contrib-python-headless", marker = "extra == 'vision'", specifier = ">=4.12,<5" },
-    { name = "pillow", specifier = ">=6.0.0" },
+    { name = "pillow", specifier = ">=9.1" },
     { name = "standard-chunk", marker = "python_full_version >= '3.13'", specifier = ">=3.13" },
 ]
 provides-extras = ["vision"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "flake8" },
-    { name = "mypy" },
+    { name = "flake8", specifier = ">=7" },
+    { name = "mypy", specifier = ">=1.14" },
+    { name = "myst-parser" },
     { name = "pytest" },
+    { name = "sphinx" },
 ]
 docs = [
     { name = "myst-parser" },
     { name = "sphinx" },
 ]
+lint = [
+    { name = "flake8", specifier = ">=7" },
+    { name = "mypy", specifier = ">=1.14" },
+]
+test = [{ name = "pytest" }]
 
 [[package]]
 name = "pyflakes"

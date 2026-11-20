@@ -258,9 +258,9 @@ Bug reports and changes should be sent via GitHub:
 
 [https://github.com/ssavrim/pycozmo](https://github.com/ssavrim/pycozmo)
 
-DDL Robot Discord server, channel #development-cozmo:
+Vector & Friends Discord server, channel #development-cozmo:
 
-[https://discord.gg/ew92haS](https://discord.gg/ew92haS)
+[https://discord.com/servers/vector-and-friends-527874754342944770](https://discord.com/servers/vector-and-friends-527874754342944770)
 
 
 Disclaimer

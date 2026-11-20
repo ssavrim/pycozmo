@@ -6,11 +6,11 @@ Activity representation and reading.
 
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Any, Self
 
 import numpy as np
 
-from . import logger
+from .logger import logger
 from .emotions import DecayGraph, Node
 from .json_loader import get_json_files, load_json_file
 
@@ -32,30 +32,31 @@ class BehaviorChooser:
 
     def __init__(self,
                  choice_type: str,
-                 behaviors: List) -> None:
+                 behaviors: list) -> None:
 
         self.choice_type = str(choice_type)
         self.behaviors = behaviors
+        self.iteration = 0
 
         if self.choice_type == 'Scoring':
             self.init_scores()
             self.init_repetition_penalty()
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             choice_type=data['type'],
             behaviors=data.get('behaviors', [])
         )
 
-    def reset(self):
+    def reset(self) -> None:
         self.iteration = 0
         self.init_scores()
 
     def init_scores(self) -> None:
-        self.behavior_scores = []
-        self.behavior_names = []
-        self.behavior_repetitions = []
+        self.behavior_scores: list[float] = []
+        self.behavior_names: list[str] = []
+        self.behavior_repetitions: list[int] = []
         for b in self.behaviors:
             self.behavior_scores.append(b['scoring']['flatScore'])
             self.behavior_names.append(b['behaviorID'])
@@ -63,15 +64,15 @@ class BehaviorChooser:
         self.total_score = sum(self.behavior_scores)
 
     def init_repetition_penalty(self) -> None:
-        self.repetition_penaltys = []
+        self.repetition_penalties: list[DecayGraph] = []
         for b in self.behaviors:
             if 'repetitionPenalty' in b['scoring']:
-                self.repetition_penaltys.append(
+                self.repetition_penalties.append(
                     DecayGraph([Node(x=n['x'], y=n['y']) for n in b['scoring']['repetitionPenalty']['nodes']]))
             else:
-                self.repetition_penaltys.append(DecayGraph([Node(x=1, y=0)]))
+                self.repetition_penalties.append(DecayGraph([Node(x=1, y=0)]))
 
-    def apply_repetition_penalty(self, ref) -> None:
+    def apply_repetition_penalty(self, ref: str | int) -> None:
         if self.choice_type == 'Scoring':
             if isinstance(ref, str):
                 idx = self.behavior_names.index(ref)
@@ -80,11 +81,11 @@ class BehaviorChooser:
             else:
                 raise TypeError('Invalid behavior index: {}'.format(ref))
             self.behavior_repetitions[idx] += 1
-            self.behavior_scores[idx] -= self.repetition_penaltys[idx].get_increment(self.behavior_repetitions[idx])
+            self.behavior_scores[idx] -= self.repetition_penalties[idx].evaluate(self.behavior_repetitions[idx])
             self.behavior_scores[idx] = max(0, self.behavior_scores[idx])
             self.total_score = sum(self.behavior_scores)
 
-    def get_sorted_choices(self) -> List[str]:
+    def get_sorted_choices(self) -> list[Any] | None:
         if self.choice_type == 'Selection':
             return None
         if self.choice_type == 'StrictPriority':
@@ -94,13 +95,13 @@ class BehaviorChooser:
                 return None
         elif self.choice_type == 'Scoring':
             if self.behavior_names and self.behavior_scores:
-                probability_distribution = []
+                probability_distribution: list[float] = []
                 for s in self.behavior_scores:
                     probability_distribution.append(float(s) / self.total_score)
 
                 val = np.random.choice(self.behavior_names, p=probability_distribution,
-                                       size=len(np.nonzero(probability_distribution)[0]), replace=False)
-                return val
+                                       size=np.count_nonzero(probability_distribution), replace=False)
+                return list(val.tolist())
             else:
                 return None
         else:
@@ -122,8 +123,8 @@ class Objective:
                  behavior_id: str,
                  ignore_if_locked: str,
                  probability_to_require_objective: float,
-                 random_completions_needed_min: Optional[int] = 0,
-                 random_completions_needed_max: Optional[int] = 0) -> None:
+                 random_completions_needed_min: int | None = 0,
+                 random_completions_needed_max: int | None = 0) -> None:
         self.objective = str(objective)
         self.behavior_id = str(behavior_id)
         self.ignore_if_locked = str(ignore_if_locked)
@@ -131,10 +132,10 @@ class Objective:
         self.random_completions_needed_min = \
             int(random_completions_needed_min) if random_completions_needed_min is not None else 0
         self.random_completions_needed_max = \
-            int(random_completions_needed_min) if random_completions_needed_max is not None else 0
+            int(random_completions_needed_max) if random_completions_needed_max is not None else 0
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(objective=data['objective'],
                    behavior_id=data['behaviorID'],
                    ignore_if_locked=data['ignoreIfLocked'],
@@ -161,7 +162,7 @@ class Activity:
         self.type = str(activity_type)
         self.strategy = str(strategy)
 
-    def choose(self):
+    def choose(self) -> None:
         # TODO: method to choose from list of options
         # Some notes for this:
         # The Behavior chooser will provide a list of behaviors to try one at the time.
@@ -179,13 +180,13 @@ class BehaviorsActivity(Activity):
     ]
 
     def __init__(self,
-                 behavior_chooser: BehaviorChooser,
-                 *args, **kwargs):
+                 behavior_chooser: BehaviorChooser | None,
+                 *args: Any, **kwargs: Any) -> None:
         self.behavior_chooser = behavior_chooser
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             BehaviorChooser.from_json(data['behaviorChooser'])
             if 'behaviorChooser' in data else None,
@@ -195,11 +196,11 @@ class BehaviorsActivity(Activity):
 
 
 class VoiceCommandActivity(Activity):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             activity_id=data['activityID'],
             activity_type=data['activityType'],
@@ -212,13 +213,13 @@ class FeedingActivity(Activity):
     ]
 
     def __init__(self,
-                 universal_chooser: List[str],
-                 *args, **kwargs) -> None:
+                 universal_chooser: list[str] | None,
+                 *args: Any, **kwargs: Any) -> None:
         self.universal_chooser = universal_chooser
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             universal_chooser=data['universalChooser']['behaviors']
             if 'universalChooser' in data else None,
@@ -241,8 +242,8 @@ class FreeplayActivity(Activity):
                  face_only_activity: str,
                  face_and_cube_activity: str,
                  no_face_no_cube_activity: str,
-                 sub_activities: List,
-                 *args, **kwargs) -> None:
+                 sub_activities: list[Any] | None,
+                 *args: Any, **kwargs: Any) -> None:
         self.cube_only_activity = str(cube_only_activity)
         self.face_only_activity = str(face_only_activity)
         self.face_and_cube_activity = str(face_and_cube_activity)
@@ -252,7 +253,7 @@ class FreeplayActivity(Activity):
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             cube_only_activity=data['desiredActivityNames']['cubeOnlyActivityName'],
             face_only_activity=data['desiredActivityNames']['faceOnlyActivityName'],
@@ -288,14 +289,14 @@ class SparkedActivity(Activity):
                  reps: int,
                  behavior_objective: str,
                  soft_spark_trigger: str,
-                 behavior_chooser: Optional[BehaviorChooser] = None,
-                 sub_activity_delegate: Optional[Activity] = None,
-                 spark_success_trigger: Optional[str] = None,
-                 spark_fail_trigger: Optional[str] = None,
-                 drive_start_trigger: Optional[str] = None,
-                 drive_loop_trigger: Optional[str] = None,
-                 drive_stop_trigger: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 behavior_chooser: BehaviorChooser | None = None,
+                 sub_activity_delegate: Activity | None = None,
+                 spark_success_trigger: str | None = None,
+                 spark_fail_trigger: str | None = None,
+                 drive_start_trigger: str | None = None,
+                 drive_loop_trigger: str | None = None,
+                 drive_stop_trigger: str | None = None,
+                 *args: Any, **kwargs: Any) -> None:
         self.require_spark = str(require_spark)
         self.min_time = float(min_time_secs)
         self.max_time = float(max_time_secs)
@@ -315,7 +316,7 @@ class SparkedActivity(Activity):
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         if 'subActivityDelegate' in data:
             sub_act_delegate = from_dict(data['subActivityDelegate'])
         else:
@@ -351,9 +352,9 @@ class PyramidActivity(Activity):
     def __init__(self,
                  setup_chooser: BehaviorChooser,
                  build_chooser: BehaviorChooser,
-                 interlude_chooser: Optional[BehaviorChooser] = None,
-                 needs_action_id: Optional[str] = None,
-                 *args, **kwargs):
+                 interlude_chooser: BehaviorChooser | None = None,
+                 needs_action_id: str | None = None,
+                 *args: Any, **kwargs: Any) -> None:
         self.setup_chooser = setup_chooser
         self.build_chooser = build_chooser
         self.interlude_chooser = interlude_chooser
@@ -362,7 +363,7 @@ class PyramidActivity(Activity):
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             setup_chooser=BehaviorChooser.from_json(data['setupChooser']),
             build_chooser=BehaviorChooser.from_json(data['buildChooser']),
@@ -386,8 +387,8 @@ class SocializeActivity(Activity):
                  behavior_chooser: BehaviorChooser,
                  interlude_chooser: BehaviorChooser,
                  max_face_iterations: int,
-                 required_objectives: List[Objective],
-                 *args, **kwargs):
+                 required_objectives: list[Objective],
+                 *args: Any, **kwargs: Any) -> None:
         self.behavior_chooser = behavior_chooser
         self.interlude_chooser = interlude_chooser
         self.max_face_iterations = int(max_face_iterations)
@@ -396,7 +397,7 @@ class SocializeActivity(Activity):
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             behavior_chooser=BehaviorChooser.from_json(data['behaviorChooser']),
             interlude_chooser=BehaviorChooser.from_json(data['interludeBehaviorChooser']),
@@ -414,12 +415,12 @@ class NeedsActivity(Activity):
 
     def __init__(self,
                  behavior_chooser: BehaviorChooser,
-                 *args, **kwargs):
+                 *args: Any, **kwargs: Any) -> None:
         self.behavior_chooser = behavior_chooser
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             behavior_chooser=BehaviorChooser.from_json(data['behaviorChooser']),
             activity_id=data['activityID'],
@@ -427,7 +428,7 @@ class NeedsActivity(Activity):
             strategy=data['activityStrategy']['type'])
 
 
-def from_dict(info: Dict) -> Activity:
+def from_dict(info: dict) -> Activity:
     if info['activityType'] == 'VoiceCommand':
         return VoiceCommandActivity.from_json(info)
 
@@ -460,7 +461,7 @@ def from_dict(info: Dict) -> Activity:
         )
 
 
-def load_activities(resource_dir: str) -> Dict[str, Activity]:
+def load_activities(resource_dir: str) -> dict[str, Activity]:
     """ Load activity map from cozmo resources. """
 
     # TODO: cozmo_resources/config/engine/needs_action_config.json

@@ -4,11 +4,12 @@ Animation controller for audio, image, and animation playback.
 
 """
 
-from typing import List, Tuple, Any, Optional, Iterable
+from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable
 from threading import Thread, Lock
 from collections import deque
 
-from . import logger
+from .logger import logger
 from . import protocol_encoder
 from . import util
 from . import robot
@@ -16,25 +17,28 @@ from . import event
 from . import procedural_face
 from . import image_encoder
 
+if TYPE_CHECKING:
+    from .client import Client
+
 
 class AnimationQueue:
     """ Synchronized animation queue class. """
 
     MAXLEN = 4500   # ~2.5 min of frames
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.lock = Lock()
-        self.audio_queue = deque(maxlen=self.MAXLEN)
-        self.image_queue = deque(maxlen=self.MAXLEN)
-        self.pkt_queue = deque(maxlen=self.MAXLEN)
+        self.audio_queue: deque[protocol_encoder.OutputAudio | None] = deque(maxlen=self.MAXLEN)
+        self.image_queue: deque[protocol_encoder.DisplayImage | None] = deque(maxlen=self.MAXLEN)
+        self.pkt_queue: deque[Iterable[protocol_encoder.Packet] | None] = deque(maxlen=self.MAXLEN)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         with self.lock:
             return not len(self.audio_queue) and \
                    not len(self.image_queue) and \
                    not len(self.pkt_queue)
 
-    def put_audio(self, pkts: List[protocol_encoder.OutputAudio]) -> None:
+    def put_audio(self, pkts: list[protocol_encoder.OutputAudio]) -> None:
         with self.lock:
             self.audio_queue.extend(pkts)
 
@@ -44,15 +48,17 @@ class AnimationQueue:
 
     def put_anim_frame(
             self,
-            audio_pkt: Optional[protocol_encoder.OutputAudio],
-            image_pkt: Optional[protocol_encoder.DisplayImage],
-            pkts: Optional[Iterable[protocol_encoder.Packet]]) -> None:
+            audio_pkt: protocol_encoder.OutputAudio | None,
+            image_pkt: protocol_encoder.DisplayImage | None,
+            pkts: Iterable[protocol_encoder.Packet] | None) -> None:
         with self.lock:
             self.audio_queue.append(audio_pkt)
             self.image_queue.append(image_pkt)
             self.pkt_queue.append(pkts)
 
-    def get(self) -> Tuple[bytes, bytes, Tuple[Any]]:
+    def get(self) -> tuple[protocol_encoder.OutputAudio | None,
+                           protocol_encoder.DisplayImage | None,
+                           Iterable[protocol_encoder.Packet] | None]:
         with self.lock:
             # Audio
             try:
@@ -72,7 +78,7 @@ class AnimationQueue:
 
         return audio_pkt, image_pkt, pkts
 
-    def clear(self):
+    def clear(self) -> None:
         with self.lock:
             self.audio_queue.clear()
             self.image_queue.clear()
@@ -90,9 +96,9 @@ class AnimationController:
     #: Extra lead tolerated before slowing down, to absorb clock drift.
     LEAD_SLACK = 3
 
-    def __init__(self, cli):
+    def __init__(self, cli: "Client") -> None:
         self.cli = cli
-        self.thread = None
+        self.thread: Thread | None = None
         self.stop_flag = False
         self.queue = AnimationQueue()
         self.num_frames_played = -1
@@ -107,15 +113,17 @@ class AnimationController:
         self._end_frame = None
         #: The completion of the animation was already reported from the frame count.
         self._completed_by_count = False
+        # Whether an image, displayed with display_image(), is shown. Procedural face is paused while it is.
+        self.image_displayed = False
         self.last_image_pkt = protocol_encoder.DisplayImage(image=b"\x3f\x3f")
         self.face_generator = iter(procedural_face.ProceduralFaceGenerator())
         self.animations_enabled = False
         self.procedural_face_enabled = False
 
-    def _clear_last_image_pkt(self):
+    def _clear_last_image_pkt(self) -> None:
         self.last_image_pkt = protocol_encoder.DisplayImage(image=b"\x3f\x3f")
 
-    def start(self):
+    def start(self) -> None:
         self.frames_sent = 0
         self.num_audio_frames_played = None
         self._played_base = None
@@ -130,13 +138,13 @@ class AnimationController:
         self.cli.add_handler(event.EvtRobotAnimBufferFullChange, self._on_anim_buffer_full_change)
         self.cli.add_handler(event.EvtRobotAnimatingIdleChange, self._on_amimating_idle_change)
 
-    def stop(self):
+    def stop(self) -> None:
         self.stop_flag = True
         if self.thread:
             self.thread.join()
             self.thread = None
 
-    def _on_animation_state(self, cli, pkt: protocol_encoder.AnimationState):
+    def _on_animation_state(self, cli: Any, pkt: protocol_encoder.AnimationState) -> None:
         if self._played_base is None:
             # Assume everything sent so far has been played; this underestimates
             # the lead by the frames in flight, which only adds margin.
@@ -155,7 +163,7 @@ class AnimationController:
         self._clear_last_image_pkt()
         self.cli.conn.post_event(event.EvtAnimationCompleted, self.cli)
 
-    def lead(self) -> Optional[int]:
+    def lead(self) -> int | None:
         """ Frames sent but not yet played by the robot, or None before the first report. """
         if self._played_base is None or self.num_audio_frames_played is None:
             return None
@@ -176,13 +184,13 @@ class AnimationController:
             return 2
         return 1
 
-    def _on_keyframe(self, cli, pkt: protocol_encoder.Keyframe):
+    def _on_keyframe(self, cli: Any, pkt: protocol_encoder.Keyframe) -> None:
         pass
 
-    def _on_animation_started(self, cli, pkt: protocol_encoder.AnimationStarted):
+    def _on_animation_started(self, cli: Any, pkt: protocol_encoder.AnimationStarted) -> None:
         self.playing_animation = True
 
-    def _on_animation_ended(self, cli, pkt: protocol_encoder.AnimationEnded):
+    def _on_animation_ended(self, cli: Any, pkt: protocol_encoder.AnimationEnded) -> None:
         if self.streaming_animation:
             # The reply to the EndAnimation of cancel_anim() of a previous animation, which arrives
             # after the next animation has started: not the end of this one.
@@ -194,16 +202,16 @@ class AnimationController:
             return
         self._finish_animation()
 
-    def _on_animating_change(self):
+    def _on_animating_change(self, cli: Any, state: bool) -> None:
         pass
 
-    def _on_anim_buffer_full_change(self):
+    def _on_anim_buffer_full_change(self, cli: Any, state: bool) -> None:
         pass
 
-    def _on_amimating_idle_change(self):
+    def _on_amimating_idle_change(self, cli: Any, state: bool) -> None:
         pass
 
-    def _get_face_image(self):
+    def _get_face_image(self) -> protocol_encoder.DisplayImage | None:
         im = next(self.face_generator)
         if not im:
             return None
@@ -212,74 +220,86 @@ class AnimationController:
         image_pkt = protocol_encoder.DisplayImage(image=buf)
         return image_pkt
 
-    def _run(self):
+    def _run(self) -> None:
         logger.debug("Animation controller started...")
 
         # Enable animation playback and AnimationState events. Requires Enable (0x25).
-        pkt = protocol_encoder.EnableAnimationState()
+        pkt: protocol_encoder.Packet = protocol_encoder.EnableAnimationState()
         self.cli.conn.send(pkt)
-
-        num_frames = 0
 
         timer = util.FPSTimer(robot.FRAME_RATE)
         while not self.stop_flag:
-
-            audio_pkt, image_pkt, pkts = self.queue.get()
-
-            if self.animations_enabled:
-                if audio_pkt:
-                    if not self.playing_audio:
-                        self.playing_audio = True
-                else:
-                    audio_pkt = protocol_encoder.OutputSilence()
-                    if self.playing_audio:
-                        self.playing_audio = False
-                        self.cli.conn.post_event(event.EvtAudioCompleted, self.cli)
-                self.cli.conn.send(audio_pkt)
-
-                if not image_pkt and self.procedural_face_enabled and not self.playing_animation:
-                    image_pkt = self._get_face_image()
-
-                if image_pkt:
-                    self.cli.conn.send(image_pkt)
-                    self.last_image_pkt = image_pkt
-                else:
-                    # If not refreshed, the robot stops displaying an image after 30 s.
-                    self.cli.conn.send(self.last_image_pkt)
-
-                if pkts:
-                    for pkt in pkts:
-                        self.cli.conn.send(pkt)
-                        if isinstance(pkt, protocol_encoder.StartAnimation):
-                            self.streaming_animation = True
-                            self._completed_by_count = False
-                        elif isinstance(pkt, protocol_encoder.EndAnimation):
-                            self.streaming_animation = False
-                            self._end_frame = num_frames + 1
-
-                num_frames += 1
-                self.frames_sent = num_frames
-                for _ in range(self.frame_sleeps()):
-                    timer.sleep()
-            else:
+            sent = self._run_frame()
+            for _ in range(self.frame_sleeps() if sent else 1):
                 timer.sleep()
 
         logger.debug("Animation controller stopped...")
 
-    def play_audio(self, pkts: List[protocol_encoder.OutputAudio]) -> None:
+    def _run_frame(self) -> bool:
+        """ Send the audio, image, and animation packets for a single frame. Return False if none was sent. """
+        audio_pkt, image_pkt, pkts = self.queue.get()
+
+        if not self.animations_enabled:
+            return False
+
+        audio_out: protocol_encoder.Packet
+        if audio_pkt:
+            audio_out = audio_pkt
+            if not self.playing_audio:
+                self.playing_audio = True
+        else:
+            audio_out = protocol_encoder.OutputSilence()
+            if self.playing_audio:
+                self.playing_audio = False
+                self.cli.conn.post_event(event.EvtAudioCompleted, self.cli)
+        self.cli.conn.send(audio_out)
+
+        if not image_pkt and self.procedural_face_enabled and not self.playing_animation \
+                and not self.image_displayed:
+            image_pkt = self._get_face_image()
+
+        if image_pkt:
+            self.cli.conn.send(image_pkt)
+            self.last_image_pkt = image_pkt
+        else:
+            # If not refreshed, the robot stops displaying an image after 30 s.
+            self.cli.conn.send(self.last_image_pkt)
+
+        if pkts:
+            for pkt in pkts:
+                self.cli.conn.send(pkt)
+                if isinstance(pkt, protocol_encoder.StartAnimation):
+                    self.streaming_animation = True
+                    self._completed_by_count = False
+                elif isinstance(pkt, protocol_encoder.EndAnimation):
+                    self.streaming_animation = False
+                    self._end_frame = self.frames_sent + 1
+
+        self.frames_sent += 1
+        return True
+
+    def play_audio(self, pkts: list[protocol_encoder.OutputAudio]) -> None:
         self.queue.put_audio(pkts)
 
     def display_image(self, pkt: protocol_encoder.DisplayImage) -> None:
+        """ Display an image until clear_screen() is called or another image is displayed. """
+        # Set before queueing, so that procedural face cannot replace the image in between.
+        self.image_displayed = True
         self.queue.put_image(pkt)
+
+    def clear_screen(self) -> None:
+        """ Clear the screen and resume procedural face, if enabled. """
+        self.queue.put_image(protocol_encoder.DisplayImage(image=b"\x3f\x3f"))
+        self.image_displayed = False
 
     def play_anim_frame(
             self,
-            audio_pkt: Optional[protocol_encoder.OutputAudio],
-            image_pkt: Optional[protocol_encoder.DisplayImage],
-            pkts: Optional[Iterable[protocol_encoder.Packet]]) -> None:
+            audio_pkt: protocol_encoder.OutputAudio | None,
+            image_pkt: protocol_encoder.DisplayImage | None,
+            pkts: Iterable[protocol_encoder.Packet] | None) -> None:
         self.queue.put_anim_frame(audio_pkt, image_pkt, pkts)
 
-    def cancel_anim(self):
+    def cancel_anim(self) -> None:
         self.queue.clear()
         self.streaming_animation = False
         self._end_frame = None

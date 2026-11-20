@@ -2,7 +2,7 @@
 Overview
 ========
 
-https://github.com/zayfod/pycozmo
+[https://github.com/zayfod/pycozmo](https://github.com/zayfod/pycozmo)
 
 `PyCozmo` is a pure-Python communication library, alternative SDK, and application for the
 [Cozmo robot](https://www.digitaldreamlabs.com/pages/cozmo) . It allows controlling a Cozmo robot directly, without
@@ -102,9 +102,9 @@ Bug reports and changes should be sent via GitHub:
 
 [https://github.com/ssavrim/pycozmo](https://github.com/ssavrim/pycozmo)
 
-DDL Robot Discord server, channel #development-cozmo:
+Vector & Friends Discord server, channel #development-cozmo:
 
-[https://discord.gg/ew92haS](https://discord.gg/ew92haS)
+[https://discord.com/servers/vector-and-friends-527874754342944770](https://discord.com/servers/vector-and-friends-527874754342944770)
 
 
 Disclaimer

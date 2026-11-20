@@ -57,6 +57,38 @@ Unreleased
     Add RobotOrientation.UPSIDE_DOWN.
 - Add EvtRobotTapped, detected from IMU readings while the robot is still, and
     Client.battery_percent, an indicative charge estimate (pycozmo.sensors).
+- Fixed all mypy findings and made mypy checks required in CI. Modernized type hints for Python 3.11+.
+- Fixed animation controller status change handlers failing on every animation status change, which aborted
+    processing of the rest of the robot state update.
+- Fixed AnimLiftHeight.from_dict() failing when the height variability is not specified.
+- Fixed the default name of unnamed lights.Color objects.
+- Fixed the maximum number of random completions of activity objectives and StrictPriority behavior choosers failing
+    before a reset.
+- Animation group members with null head angle limits no longer fail to load.
+- Malformed SoundbanksInfo.xml files now raise AudioKineticFormatError.
+- pycozmo_resources.py no longer disables TLS certificate verification for downloads.
+- Pillow 9.1 or newer is now required.
+- Fixed event handlers not being removed when Dispatcher.del_handler() is given the handler function.
+- Fixed event handlers being skipped when they follow a one-shot handler, e.g. one registered by wait_for().
+- Fixed images displayed with Client.display_image() being replaced by procedural face on the next frame, which
+    made the duration parameter ineffective (thanks to Aitor Miguel Blanco / gimait)
+- Renamed BodyColor.DEV to BodyColor.WHITE_v17. Body color 5 is used by Cozmo HW v1.7.
+
+v0.9.0 (Nov 15, 2026)
+---------------------
+- Dropped support for Python 3.6 - 3.10 and added support for Python 3.11 - 3.15.
+- Replaced setup.py and requirements files with pyproject.toml.
+- Replaced the standard library chunk module, removed in Python 3.13, with a built-in implementation
+    (thanks to Hossam Khader / hossamkhader)
+- Updated FlatBuffers usage to the 2.x API. FlatBuffers 2.0 or newer is now required.
+    (thanks to Hossam Khader / hossamkhader)
+- Updated flake8 and mypy configuration and fixed lint findings.
+- Switched documentation to the MyST Markdown parser and added Read the Docs configuration.
+- Added OpenCV as a dependency (an optional "vision" extra in this fork).
+- Reading of saved cube IDs from robot NV storage. Exposed as Client.saved_objects .
+- Reading of camera calibration from robot NV storage. Exposed as Client.camera_config, with a camera matrix
+    suitable for use with OpenCV.
+- Emotion type value updates and emotion events, applied by the brain on reaction triggers.
 
 v0.8.0 (Nov 12, 2020)
 ---------------------

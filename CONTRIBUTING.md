@@ -14,8 +14,16 @@ Bug Reports and Feature Requests
 Pull Requests
 -------------
 
-- Pull requests should be made against the [dev branch](https://github.com/zayfod/pycozmo/tree/dev).
-- All [tests](https://github.com/zayfod/pycozmo/actions) should be passing on a PR, before it can be merged.
+- Pull requests should be made against the [master branch](https://github.com/zayfod/pycozmo/tree/master).
+- All [checks](https://github.com/zayfod/pycozmo/actions) - linters, tests, package and documentation builds -
+    run automatically on pull requests and should be passing before a PR can be merged.
+- To run the linters and tests locally, install the development dependencies (requires pip 25.1 or newer) and run:
+    ```
+    pip install -e . --group dev
+    flake8
+    mypy
+    pytest
+    ```
 - Code should adhere to the [PEP 8 style guide](https://www.python.org/dev/peps/pep-0008/).
 - Using docstrings is encouraged.
 - Adding tests is encouraged. 
@@ -37,7 +45,7 @@ The vision extra installs OpenCV and enables the face and motion tests. The
 remaining tests run without it. The project's historical codebase still has
 existing mypy findings, so CI currently enforces the type check on the new
 companion policy instead of treating the entire legacy codebase as type-clean.
-See `mypy.ini` for the configuration. To build distributions, run `uv build`.
+See `[tool.mypy]` in `pyproject.toml` for the configuration; `mypy` on the whole tree is not yet clean for the code of this fork. To build distributions, run `uv build`.
 Build the documentation with:
 
 ```bash
@@ -48,3 +56,10 @@ Robot tests and proprietary resources are not required for the test suite. If
 checking on hardware, describe the firmware, the physical test and its result
 in the pull request; do not commit extracted application assets or personal
 face samples.
+
+
+Releases
+--------
+
+Unreleased changes are the latest commits on the master branch. Releases are tags on the master branch and are
+listed in [CHANGES.md](CHANGES.md).

@@ -6,11 +6,11 @@ Behavior representation and reading.
 
 import os
 import time
-from typing import Dict, Optional, Any
+from typing import Any, Self
 
 from . import event
 from . import client
-from . import logger
+from .logger import logger
 from .json_loader import get_json_files, load_json_file
 
 
@@ -31,13 +31,13 @@ class ReactionTrigger:
         "should_resume_last",
     ]
 
-    def __init__(self, name: str, behavior_id: str, should_resume_last: Optional[bool] = False):
+    def __init__(self, name: str, behavior_id: str, should_resume_last: bool | None = False) -> None:
         self.name = str(name)
         self.behavior_id = str(behavior_id)
         self.should_resume_last = bool(should_resume_last)
 
     @classmethod
-    def from_json(cls, data: Dict):
+    def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(name=data['reactionTrigger'],
                    behavior_id=data['behaviorID'],
                    should_resume_last=data.get('genericStrategyParams', {}).get('shouldResumeLast'))
@@ -52,7 +52,7 @@ class Behavior(event.Dispatcher):
         self.conf = conf
 
     def get_id(self) -> str:
-        return self.conf["behaviorID"]
+        return str(self.conf["behaviorID"])
 
     def activate(self) -> None:
         logger.warning("Behavior '{}' not implemented.".format(self.get_id()))
@@ -128,7 +128,7 @@ def get_behavior_class_from_dict(data):
     return cls
 
 
-def load_behaviors(resource_dir: str, cli: client.Client) -> Dict[str, Behavior]:
+def load_behaviors(resource_dir: str, cli: client.Client) -> dict[str, Behavior]:
 
     start_time = time.perf_counter()
 
@@ -145,7 +145,7 @@ def load_behaviors(resource_dir: str, cli: client.Client) -> Dict[str, Behavior]
     return behaviors
 
 
-def load_reaction_trigger_behavior_map(resource_dir: str) -> Dict[str, ReactionTrigger]:
+def load_reaction_trigger_behavior_map(resource_dir: str) -> dict[str, ReactionTrigger]:
 
     start_time = time.perf_counter()
 

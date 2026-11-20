@@ -5,6 +5,7 @@ pycozmo package
     :nosignatures:
     :toctree: generated
 
+    pycozmo.audiokinetic.chunk
     pycozmo.audiokinetic.exception
     pycozmo.audiokinetic.soundbank
     pycozmo.audiokinetic.soundbanksinfo

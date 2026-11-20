@@ -8,7 +8,6 @@ References:
 
 """
 
-from typing import List
 import struct
 import subprocess
 import tempfile
@@ -18,7 +17,7 @@ import numpy as np
 import wave
 import time
 
-from . import logger
+from .logger import logger
 from . import protocol_encoder
 
 
@@ -33,7 +32,7 @@ MULAW_MAX = 0x7FFF
 MULAW_BIAS = 132
 
 
-def load_wav(filename: str) -> List[protocol_encoder.OutputAudio]:
+def load_wav(filename: str) -> list[protocol_encoder.OutputAudio]:
     """ Load a WAVE file into a list of OutputAudio packets. """
 
     start_time = time.perf_counter()
@@ -110,7 +109,7 @@ def load_wem(filename: str, decoder: str = "vgmstream-cli", max_seconds: float =
         return _load_resampled_wav(wav_path, max_seconds)
 
 
-def _load_resampled_wav(filename: Path, max_seconds: float) -> List[protocol_encoder.OutputAudio]:
+def _load_resampled_wav(filename: Path, max_seconds: float) -> list[protocol_encoder.OutputAudio]:
     """Convert a bounded 16-bit mono/stereo WAV to 22,050 Hz audio packets."""
     with wave.open(str(filename), "rb") as source:
         width, channels, rate, count = (source.getsampwidth(), source.getnchannels(),
@@ -130,7 +129,7 @@ def _load_resampled_wav(filename: Path, max_seconds: float) -> List[protocol_enc
 
 
 def synthesize_speech(text: str, *, voice: str = "en", words_per_minute: int = 175,
-                      executable: str = "espeak-ng") -> List[protocol_encoder.OutputAudio]:
+                      executable: str = "espeak-ng") -> list[protocol_encoder.OutputAudio]:
     """Synthesize speech with a separately installed eSpeak NG executable.
 
     The generated audio is converted to Cozmo packets. No voice data or eSpeak

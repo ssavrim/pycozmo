@@ -8,7 +8,9 @@ from threading import Thread
 from queue import Queue, Empty
 import time
 
-from . import logger, logger_reaction, logger_behavior
+from PIL import Image
+
+from .logger import logger, logger_reaction, logger_behavior
 from . import client
 from . import event
 from . import emotions
@@ -54,7 +56,7 @@ class Brain:
         # TODO: ...
 
         # Reaction trigger queue
-        self.reaction_queue = Queue()
+        self.reaction_queue: Queue[str] = Queue()
 
         self.stop_flag = False
         self.reaction_thread = Thread(daemon=True, name="ReactionThread", target=self.reaction_thread_run)
@@ -63,9 +65,9 @@ class Brain:
         # Current activity
         self.activity = self.activities["Freeplay"]
         # Current behavior
-        self.behavior = None    # type: Optional[behavior.Behavior]
+        self.behavior: behavior.Behavior | None = None
 
-    def start(self):
+    def start(self) -> None:
         # Connect to robot
         self.reaction_thread.start()
         self.heartbeat_thread.start()
@@ -74,15 +76,13 @@ class Brain:
         # TODO: Enable camera.
         # TODO: Drive off if on charger.
 
-    def stop(self):
+    def stop(self) -> None:
         # Disconnect from robot
         self.stop_flag = True
-        if self.heartbeat_thread:
+        if self.heartbeat_thread.is_alive():
             self.heartbeat_thread.join()
-            self.heartbeat_thread = None
-        if self.reaction_thread:
+        if self.reaction_thread.is_alive():
             self.reaction_thread.join()
-            self.reaction_thread = None
 
     def on_behavior_done(self, cli: client.Client) -> None:
         if self.behavior:
@@ -110,7 +110,7 @@ class Brain:
         if state:
             self.post_reaction("RobotPickedUp")
 
-    def on_robot_falling_change(self, cli: client.Client, state: bool):
+    def on_robot_falling_change(self, cli: client.Client, state: bool) -> None:
         if state:
             self.post_reaction("RobotFalling")
 
@@ -118,7 +118,7 @@ class Brain:
         if state:
             self.post_reaction("PlacedOnCharger")
 
-    def on_camera_image(self, cli: client.Client, new_im) -> None:
+    def on_camera_image(self, cli: client.Client, new_im: Image.Image) -> None:
         """ Process images, coming from the robot camera. """
         # TODO: See cozmo_resources/config/engine/vision_config.json
         # TODO: motion detection
@@ -153,13 +153,23 @@ class Brain:
                 continue
 
             try:
+                logger_reaction.info("Processing {}".format(reaction_trigger))
+                self.process_emotion_event(reaction_trigger)
                 self.process_reaction(reaction_trigger)
             except Exception as e:
                 logger.error("Failed to dispatch reaction trigger '{}'. {}".format(reaction_trigger, e))
                 continue
 
+    def process_emotion_event(self, reaction_trigger: str) -> None:
+        """ Process emotion events by applying affectors to emotion types. """
+        emotion_event = self.emotion_events.get(reaction_trigger)
+        if emotion_event:
+            for affector, delta in emotion_event.affectors.items():
+                self.emotion_types[affector].add(delta)
+        else:
+            logger_reaction.warning("Failed to find emotion event for {}.".format(reaction_trigger))
+
     def process_reaction(self, reaction_trigger: str) -> None:
-        logger_reaction.info("Processing {}".format(reaction_trigger))
         reaction = self.reaction_trigger_beahvior_map.get(reaction_trigger)
         if reaction:
             # TODO: Handle should_resume_last.
