@@ -39,8 +39,10 @@ __all__ = [
     "EvtChargerOOSChange",
     "EvtRobotStateUpdated",
     "EvtRobotOrientationChange",
+    "EvtRobotTapped",
     "EvtAudioCompleted",
     "EvtAnimationCompleted",
+    "EvtAnimationEvent",
     "EvtReactionTrigger",
     "EvtBehaviorDone",
 
@@ -175,12 +177,25 @@ class EvtRobotOrientationChange(Event):
     """ Triggered when the robot orientation changes. """
 
 
+class EvtRobotTapped(Event):
+    """ Triggered when a tap on the still robot is detected from its IMU readings. """
+
+
 class EvtAudioCompleted(Event):
     pass
 
 
 class EvtAnimationCompleted(Event):
     pass
+
+
+class EvtAnimationEvent(Event):
+    """
+    Triggered when the robot plays an AnimEvent keyframe of the current animation.
+
+    Handlers receive ``(cli, event_id, timestamp)``: a ``protocol_encoder.AnimEventType``
+    and the robot time in milliseconds at which the event was played.
+    """
 
 
 class EvtReactionTrigger(Event):

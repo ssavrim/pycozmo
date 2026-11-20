@@ -102,6 +102,12 @@ class NvResult(enum.Enum):
     NV_CORRUPT = -9
 
 
+class AnimEventType(enum.Enum):
+    DEVICE_AUDIO_TRIGGER = 0
+    ENERGY_DRAINCUBE_END = 1
+    TAPPED_BLOCK = 2
+
+
 class UpAxis(enum.Enum):
     XNegative = 0
     XPositive = 1
@@ -199,6 +205,49 @@ class MotorID(enum.Enum):
     MOTOR_RIGHT_WHEEL = 1
     MOTOR_LIFT = 2
     MOTOR_HEAD = 3
+
+
+class DockAction(enum.Enum):
+    DA_PICKUP_LOW = 0
+    DA_PICKUP_HIGH = 1
+    DA_PLACE_HIGH = 2
+    DA_PLACE_LOW = 3
+    DA_PLACE_LOW_BLIND = 4
+    DA_ROLL_LOW = 5
+    DA_DEEP_ROLL_LOW = 6
+    DA_POST_DOCK_ROLL = 7
+    DA_FACE_PLANT = 8
+    DA_POP_A_WHEELIE = 9
+    DA_ALIGN = 10
+    DA_ALIGN_SPECIAL = 11
+    DA_RAMP_ASCEND = 12
+    DA_RAMP_DESCEND = 13
+    DA_CROSS_BRIDGE = 14
+
+
+class DockingMethod(enum.Enum):
+    BLIND_DOCKING = 0
+    TRACKER_DOCKING = 1
+    HYBRID_DOCKING = 2
+    EVEN_BLINDER_DOCKING = 3
+
+
+class DockingResult(enum.Enum):
+    DOCK_UNKNOWN = 0
+    DOCK_INTERRUPTED = 1
+    DOCK_SUCCESS = 2
+    DOCK_SUCCESS_RETRY = 3
+    DOCK_SUCCESS_HANNS_MANEUVER = 4
+    DOCK_FAILURE = 5
+    DOCK_FAILURE_TOO_LONG_WITHOUT_BLOCKPOSE = 6
+    DOCK_FAILURE_TOO_HIGH = 7
+    DOCK_FAILURE_RETRY = 8
+
+
+class CarryState(enum.Enum):
+    CARRY_NONE = 0
+    CARRY_1_BLOCK = 1
+    CARRY_2_BLOCK = 2
 
 
 class PathEventType(enum.Enum):
@@ -2581,6 +2630,231 @@ class ExecutePath(Packet):
             unknown=unknown)
 
 
+class DockWithObject(Packet):
+
+    __slots__ = (
+        "_reserved",  # uint32
+        "_speed_mmps",  # float
+        "_accel_mmps2",  # float
+        "_decel_mmps2",  # float
+        "_action",  # DockAction
+        "_do_lift_load_check",  # bool
+        "_num_retries",  # uint8
+        "_docking_method",  # DockingMethod
+        "_back_up_while_lifting_cube",  # bool
+    )
+
+    def __init__(self,
+                 reserved=0,
+                 speed_mmps=60.0,
+                 accel_mmps2=200.0,
+                 decel_mmps2=500.0,
+                 action=0,
+                 do_lift_load_check=False,
+                 num_retries=0,
+                 docking_method=0,
+                 back_up_while_lifting_cube=False):
+        super().__init__(PacketType.COMMAND, packet_id=0x42)
+        # Observed as 0.
+        self.reserved = reserved
+        self.speed_mmps = speed_mmps
+        self.accel_mmps2 = accel_mmps2
+        self.decel_mmps2 = decel_mmps2
+        self.action = DockAction(action)
+        self.do_lift_load_check = do_lift_load_check
+        self.num_retries = num_retries
+        self.docking_method = DockingMethod(docking_method)
+        self.back_up_while_lifting_cube = back_up_while_lifting_cube
+
+    @property
+    def reserved(self):
+        return self._reserved
+
+    @reserved.setter
+    def reserved(self, value):
+        self._reserved = validate_integer("reserved", value, 0, 4294967295)
+
+    @property
+    def speed_mmps(self):
+        return self._speed_mmps
+
+    @speed_mmps.setter
+    def speed_mmps(self, value):
+        self._speed_mmps = validate_float("speed_mmps", value)
+
+    @property
+    def accel_mmps2(self):
+        return self._accel_mmps2
+
+    @accel_mmps2.setter
+    def accel_mmps2(self, value):
+        self._accel_mmps2 = validate_float("accel_mmps2", value)
+
+    @property
+    def decel_mmps2(self):
+        return self._decel_mmps2
+
+    @decel_mmps2.setter
+    def decel_mmps2(self, value):
+        self._decel_mmps2 = validate_float("decel_mmps2", value)
+
+    @property
+    def action(self) -> DockAction:
+        return self._action
+
+    @action.setter
+    def action(self, value: DockAction) -> None:
+        self._action = value
+        validate_integer("action", value.value, -128, 127)
+
+    @property
+    def do_lift_load_check(self):
+        return self._do_lift_load_check
+
+    @do_lift_load_check.setter
+    def do_lift_load_check(self, value):
+        self._do_lift_load_check = validate_bool("do_lift_load_check", value)
+
+    @property
+    def num_retries(self):
+        return self._num_retries
+
+    @num_retries.setter
+    def num_retries(self, value):
+        self._num_retries = validate_integer("num_retries", value, 0, 255)
+
+    @property
+    def docking_method(self) -> DockingMethod:
+        return self._docking_method
+
+    @docking_method.setter
+    def docking_method(self, value: DockingMethod) -> None:
+        self._docking_method = value
+        validate_integer("docking_method", value.value, -128, 127)
+
+    @property
+    def back_up_while_lifting_cube(self):
+        return self._back_up_while_lifting_cube
+
+    @back_up_while_lifting_cube.setter
+    def back_up_while_lifting_cube(self, value):
+        self._back_up_while_lifting_cube = validate_bool("back_up_while_lifting_cube", value)
+
+    def __len__(self):
+        return \
+            4 + \
+            4 + \
+            4 + \
+            4 + \
+            1 + \
+            1 + \
+            1 + \
+            1 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "reserved={reserved}, " \
+               "speed_mmps={speed_mmps}, " \
+               "accel_mmps2={accel_mmps2}, " \
+               "decel_mmps2={decel_mmps2}, " \
+               "action={action}, " \
+               "do_lift_load_check={do_lift_load_check}, " \
+               "num_retries={num_retries}, " \
+               "docking_method={docking_method}, " \
+               "back_up_while_lifting_cube={back_up_while_lifting_cube})".format(
+                type=type(self).__name__,
+                reserved=self._reserved,
+                speed_mmps=self._speed_mmps,
+                accel_mmps2=self._accel_mmps2,
+                decel_mmps2=self._decel_mmps2,
+                action=self._action,
+                do_lift_load_check=self._do_lift_load_check,
+                num_retries=self._num_retries,
+                docking_method=self._docking_method,
+                back_up_while_lifting_cube=self._back_up_while_lifting_cube)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._reserved, "L")
+        writer.write(self._speed_mmps, "f")
+        writer.write(self._accel_mmps2, "f")
+        writer.write(self._decel_mmps2, "f")
+        writer.write(self._action.value, "b")
+        writer.write(int(self._do_lift_load_check), "b")
+        writer.write(self._num_retries, "B")
+        writer.write(self._docking_method.value, "b")
+        writer.write(int(self._back_up_while_lifting_cube), "b")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        reserved = reader.read("L")
+        speed_mmps = reader.read("f")
+        accel_mmps2 = reader.read("f")
+        decel_mmps2 = reader.read("f")
+        action = reader.read("b")
+        do_lift_load_check = bool(reader.read("b"))
+        num_retries = reader.read("B")
+        docking_method = reader.read("b")
+        back_up_while_lifting_cube = bool(reader.read("b"))
+        return cls(
+            reserved=reserved,
+            speed_mmps=speed_mmps,
+            accel_mmps2=accel_mmps2,
+            decel_mmps2=decel_mmps2,
+            action=action,
+            do_lift_load_check=do_lift_load_check,
+            num_retries=num_retries,
+            docking_method=docking_method,
+            back_up_while_lifting_cube=back_up_while_lifting_cube)
+
+
+class AbortDocking(Packet):
+
+    __slots__ = (
+    )
+
+    def __init__(self):
+        super().__init__(PacketType.COMMAND, packet_id=0x43)
+        pass
+
+    def __len__(self):
+        return 0
+
+    def __repr__(self):
+        return "{type}()".format(type=type(self).__name__)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        pass
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        del reader
+        return cls(
+            )
+
+
 class SetOrigin(Packet):
 
     __slots__ = (
@@ -2714,6 +2988,214 @@ class SetOrigin(Packet):
             pose_x=pose_x,
             pose_y=pose_y,
             unknown5=unknown5)
+
+
+class DockingErrorSignal(Packet):
+
+    __slots__ = (
+        "_timestamp",  # uint32
+        "_x_dist_err_mm",  # float
+        "_y_hor_err_mm",  # float
+        "_z_height_mm",  # float
+        "_angle_err_rad",  # float
+        "_is_approximate",  # bool
+        "_did_tracking_succeed",  # bool
+    )
+
+    def __init__(self,
+                 timestamp=0,
+                 x_dist_err_mm=0.0,
+                 y_hor_err_mm=0.0,
+                 z_height_mm=0.0,
+                 angle_err_rad=0.0,
+                 is_approximate=False,
+                 did_tracking_succeed=False):
+        super().__init__(PacketType.COMMAND, packet_id=0x48)
+        # Robot timestamp of the image the marker was seen in.
+        self.timestamp = timestamp
+        # Marker distance ahead of the robot, minus a placement offset.
+        self.x_dist_err_mm = x_dist_err_mm
+        # Marker lateral offset (left positive), plus a placement offset.
+        self.y_hor_err_mm = y_hor_err_mm
+        # Marker height.
+        self.z_height_mm = z_height_mm
+        # Marker yaw error; 0 when facing it squarely.
+        self.angle_err_rad = angle_err_rad
+        self.is_approximate = is_approximate
+        self.did_tracking_succeed = did_tracking_succeed
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    @timestamp.setter
+    def timestamp(self, value):
+        self._timestamp = validate_integer("timestamp", value, 0, 4294967295)
+
+    @property
+    def x_dist_err_mm(self):
+        return self._x_dist_err_mm
+
+    @x_dist_err_mm.setter
+    def x_dist_err_mm(self, value):
+        self._x_dist_err_mm = validate_float("x_dist_err_mm", value)
+
+    @property
+    def y_hor_err_mm(self):
+        return self._y_hor_err_mm
+
+    @y_hor_err_mm.setter
+    def y_hor_err_mm(self, value):
+        self._y_hor_err_mm = validate_float("y_hor_err_mm", value)
+
+    @property
+    def z_height_mm(self):
+        return self._z_height_mm
+
+    @z_height_mm.setter
+    def z_height_mm(self, value):
+        self._z_height_mm = validate_float("z_height_mm", value)
+
+    @property
+    def angle_err_rad(self):
+        return self._angle_err_rad
+
+    @angle_err_rad.setter
+    def angle_err_rad(self, value):
+        self._angle_err_rad = validate_float("angle_err_rad", value)
+
+    @property
+    def is_approximate(self):
+        return self._is_approximate
+
+    @is_approximate.setter
+    def is_approximate(self, value):
+        self._is_approximate = validate_bool("is_approximate", value)
+
+    @property
+    def did_tracking_succeed(self):
+        return self._did_tracking_succeed
+
+    @did_tracking_succeed.setter
+    def did_tracking_succeed(self, value):
+        self._did_tracking_succeed = validate_bool("did_tracking_succeed", value)
+
+    def __len__(self):
+        return \
+            4 + \
+            4 + \
+            4 + \
+            4 + \
+            4 + \
+            1 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "timestamp={timestamp}, " \
+               "x_dist_err_mm={x_dist_err_mm}, " \
+               "y_hor_err_mm={y_hor_err_mm}, " \
+               "z_height_mm={z_height_mm}, " \
+               "angle_err_rad={angle_err_rad}, " \
+               "is_approximate={is_approximate}, " \
+               "did_tracking_succeed={did_tracking_succeed})".format(
+                type=type(self).__name__,
+                timestamp=self._timestamp,
+                x_dist_err_mm=self._x_dist_err_mm,
+                y_hor_err_mm=self._y_hor_err_mm,
+                z_height_mm=self._z_height_mm,
+                angle_err_rad=self._angle_err_rad,
+                is_approximate=self._is_approximate,
+                did_tracking_succeed=self._did_tracking_succeed)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._timestamp, "L")
+        writer.write(self._x_dist_err_mm, "f")
+        writer.write(self._y_hor_err_mm, "f")
+        writer.write(self._z_height_mm, "f")
+        writer.write(self._angle_err_rad, "f")
+        writer.write(int(self._is_approximate), "b")
+        writer.write(int(self._did_tracking_succeed), "b")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        timestamp = reader.read("L")
+        x_dist_err_mm = reader.read("f")
+        y_hor_err_mm = reader.read("f")
+        z_height_mm = reader.read("f")
+        angle_err_rad = reader.read("f")
+        is_approximate = bool(reader.read("b"))
+        did_tracking_succeed = bool(reader.read("b"))
+        return cls(
+            timestamp=timestamp,
+            x_dist_err_mm=x_dist_err_mm,
+            y_hor_err_mm=y_hor_err_mm,
+            z_height_mm=z_height_mm,
+            angle_err_rad=angle_err_rad,
+            is_approximate=is_approximate,
+            did_tracking_succeed=did_tracking_succeed)
+
+
+class SetCarryState(Packet):
+
+    __slots__ = (
+        "_state",  # CarryState
+    )
+
+    def __init__(self,
+                 state=0):
+        super().__init__(PacketType.COMMAND, packet_id=0x49)
+        self.state = CarryState(state)
+
+    @property
+    def state(self) -> CarryState:
+        return self._state
+
+    @state.setter
+    def state(self, value: CarryState) -> None:
+        self._state = value
+        validate_integer("state", value.value, -128, 127)
+
+    def __len__(self):
+        return \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "state={state})".format(
+                type=type(self).__name__,
+                state=self._state)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._state.value, "b")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        state = reader.read("b")
+        return cls(
+            state=state)
 
 
 class SyncTime(Packet):
@@ -2850,6 +3332,42 @@ class EnableCamera(Packet):
         return cls(
             image_send_mode=image_send_mode,
             image_resolution=image_resolution)
+
+
+class CheckLiftLoad(Packet):
+
+    __slots__ = (
+    )
+
+    def __init__(self):
+        super().__init__(PacketType.COMMAND, packet_id=0x4f)
+        pass
+
+    def __len__(self):
+        return 0
+
+    def __repr__(self):
+        return "{type}()".format(type=type(self).__name__)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        pass
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        del reader
+        return cls(
+            )
 
 
 class SetCameraParams(Packet):
@@ -3472,18 +3990,16 @@ class TurnToRecordedHeading(Packet):
 class AnimHead(Packet):
 
     __slots__ = (
-        "_duration_ms",  # uint8
-        "_variability_deg",  # int8
+        "_duration_ms",  # uint16
         "_angle_deg",  # int8
     )
 
     def __init__(self,
                  duration_ms=0,
-                 variability_deg=0,
                  angle_deg=0):
         super().__init__(PacketType.COMMAND, packet_id=0x93)
+        # Time to reach the angle. Up to 65535 ms.
         self.duration_ms = duration_ms
-        self.variability_deg = variability_deg
         self.angle_deg = angle_deg
 
     @property
@@ -3492,15 +4008,7 @@ class AnimHead(Packet):
 
     @duration_ms.setter
     def duration_ms(self, value):
-        self._duration_ms = validate_integer("duration_ms", value, 0, 255)
-
-    @property
-    def variability_deg(self):
-        return self._variability_deg
-
-    @variability_deg.setter
-    def variability_deg(self, value):
-        self._variability_deg = validate_integer("variability_deg", value, -128, 127)
+        self._duration_ms = validate_integer("duration_ms", value, 0, 65535)
 
     @property
     def angle_deg(self):
@@ -3512,18 +4020,15 @@ class AnimHead(Packet):
 
     def __len__(self):
         return \
-            1 + \
-            1 + \
+            2 + \
             1
 
     def __repr__(self):
         return "{type}(" \
                "duration_ms={duration_ms}, " \
-               "variability_deg={variability_deg}, " \
                "angle_deg={angle_deg})".format(
                 type=type(self).__name__,
                 duration_ms=self._duration_ms,
-                variability_deg=self._variability_deg,
                 angle_deg=self._angle_deg)
 
     def to_bytes(self):
@@ -3532,8 +4037,7 @@ class AnimHead(Packet):
         return writer.dumps()
 
     def to_writer(self, writer):
-        writer.write(self._duration_ms, "B")
-        writer.write(self._variability_deg, "b")
+        writer.write(self._duration_ms, "H")
         writer.write(self._angle_deg, "b")
 
     @classmethod
@@ -3544,30 +4048,26 @@ class AnimHead(Packet):
 
     @classmethod
     def from_reader(cls, reader):
-        duration_ms = reader.read("B")
-        variability_deg = reader.read("b")
+        duration_ms = reader.read("H")
         angle_deg = reader.read("b")
         return cls(
             duration_ms=duration_ms,
-            variability_deg=variability_deg,
             angle_deg=angle_deg)
 
 
 class AnimLift(Packet):
 
     __slots__ = (
-        "_duration_ms",  # uint8
-        "_variability_mm",  # uint8
+        "_duration_ms",  # uint16
         "_height_mm",  # uint8
     )
 
     def __init__(self,
                  duration_ms=0,
-                 variability_mm=0,
                  height_mm=0):
         super().__init__(PacketType.COMMAND, packet_id=0x94)
+        # Time to reach the height. Up to 65535 ms.
         self.duration_ms = duration_ms
-        self.variability_mm = variability_mm
         self.height_mm = height_mm
 
     @property
@@ -3576,15 +4076,7 @@ class AnimLift(Packet):
 
     @duration_ms.setter
     def duration_ms(self, value):
-        self._duration_ms = validate_integer("duration_ms", value, 0, 255)
-
-    @property
-    def variability_mm(self):
-        return self._variability_mm
-
-    @variability_mm.setter
-    def variability_mm(self, value):
-        self._variability_mm = validate_integer("variability_mm", value, 0, 255)
+        self._duration_ms = validate_integer("duration_ms", value, 0, 65535)
 
     @property
     def height_mm(self):
@@ -3596,18 +4088,15 @@ class AnimLift(Packet):
 
     def __len__(self):
         return \
-            1 + \
-            1 + \
+            2 + \
             1
 
     def __repr__(self):
         return "{type}(" \
                "duration_ms={duration_ms}, " \
-               "variability_mm={variability_mm}, " \
                "height_mm={height_mm})".format(
                 type=type(self).__name__,
                 duration_ms=self._duration_ms,
-                variability_mm=self._variability_mm,
                 height_mm=self._height_mm)
 
     def to_bytes(self):
@@ -3616,8 +4105,7 @@ class AnimLift(Packet):
         return writer.dumps()
 
     def to_writer(self, writer):
-        writer.write(self._duration_ms, "B")
-        writer.write(self._variability_mm, "B")
+        writer.write(self._duration_ms, "H")
         writer.write(self._height_mm, "B")
 
     @classmethod
@@ -3628,13 +4116,63 @@ class AnimLift(Packet):
 
     @classmethod
     def from_reader(cls, reader):
-        duration_ms = reader.read("B")
-        variability_mm = reader.read("B")
+        duration_ms = reader.read("H")
         height_mm = reader.read("B")
         return cls(
             duration_ms=duration_ms,
-            variability_mm=variability_mm,
             height_mm=height_mm)
+
+
+class AnimEvent(Packet):
+
+    __slots__ = (
+        "_event_id",  # AnimEventType
+    )
+
+    def __init__(self,
+                 event_id=0):
+        super().__init__(PacketType.COMMAND, packet_id=0x95)
+        # Echoed back by the robot in AnimationEvent when played.
+        self.event_id = AnimEventType(event_id)
+
+    @property
+    def event_id(self) -> AnimEventType:
+        return self._event_id
+
+    @event_id.setter
+    def event_id(self, value: AnimEventType) -> None:
+        self._event_id = value
+        validate_integer("event_id", value.value, 0, 255)
+
+    def __len__(self):
+        return \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "event_id={event_id})".format(
+                type=type(self).__name__,
+                event_id=self._event_id)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._event_id.value, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        event_id = reader.read("B")
+        return cls(
+            event_id=event_id)
 
 
 class DisplayImage(Packet):
@@ -3744,15 +4282,17 @@ class AnimBody(Packet):
 
     __slots__ = (
         "_speed",  # int16
-        "_unknown",  # int16
+        "_curvature_radius_mm",  # int16
     )
 
     def __init__(self,
                  speed=0,
-                 unknown=0):
+                 curvature_radius_mm=32767):
         super().__init__(PacketType.COMMAND, packet_id=0x99)
+        # mm/s, or deg/s when turning in place.
         self.speed = speed
-        self.unknown = unknown
+        # 0x7fff drives straight, 0 turns in place, any other value drives an arc.
+        self.curvature_radius_mm = curvature_radius_mm
 
     @property
     def speed(self):
@@ -3763,12 +4303,12 @@ class AnimBody(Packet):
         self._speed = validate_integer("speed", value, -32768, 32767)
 
     @property
-    def unknown(self):
-        return self._unknown
+    def curvature_radius_mm(self):
+        return self._curvature_radius_mm
 
-    @unknown.setter
-    def unknown(self, value):
-        self._unknown = validate_integer("unknown", value, -32768, 32767)
+    @curvature_radius_mm.setter
+    def curvature_radius_mm(self, value):
+        self._curvature_radius_mm = validate_integer("curvature_radius_mm", value, -32768, 32767)
 
     def __len__(self):
         return \
@@ -3778,10 +4318,10 @@ class AnimBody(Packet):
     def __repr__(self):
         return "{type}(" \
                "speed={speed}, " \
-               "unknown={unknown})".format(
+               "curvature_radius_mm={curvature_radius_mm})".format(
                 type=type(self).__name__,
                 speed=self._speed,
-                unknown=self._unknown)
+                curvature_radius_mm=self._curvature_radius_mm)
 
     def to_bytes(self):
         writer = BinaryWriter()
@@ -3790,7 +4330,7 @@ class AnimBody(Packet):
 
     def to_writer(self, writer):
         writer.write(self._speed, "h")
-        writer.write(self._unknown, "h")
+        writer.write(self._curvature_radius_mm, "h")
 
     @classmethod
     def from_bytes(cls, buffer):
@@ -3801,10 +4341,10 @@ class AnimBody(Packet):
     @classmethod
     def from_reader(cls, reader):
         speed = reader.read("h")
-        unknown = reader.read("h")
+        curvature_radius_mm = reader.read("h")
         return cls(
             speed=speed,
-            unknown=unknown)
+            curvature_radius_mm=curvature_radius_mm)
 
 
 class EndAnimation(Packet):
@@ -4544,6 +5084,108 @@ class ObjectTapped(Packet):
             tap_pos=tap_pos)
 
 
+class PickAndPlaceResult(Packet):
+
+    __slots__ = (
+        "_timestamp",  # uint32
+        "_did_succeed",  # bool
+        "_result",  # DockingResult
+        "_block_status",  # uint8
+    )
+
+    def __init__(self,
+                 timestamp=0,
+                 did_succeed=False,
+                 result=0,
+                 block_status=0):
+        super().__init__(PacketType.COMMAND, packet_id=0xb8)
+        self.timestamp = timestamp
+        self.did_succeed = did_succeed
+        self.result = DockingResult(result)
+        self.block_status = block_status
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    @timestamp.setter
+    def timestamp(self, value):
+        self._timestamp = validate_integer("timestamp", value, 0, 4294967295)
+
+    @property
+    def did_succeed(self):
+        return self._did_succeed
+
+    @did_succeed.setter
+    def did_succeed(self, value):
+        self._did_succeed = validate_bool("did_succeed", value)
+
+    @property
+    def result(self) -> DockingResult:
+        return self._result
+
+    @result.setter
+    def result(self, value: DockingResult) -> None:
+        self._result = value
+        validate_integer("result", value.value, -128, 127)
+
+    @property
+    def block_status(self):
+        return self._block_status
+
+    @block_status.setter
+    def block_status(self, value):
+        self._block_status = validate_integer("block_status", value, 0, 255)
+
+    def __len__(self):
+        return \
+            4 + \
+            1 + \
+            1 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "timestamp={timestamp}, " \
+               "did_succeed={did_succeed}, " \
+               "result={result}, " \
+               "block_status={block_status})".format(
+                type=type(self).__name__,
+                timestamp=self._timestamp,
+                did_succeed=self._did_succeed,
+                result=self._result,
+                block_status=self._block_status)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._timestamp, "L")
+        writer.write(int(self._did_succeed), "b")
+        writer.write(self._result.value, "b")
+        writer.write(self._block_status, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        timestamp = reader.read("L")
+        did_succeed = bool(reader.read("b"))
+        result = reader.read("b")
+        block_status = reader.read("B")
+        return cls(
+            timestamp=timestamp,
+            did_succeed=did_succeed,
+            result=result,
+            block_status=block_status)
+
+
 class ObjectTapFiltered(Packet):
 
     __slots__ = (
@@ -4765,6 +5407,56 @@ class RobotPoked(Packet):
         del reader
         return cls(
             )
+
+
+class MovingLiftPostDock(Packet):
+
+    __slots__ = (
+        "_value",  # uint8
+    )
+
+    def __init__(self,
+                 value=0):
+        super().__init__(PacketType.COMMAND, packet_id=0xc5)
+        self.value = value
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = validate_integer("value", value, 0, 255)
+
+    def __len__(self):
+        return \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "value={value})".format(
+                type=type(self).__name__,
+                value=self._value)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._value, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        value = reader.read("B")
+        return cls(
+            value=value)
 
 
 class PathFollowingEvent(Packet):
@@ -5412,6 +6104,160 @@ class MotorCalibration(Packet):
             auto_started=auto_started)
 
 
+class DockingStatus(Packet):
+
+    __slots__ = (
+        "_timestamp",  # uint32
+        "_status",  # uint8
+    )
+
+    def __init__(self,
+                 timestamp=0,
+                 status=0):
+        super().__init__(PacketType.COMMAND, packet_id=0xd3)
+        self.timestamp = timestamp
+        self.status = status
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    @timestamp.setter
+    def timestamp(self, value):
+        self._timestamp = validate_integer("timestamp", value, 0, 4294967295)
+
+    @property
+    def status(self):
+        return self._status
+
+    @status.setter
+    def status(self, value):
+        self._status = validate_integer("status", value, 0, 255)
+
+    def __len__(self):
+        return \
+            4 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "timestamp={timestamp}, " \
+               "status={status})".format(
+                type=type(self).__name__,
+                timestamp=self._timestamp,
+                status=self._status)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._timestamp, "L")
+        writer.write(self._status, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        timestamp = reader.read("L")
+        status = reader.read("B")
+        return cls(
+            timestamp=timestamp,
+            status=status)
+
+
+class AnimationEvent(Packet):
+
+    __slots__ = (
+        "_timestamp",  # uint32
+        "_anim_id",  # uint8
+        "_event_id",  # AnimEventType
+    )
+
+    def __init__(self,
+                 timestamp=0,
+                 anim_id=0,
+                 event_id=0):
+        super().__init__(PacketType.COMMAND, packet_id=0xd5)
+        # Robot time in ms when the event was played.
+        self.timestamp = timestamp
+        # Tag of the animation, as sent with StartAnimation.
+        self.anim_id = anim_id
+        self.event_id = AnimEventType(event_id)
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    @timestamp.setter
+    def timestamp(self, value):
+        self._timestamp = validate_integer("timestamp", value, 0, 4294967295)
+
+    @property
+    def anim_id(self):
+        return self._anim_id
+
+    @anim_id.setter
+    def anim_id(self, value):
+        self._anim_id = validate_integer("anim_id", value, 0, 255)
+
+    @property
+    def event_id(self) -> AnimEventType:
+        return self._event_id
+
+    @event_id.setter
+    def event_id(self, value: AnimEventType) -> None:
+        self._event_id = value
+        validate_integer("event_id", value.value, 0, 255)
+
+    def __len__(self):
+        return \
+            4 + \
+            1 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "timestamp={timestamp}, " \
+               "anim_id={anim_id}, " \
+               "event_id={event_id})".format(
+                type=type(self).__name__,
+                timestamp=self._timestamp,
+                anim_id=self._anim_id,
+                event_id=self._event_id)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._timestamp, "L")
+        writer.write(self._anim_id, "B")
+        writer.write(self._event_id.value, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        timestamp = reader.read("L")
+        anim_id = reader.read("B")
+        event_id = reader.read("B")
+        return cls(
+            timestamp=timestamp,
+            anim_id=anim_id,
+            event_id=event_id)
+
+
 class ObjectUpAxisChanged(Packet):
 
     __slots__ = (
@@ -5495,6 +6341,56 @@ class ObjectUpAxisChanged(Packet):
             timestamp=timestamp,
             object_id=object_id,
             axis=axis)
+
+
+class LiftLoad(Packet):
+
+    __slots__ = (
+        "_has_load",  # bool
+    )
+
+    def __init__(self,
+                 has_load=False):
+        super().__init__(PacketType.COMMAND, packet_id=0xda)
+        self.has_load = has_load
+
+    @property
+    def has_load(self):
+        return self._has_load
+
+    @has_load.setter
+    def has_load(self, value):
+        self._has_load = validate_bool("has_load", value)
+
+    def __len__(self):
+        return \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "has_load={has_load})".format(
+                type=type(self).__name__,
+                has_load=self._has_load)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(int(self._has_load), "b")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        has_load = bool(reader.read("b"))
+        return cls(
+            has_load=has_load)
 
 
 class ButtonPressed(Packet):
@@ -7015,9 +7911,14 @@ PACKETS_BY_ID = {
     0x3f: AppendPathSegPointTurn,  # 63
     0x40: TrimPath,  # 64
     0x41: ExecutePath,  # 65
+    0x42: DockWithObject,  # 66
+    0x43: AbortDocking,  # 67
     0x45: SetOrigin,  # 69
+    0x48: DockingErrorSignal,  # 72
+    0x49: SetCarryState,  # 73
     0x4b: SyncTime,  # 75
     0x4c: EnableCamera,  # 76
+    0x4f: CheckLiftLoad,  # 79
     0x57: SetCameraParams,  # 87
     0x58: StartMotorCalibration,  # 88
     0x60: EnableStopOnCliff,  # 96
@@ -7031,6 +7932,7 @@ PACKETS_BY_ID = {
     0x92: TurnToRecordedHeading,  # 146
     0x93: AnimHead,  # 147
     0x94: AnimLift,  # 148
+    0x95: AnimEvent,  # 149
     0x97: DisplayImage,  # 151
     0x98: AnimBackpackLights,  # 152
     0x99: AnimBody,  # 153
@@ -7044,10 +7946,12 @@ PACKETS_BY_ID = {
     0xb4: ObjectMoved,  # 180
     0xb5: ObjectStoppedMoving,  # 181
     0xb6: ObjectTapped,  # 182
+    0xb8: PickAndPlaceResult,  # 184
     0xb9: ObjectTapFiltered,  # 185
     0xc2: RobotDelocalized,  # 194
     0xc3: RobotPoked,  # 195
     0xc4: AcknowledgeAction,  # 196
+    0xc5: MovingLiftPostDock,  # 197
     0xc6: PathFollowingEvent,  # 198
     0xc9: HardwareInfo,  # 201
     0xca: AnimationStarted,  # 202
@@ -7056,7 +7960,10 @@ PACKETS_BY_ID = {
     0xce: ObjectPowerLevel,  # 206
     0xd0: ObjectConnectionState,  # 208
     0xd1: MotorCalibration,  # 209
+    0xd3: DockingStatus,  # 211
+    0xd5: AnimationEvent,  # 213
     0xd7: ObjectUpAxisChanged,  # 215
+    0xda: LiftLoad,  # 218
     0xdb: ButtonPressed,  # 219
     0xdd: FallingStarted,  # 221
     0xde: FallingStopped,  # 222
@@ -7079,12 +7986,14 @@ PACKETS_BY_GROUP = {
         0x92,  # TurnToRecordedHeading
         0x93,  # AnimHead
         0x94,  # AnimLift
+        0x95,  # AnimEvent
         0x98,  # AnimBackpackLights
         0x99,  # AnimBody
         0x9a,  # EndAnimation
         0x9b,  # StartAnimation
         0xca,  # AnimationStarted
         0xcb,  # AnimationEnded
+        0xd5,  # AnimationEvent
     },
     "audio": {
         0x64,  # SetRobotVolume
@@ -7102,6 +8011,17 @@ PACKETS_BY_GROUP = {
     },
     "display": {
         0x97,  # DisplayImage
+    },
+    "docking": {
+        0x42,  # DockWithObject
+        0x43,  # AbortDocking
+        0x48,  # DockingErrorSignal
+        0x49,  # SetCarryState
+        0x4f,  # CheckLiftLoad
+        0xb8,  # PickAndPlaceResult
+        0xc5,  # MovingLiftPostDock
+        0xd3,  # DockingStatus
+        0xda,  # LiftLoad
     },
     "firmware": {
         0xaf,  # FirmwareUpdate
