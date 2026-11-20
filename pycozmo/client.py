@@ -549,31 +549,26 @@ class Client(event.Dispatcher):
         # The ID is one byte: wrap around (1-255) instead of failing after 255 animations.
         self._next_anim_id = self._next_anim_id % 255 + 1
 
-        # Send frames to the animation controller. Each keyframe goes to the frame
-        # index of its trigger time (one frame per 1/30 s), padding with empty
-        # frames in between. The previous pause logic added one extra empty frame
-        # after every keyframe, so consecutive audio frames were interleaved with
-        # silence (choppy sound) and dense clips played up to twice too slowly.
-        frames = list(sorted(ppclip.keyframes.keys()))
-        start = frames[0] if frames else 0
-        played = 0
-        for at in frames:
-            target = round((at - start) * robot.FRAME_RATE / 1000)
-            while played < target:
-                self.anim_controller.play_anim_frame(None, None, None)
-                played += 1
-            audio_pkt = None
-            image_pkt = None
-            pkts = []
+        # Send frames to the animation controller, one per 1/30 s. Keyframes whose trigger
+        # times fall in the same frame share it: a frame per keyframe stretched the animation
+        # and put silent frames between consecutive audio frames (choppy sound).
+        frames = {}
+        start = min(ppclip.keyframes) if ppclip.keyframes else 0
+        for at in sorted(ppclip.keyframes):
+            index = round((at - start) * robot.FRAME_RATE / 1000)
+            frame = frames.setdefault(index, [None, None, {}])
             for action in ppclip.keyframes[at]:
                 if isinstance(action, protocol_encoder.OutputAudio):
-                    audio_pkt = action
+                    frame[0] = action
                 elif isinstance(action, protocol_encoder.DisplayImage):
-                    image_pkt = action
+                    frame[1] = action
                 elif isinstance(action, protocol_encoder.Packet):
-                    pkts.append(action)
-            self.anim_controller.play_anim_frame(audio_pkt, image_pkt, pkts)
-            played += 1
+                    # The robot takes one keyframe of each kind per frame: the latest wins.
+                    frame[2].pop(type(action), None)
+                    frame[2][type(action)] = action
+        for index in range(max(frames) + 1 if frames else 0):
+            audio_pkt, image_pkt, pkts = frames.get(index, (None, None, {}))
+            self.anim_controller.play_anim_frame(audio_pkt, image_pkt, list(pkts.values()))
 
         # End animation.
         pkt = protocol_encoder.EndAnimation()

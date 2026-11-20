@@ -101,6 +101,8 @@ class AnimationController:
         self._played_base = None
         self.playing_audio = False
         self.playing_animation = False
+        #: True between the StartAnimation and the EndAnimation sent to the robot.
+        self.streaming_animation = False
         self.last_image_pkt = protocol_encoder.DisplayImage(image=b"\x3f\x3f")
         self.face_generator = iter(procedural_face.ProceduralFaceGenerator())
         self.animations_enabled = False
@@ -147,6 +149,10 @@ class AnimationController:
         """ Timer periods to wait after a frame: 0 to fill the lead, 2 to drain an excess. """
         lead = self.lead()
         if lead is None:
+            return 1
+        # While an animation is streamed, frames are never sent in bursts: on a robot, an animation
+        # with sound does not start when its frames arrive faster than 30 fps.
+        if self.streaming_animation:
             return 1
         if lead < self.LEAD_FRAMES:
             return 0
@@ -221,6 +227,10 @@ class AnimationController:
                 if pkts:
                     for pkt in pkts:
                         self.cli.conn.send(pkt)
+                        if isinstance(pkt, protocol_encoder.StartAnimation):
+                            self.streaming_animation = True
+                        elif isinstance(pkt, protocol_encoder.EndAnimation):
+                            self.streaming_animation = False
 
                 num_frames += 1
                 self.frames_sent = num_frames
