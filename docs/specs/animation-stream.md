@@ -30,7 +30,7 @@ milliseconds. Durations up to 65,535 ms are valid; animation data uses up to 8,9
 | --- | --- | --- |
 | `0x7fff` | straight | mm/s |
 | `0` | turn in place | deg/s |
-| any other value | arc of that radius (signed) | mm/s |
+| any other value | arc, signed radius (on firmware 2381 the robot drives a circle of about 2.05 times this radius, see below) | mm/s |
 
 The robot computes the wheel speeds. `AnimBody(speed=0, curvature_radius_mm=0x7fff)` stops.
 
@@ -74,8 +74,9 @@ events of other animations are ignored.
 | `AnimEvent` → `AnimationEvent` | Verified (`anim_energy_eat_01`, `ENERGY_DRAINCUBE_END`) |
 | `AnimBody` straight, 40 mm/s × 1.5 s | 56 mm for 60 mm, heading 0° |
 | `AnimBody` turn in place, 45 deg/s × 1 s | +41° for +45°: `speed` is in deg/s |
-| `AnimBody` arcs, 40 mm/s × 2 s | Positive radius turns left; distance 75–79 mm for 80 mm; odometry heading about 0.4 times `distance / radius` (radii 75 to 300 mm). Open: whether the robot's heading or its arc differs; to be measured on the floor (`--tests arcs`). The radius is sent unchanged. |
-| `AnimHead` / `AnimLift` longer than 255 ms | To be measured (`--tests head,lift`) |
+| `AnimBody` arcs, radius 150 mm at 40 mm/s × 2, 4, 8 s | Positive radius turns left; distance right (chord 305 mm for 320 mm). Heading expected / odometry / floor (protractor, about 5° precision): 31 / 11 / 14°, 61 / 26 / 40° (estimate), 122 / 58 / 60°. The ratio does not tend to 1 on longer arcs. Quarter circle of 707 mm of path (50 mm/s × 14.1 s), odometry heading for a commanded radius of 450 / 200 / 220 mm: +38° / +99° / +89° for +90° expected, i.e. an effective radius of about 1060 / 410 / 455 mm. A commanded radius R gives a circle of about 2.05 R (about 2.4 R at 450 mm, where the heading is small and the odometry error weighs more). Cause not established (the robot may read the value as a diameter). The radius is sent unchanged: the original clips are probably authored for this behaviour. |
+| `AnimHead` / `AnimLift`, 3 s moves | Verified: head 90 % in 3.26 s (40.7°); lift 84.8–85.3 mm for 85 mm in 3.2–3.3 s. `RobotState.lift_height_mm` is the arm angle in radians despite its name; the height is `45 + 66 × sin(angle)` mm (`pycozmo.robot`) |
+| `body` test | Straight 95 mm for 100, turn in place 81° for 90°; the `stopped` criterion (wheel speeds of `RobotState`) reports failure although the robot stops, probably another unit issue |
 
 ## Uses of the events (informative)
 
