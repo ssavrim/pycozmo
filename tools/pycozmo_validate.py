@@ -58,9 +58,9 @@ class State:
 
     @staticmethod
     def lift_height_mm(pkt):
-        """ Lift height from RobotState. Despite its name, the ``lift_height_mm`` field is the arm angle in
-        radians (about -0.2 at rest, 0.7 fully up on firmware 2381). """
-        return robot.LIFT_PIVOT_HEIGHT.mm + robot.LIFT_ARM_LENGTH.mm * math.sin(pkt.lift_height_mm)
+        """ Lift height from RobotState, whose ``lift_height_rad`` field is the arm angle in radians
+        (about -0.2 at rest, 0.7 fully up on firmware 2381). """
+        return robot.LIFT_PIVOT_HEIGHT.mm + robot.LIFT_ARM_LENGTH.mm * math.sin(pkt.lift_height_rad)
 
     def on_state(self, cli, pkt):
         del cli

@@ -6830,7 +6830,7 @@ class RobotState(Packet):
         "_lwheel_speed_mmps",  # float
         "_rwheel_speed_mmps",  # float
         "_head_angle_rad",  # float
-        "_lift_height_mm",  # float
+        "_lift_height_rad",  # float
         "_accel_x",  # float
         "_accel_y",  # float
         "_accel_z",  # float
@@ -6856,7 +6856,7 @@ class RobotState(Packet):
                  lwheel_speed_mmps=0.0,
                  rwheel_speed_mmps=0.0,
                  head_angle_rad=0.0,
-                 lift_height_mm=0.0,
+                 lift_height_rad=0.0,
                  accel_x=0.0,
                  accel_y=0.0,
                  accel_z=0.0,
@@ -6880,7 +6880,7 @@ class RobotState(Packet):
         self.lwheel_speed_mmps = lwheel_speed_mmps
         self.rwheel_speed_mmps = rwheel_speed_mmps
         self.head_angle_rad = head_angle_rad
-        self.lift_height_mm = lift_height_mm
+        self.lift_height_rad = lift_height_rad
         self.accel_x = accel_x
         self.accel_y = accel_y
         self.accel_z = accel_z
@@ -6982,12 +6982,12 @@ class RobotState(Packet):
         self._head_angle_rad = validate_float("head_angle_rad", value)
 
     @property
-    def lift_height_mm(self):
-        return self._lift_height_mm
+    def lift_height_rad(self):
+        return self._lift_height_rad
 
-    @lift_height_mm.setter
-    def lift_height_mm(self, value):
-        self._lift_height_mm = validate_float("lift_height_mm", value)
+    @lift_height_rad.setter
+    def lift_height_rad(self, value):
+        self._lift_height_rad = validate_float("lift_height_rad", value)
 
     @property
     def accel_x(self):
@@ -7117,7 +7117,7 @@ class RobotState(Packet):
                "lwheel_speed_mmps={lwheel_speed_mmps}, " \
                "rwheel_speed_mmps={rwheel_speed_mmps}, " \
                "head_angle_rad={head_angle_rad}, " \
-               "lift_height_mm={lift_height_mm}, " \
+               "lift_height_rad={lift_height_rad}, " \
                "accel_x={accel_x}, " \
                "accel_y={accel_y}, " \
                "accel_z={accel_z}, " \
@@ -7141,7 +7141,7 @@ class RobotState(Packet):
                 lwheel_speed_mmps=self._lwheel_speed_mmps,
                 rwheel_speed_mmps=self._rwheel_speed_mmps,
                 head_angle_rad=self._head_angle_rad,
-                lift_height_mm=self._lift_height_mm,
+                lift_height_rad=self._lift_height_rad,
                 accel_x=self._accel_x,
                 accel_y=self._accel_y,
                 accel_z=self._accel_z,
@@ -7171,7 +7171,7 @@ class RobotState(Packet):
         writer.write(self._lwheel_speed_mmps, "f")
         writer.write(self._rwheel_speed_mmps, "f")
         writer.write(self._head_angle_rad, "f")
-        writer.write(self._lift_height_mm, "f")
+        writer.write(self._lift_height_rad, "f")
         writer.write(self._accel_x, "f")
         writer.write(self._accel_y, "f")
         writer.write(self._accel_z, "f")
@@ -7203,7 +7203,7 @@ class RobotState(Packet):
         lwheel_speed_mmps = reader.read("f")
         rwheel_speed_mmps = reader.read("f")
         head_angle_rad = reader.read("f")
-        lift_height_mm = reader.read("f")
+        lift_height_rad = reader.read("f")
         accel_x = reader.read("f")
         accel_y = reader.read("f")
         accel_z = reader.read("f")
@@ -7227,7 +7227,7 @@ class RobotState(Packet):
             lwheel_speed_mmps=lwheel_speed_mmps,
             rwheel_speed_mmps=rwheel_speed_mmps,
             head_angle_rad=head_angle_rad,
-            lift_height_mm=lift_height_mm,
+            lift_height_rad=lift_height_rad,
             accel_x=accel_x,
             accel_y=accel_y,
             accel_z=accel_z,
