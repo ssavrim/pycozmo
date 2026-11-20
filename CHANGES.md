@@ -3,6 +3,60 @@ Revision History
 
 Unreleased
 ----------
+- Report the end of an animation from the frame count: the robot does not send AnimationEnded
+    for animations with sound, so EvtAnimationCompleted was never dispatched. The AnimationEnded
+    that answers the cancel of the previous animation no longer ends the next one.
+- Fix the animation frame layout: keyframes whose trigger times fall in the same 1/30 s frame
+    share it (one frame per keyframe stretched clips and put silence between audio frames), and
+    frames are no longer sent in bursts while an animation is streamed.
+- Fix animation stream messages (docs/specs/animation-stream.md):
+    AnimHead and AnimLift durations are 16-bit (the former variability byte was the high
+    byte), so moves longer than 255 ms are no longer truncated; head/lift variability is
+    drawn on the host. AnimBody's second field is the curvature radius: body motions are
+    sent as-is (straight, in place, or arc) and stopped at the end, instead of host-computed
+    wheel speeds with a wrong arc formula. Breaking: AnimHead/AnimLift lose the
+    variability argument and AnimBody.unknown becomes curvature_radius_mm.
+- Add AnimEvent (0x95) and AnimationEvent (0xd5); stream event keyframes and dispatch
+    EvtAnimationEvent when the robot plays them.
+- Add pycozmo.anim_library.AnimationLibrary: clips, animation groups and triggers of the
+    prepared resources, with the selection of docs/specs/animation-library.md (shared per-clip cooldowns,
+    head angle ranges in radians, mood and fallbacks). AnimationGroup.choose_member and
+    Client.play_anim_group use it; groups whose weights are all zero no longer fail.
+- Play face animation keyframes (PNG frames, one per animation frame) in
+    PreprocessedClip; they replace procedural faces while they play.
+- Play the sound of original animations: pycozmo.audiokinetic.hierarchy reads Wwise
+    version 120 banks (events, actions, sounds, containers, properties, embedded media);
+    pycozmo.anim_audio chooses the event of each RobotAudio keyframe with its
+    probabilities, resolves it (random/shuffle/sequence containers, avoid-repeat, switches,
+    layers, volume, pitch, filters, delays, loops, Stop, Seek), decodes media with
+    vgmstream-cli and mixes them at 22,320 Hz into OutputAudio packets.
+    AnimationLibrary.enable_audio() turns it on.
+- Prepare resources from the user's copy of the Cozmo application (XAPK, APK and OBB,
+    or OBB alone) with pycozmo.resources.prepare() and 'pycozmo_resources.py prepare':
+    version and signer checks, safe extraction (no path traversal, links or archive bombs),
+    atomic replacement, and a manifest with checksums checked by 'verify'. Sound banks go
+    to cozmo_resources/sound/AudioAssets. The automatic download from a third-party mirror,
+    which disabled TLS certificate verification, is removed. See docs/specs/resources.md.
+- Require Python 3.12 or later; add uv project management and Python 3.12/3.13/3.14 CI.
+- Correct procedural face rendering for inverted shapes in original animations.
+- Clamp u-law output to valid bytes and decode PCM as little-endian.
+- Wait reliably for robot initialization and handle reused cube object slots.
+- Load animations from a custom directory and optionally filter keyframe types.
+- Add optional WEM decoding through an externally installed vgmstream-cli.
+- Add a deterministic companion decision policy independent of robot I/O.
+- Add optional local face recognition and motion detection via OpenCV.
+- Add optional eSpeak NG text-to-speech and cube light/accelerometer helpers.
+- Encode audio in the robot's 8-bit format without mu-law bias or +1 offset: silence
+    no longer becomes a +/-132 square wave and loud positive samples no longer flip sign.
+- Keep a 14-frame lead of animation frames on the robot, regulated with
+    AnimationState, so Wi-Fi jitter no longer interrupts audio playback.
+- Fix play_anim_ppclip padding: it inserted an empty frame after every keyframe,
+    interleaving animation audio with silence and slowing dense clips.
+- Detect body orientation from gravity (IMU reading rotated by the head angle) with
+    hysteresis; the pose heading no longer reports the robot as lying on a side.
+    Add RobotOrientation.UPSIDE_DOWN.
+- Add EvtRobotTapped, detected from IMU readings while the robot is still, and
+    Client.battery_percent, an indicative charge estimate (pycozmo.sensors).
 - Fixed all mypy findings and made mypy checks required in CI. Modernized type hints for Python 3.11+.
 - Fixed animation controller status change handlers failing on every animation status change, which aborted
     processing of the rest of the robot state update.
@@ -30,7 +84,7 @@ v0.9.0 (Nov 15, 2026)
     (thanks to Hossam Khader / hossamkhader)
 - Updated flake8 and mypy configuration and fixed lint findings.
 - Switched documentation to the MyST Markdown parser and added Read the Docs configuration.
-- Added OpenCV as a dependency.
+- Added OpenCV as a dependency (an optional "vision" extra in this fork).
 - Reading of saved cube IDs from robot NV storage. Exposed as Client.saved_objects .
 - Reading of camera calibration from robot NV storage. Exposed as Client.camera_config, with a camera matrix
     suitable for use with OpenCV.

@@ -13,6 +13,19 @@ This project is a tool for exploring the hardware and software of the Digital Dr
 It is unstable and heavily under development.
 
 
+Installation and development
+----------------------------
+
+Python 3.12 or newer is required. Install [uv](https://docs.astral.sh/uv/), then run:
+
+```bash
+uv sync
+uv run pytest
+```
+
+For documentation tooling, use `uv sync --group docs`. To install the library in an
+existing environment, use `python -m pip install .`.
+
 Usage
 -----
 
@@ -53,6 +66,10 @@ Documentation
 Robot Support
 -------------
 
+A checked item means that an API or protocol implementation exists; it does not
+mean that every robot, firmware version or peripheral has been tested. See the
+[implementation audit](docs/robot_support_audit.md) for evidence and priorities.
+
 Sensors:
 - [x] Camera
 - [x] Cliff sensor
@@ -68,13 +85,13 @@ Actuators:
 - [x] Head motor
 - [x] Lift motor
 - [x] OLED display
-- [x] Speaker
+- [x] Speaker (8-bit audio, 744 samples per frame at 30 frames/s; playback verified on a robot)
 - [x] Backpack LEDs
 - [x] IR LED
 - [x] Cube LEDs
 - [x] Platform LEDs (when available)
 
-On-board functions (see [docs/functions.md](docs/functions.md) for details:
+On-board functions (see [docs/functions.md](docs/functions.md) for details):
 - [x] Wi-Fi AP
 - [x] Bluetooth LE
 - [x] Localization
@@ -82,21 +99,21 @@ On-board functions (see [docs/functions.md](docs/functions.md) for details:
 - [x] NV RAM storage
 - [x] Over-the-air (OTA) firmware updates
 
-Off-board functions (see [docs/offboard_functions.md](docs/offboard_functions.md) for details:
+Off-board functions (see [docs/offboard_functions.md](docs/offboard_functions.md) for details):
 - [x] Procedural face generation
-- [x] Cozmo animations from FlatBuffers .bin files
-- [ ] Personality engine - work in progress
-- [ ] Cozmo behaviors - work in progress
-- [ ] Motion detection
-- [ ] Object (cube and platform) detection
+- [x] Cozmo animations from FlatBuffers .bin files (frame timing verified on a robot; audio events and some tracks are not played)
+- [ ] Personality engine - partial, work in progress
+- [ ] Cozmo behaviors - partial, work in progress
+- [x] Basic camera motion detection (OpenCV; sensitive to camera motion)
+- [ ] Visual object detection (cubes and charging platform; Bluetooth discovery is available)
 - [ ] Cube marker recognition
-- [ ] Face detection
-- [ ] Face recognition
+- [x] Basic face detection (OpenCV Haar cascade; optional vision extra)
+- [x] Basic local face recognition (OpenCV LBPH; optional vision extra)
 - [ ] Facial expression estimation
 - [ ] Pet detection
 - [ ] Camera calibration
 - [ ] Navigation map building
-- [ ] Text-to-speech
+- [x] Text-to-speech via an independently installed eSpeak NG (not the original Cozmo voice)
 - [ ] Songs
 
 Extra off-board functions:
@@ -107,7 +124,7 @@ Extra off-board functions:
 - [ ] Drivable area estimation
 - [ ] Voice commands
 
-If you have ideas for other functionality [share them via GitHub](https://github.com/zayfod/pycozmo/issues).
+If you have ideas for other functionality [share them via GitHub](https://github.com/ssavrim/pycozmo/issues).
 
 
 Tools
@@ -204,62 +221,42 @@ the low-level UDP communication with Cozmo.
 ```
 
 
+
 Requirements
 ------------
 
-- [Python](https://www.python.org/downloads/) 3.11 or newer
-- [Pillow](https://github.com/python-pillow/Pillow) 9.1 or newer - Python image library
-- [FlatBuffers](https://github.com/google/flatbuffers) 2.0 or newer - serialization library
-- [dpkt](https://github.com/kbandla/dpkt) - TCP/IP packet parsing library
-- [OpenCV](https://opencv.org/) 4.0.0 or newer - computer vision library
-
+- Python 3.12 or newer.
+- Pillow, NumPy, FlatBuffers and dpkt (installed automatically).
+- Optionally, OpenCV with its contrib modules for face detection and recognition.
 
 Installation
 ------------
 
-Using pip:
+Clone this fork and install it into a virtual environment:
 
-```
-pip install pycozmo
-
-pycozmo_resources.py download
-```
-
-From source:
-
-```
-git clone https://github.com/zayfod/pycozmo.git
+```bash
+git clone https://github.com/ssavrim/pycozmo.git
 cd pycozmo
-pip install .
-
-pycozmo_resources.py download
+python -m venv .venv
+# Activate .venv for your platform, then:
+python -m pip install .
 ```
 
-From source, for development (requires pip 25.1 or newer):
+For face recognition, install `.[vision]` instead. For development with uv,
+run `uv sync --extra vision` and see [CONTRIBUTING.md](CONTRIBUTING.md).
+The PyPI package named `pycozmo` may be an older upstream release and does not
+necessarily include this fork's changes.
 
-```
-git clone git@github.com:zayfod/pycozmo.git
-cd pycozmo
-pip install -e . --group dev
+Original animations and sounds are not distributed with the library. See the
+resource and animation documentation before loading your own extracted files.
 
-pycozmo_resources.py download
-```
 
-Running the tests and linters:
-
-```
-flake8
-mypy
-pytest
-```
-
- 
 Support
 -------
 
 Bug reports and changes should be sent via GitHub:
 
-[https://github.com/zayfod/pycozmo](https://github.com/zayfod/pycozmo)
+[https://github.com/ssavrim/pycozmo](https://github.com/ssavrim/pycozmo)
 
 Vector & Friends Discord server, channel #development-cozmo:
 
@@ -271,3 +268,82 @@ Disclaimer
 
 This project is not affiliated with [Digital Dream Labs](https://www.digitaldreamlabs.com/) or
 [Anki](https://anki.com/).
+
+Original resources and cube connections
+---------------------------------------
+
+PyCozmo does not include Cozmo's proprietary resources. Prepare them from your
+own copy of the Cozmo Android application 3.4.0 (an XAPK, or the APK with
+`main.1204.com.anki.cozmo.obb`, or the OBB alone):
+
+```bash
+pycozmo_resources.py prepare cozmo-3.4.0.xapk      # or: prepare app.apk --obb main.1204.com.anki.cozmo.obb
+pycozmo_resources.py verify
+```
+
+Resources go to `~/.pycozmo/assets` (or `$PYCOZMO_DIR/assets`, or `--dest`), with
+a `resources-manifest.json` that records the version, the checksums of the
+package and of the extracted files. The tool checks the version and Anki's
+signing certificate; it does not extract the TTS voices nor the robot firmware
+(`--include-firmware` to get the firmware). From Python, use
+`pycozmo.resources.prepare()`.
+
+If you have extracted animation files otherwise, load their directory explicitly
+with `cli.load_anims(path)` and inspect `cli.anim_names`. `cli.play_anim(name)` may move the robot. To restrict a
+clip to face and head tracks, use:
+
+```python
+from pycozmo import anim_encoder
+
+cli.play_anim(name, allowed_types=(anim_encoder.AnimProceduralFace,
+                                   anim_encoder.AnimHeadAngle))
+```
+
+Wwise `.wem` audio can be played with `cli.play_wem(path)` after installing
+`vgmstream-cli` separately. Supply its executable path as `decoder=` if needed.
+The default decoded duration limit is 60 seconds. To play original animations
+with their sound, enable it on the animation library (needs `vgmstream-cli`):
+
+```python
+from pycozmo import anim_library
+
+lib = anim_library.AnimationLibrary.load()
+lib.enable_audio()
+cli.play_anim_ppclip(lib.preprocess(lib.choose("CodeLabHappy")))
+```
+`cli.set_volume(level)` accepts an integer from 0 to 65535.
+
+For text-to-speech, install [eSpeak NG](https://github.com/espeak-ng/espeak-ng)
+separately and use `cli.say_text("Bonjour Cozmo", voice="fr")`. Audio is
+synthesized on the computer and queued for playback on the robot. It is a
+substitute voice, not the original Cozmo voice. eSpeak NG is a separate project
+licensed under GPL-3.0-or-later; neither its executable nor voice data is bundled
+with PyCozmo. See [examples/say_text.py](examples/say_text.py).
+
+For cubes, `cli.available_objects` lists discovered factory IDs. Use
+`cli.set_object_connection(factory_id)` to request a connection and wait for
+`ObjectConnectionState` before addressing its reported `object_id`. Register
+handlers before requesting a connection; events may arrive quickly. Some robots
+reuse an object slot when another cube connects. Use
+`cli.set_cube_lights(object_id, states)` for four LED states and
+`cli.set_object_accel_stream(object_id)` to request accelerometer packets. See
+[examples/cube_lights.py](examples/cube_lights.py) for an example.
+
+The `pycozmo.companion` module provides a deterministic policy for observations
+such as faces, cube taps and low battery. It returns suggested actions and never
+commands motors. Applications must provide fresh observations, implement each
+action, stop on `halt`, and enforce movement safety themselves; this is a policy
+building block, not a complete autonomous controller.
+
+For local face and motion detection, install the optional OpenCV dependency
+with `uv sync --extra vision` (or `python -m pip install '.[vision]'` from the checkout).
+`pycozmo.vision.FaceVision(callback, face_dir=...)` accepts PIL camera frames via
+`submit`; the callback receives face rectangles, image dimensions, a monotonic
+timestamp, a recognized name or `None`, and a motion score. Call `close()` when
+finished. Recognition requires explicit `enroll(name)` with a recently detected
+face. Samples are saved locally to `face_dir`, or by default under
+`~/.local/share/pycozmo/faces`. `registry.clear()` removes managed samples and
+preserves unrelated files in that directory.
+Face and motion detection do not by themselves control the robot. See
+[examples/face_detection.py](examples/face_detection.py) for connecting the
+vision worker to camera events.

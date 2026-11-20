@@ -200,8 +200,18 @@ See `examples/display_image.py` and `examples/display_lines.py` for example usag
 Speaker
 -------
 
-The `OutputAudio` message can be used to transmit 744 audio samples at a time.
-The samples are 8-bit and [u-law](https://en.wikipedia.org/wiki/%CE%9C-law_algorithm) encoded.
+The `OutputAudio` message can be used to transmit 744 audio samples at a time, one message per animation frame
+(30 frames per second), i.e. 22,320 samples per second. `OutputSilence` fills a frame without sound.
+
+The samples are 8-bit and companded like [u-law](https://en.wikipedia.org/wiki/%CE%9C-law_algorithm), but without
+the u-law bias and inversion: bit 7 is the sign, bits 4-6 the segment (position of the highest set bit of
+`magnitude >> 8`, 0 for magnitudes below 256) and bits 0-3 the mantissa (`magnitude >> 4` in segment 0, otherwise
+`(magnitude >> (segment + 3)) & 0xf`), with `magnitude = |sample|` (`-sample - 1` for negative samples). Silence is
+therefore code 0. See `audio.u_law_encoding`.
+
+The robot buffers frames sent ahead of playback and plays them on its own clock. Sending each frame just in time makes
+any network delay longer than one frame audible as a gap; `AnimationController` keeps a lead of 14 frames, measured
+with `AnimationState.num_audio_frames_played`.
 
 Speaker volume can be adjusted with the `SetRobotVolume` message.
  
@@ -407,6 +417,15 @@ To play animations, `AnimationState` message have to be enabled first using the 
 Animations are controlled with the `StartAnimation`, `EndAnimation`, and `AbortAnimation` messages.
 
 Keyframes are transferred with the `AnimHead`, `AnimLift`, `AnimBody`, `AnimBackpackLights`, `RecordHeading`,
-`TurnToRecordedHeading`, and `OutputAudio` messages.
+`TurnToRecordedHeading`, `AnimEvent`, and `OutputAudio` messages.
+
+- `AnimHead` and `AnimLift` carry a 16-bit duration in milliseconds. Angle and height variability of original
+  keyframes is drawn on the host before sending.
+- `AnimBody` carries a speed and a curvature radius: `0x7fff` drives straight, `0` turns in place (speed in
+  degrees per second), any other value drives an arc. The robot computes the wheel speeds. A body motion ends with
+  `AnimBody(speed=0, curvature_radius_mm=0x7fff)`.
+- `AnimEvent` marks a moment of the animation. When the robot plays it, it sends back `AnimationEvent` with its
+  timestamp and the animation ID given in `StartAnimation`. `Client` dispatches `EvtAnimationEvent` for the
+  current animation.
    
 See `examples/anim.py` for example usage.
