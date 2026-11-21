@@ -26,6 +26,8 @@ Tests (--tests, comma-separated; default: all that apply):
     face    face animation anim_bored_event_02                                     screen
     sound   sound of a few clips                                                   speaker
     clip    one complete clip                                                      wheels
+    needs   needs model driven by the real clock for 2 minutes (docs/specs/needs.md)   no movement
+    mood    emotion events from robot events: lift the robot (docs/specs/mood.md)       you lift the robot
 
 Tests that move the wheels ask for confirmation first. Ctrl+C stops the motors.
 A JSON report is written (--report).
@@ -46,7 +48,7 @@ import pycozmo
 from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, robot
 
 
-ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip")
+ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood")
 
 
 class State:
@@ -272,6 +274,79 @@ def test_clip(cli, state, report, ctx):
     report.add("clip:" + name, "PASS" if ok else "FAIL")
 
 
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def test_needs(cli, state, report, ctx):
+    """ Run the needs model on the real clock while connected and compare it to the same model on a simulated clock. """
+    from pycozmo import needs
+    print("\nneeds: the needs model on the real clock for 125 s (no movement)")
+    config = needs.load_needs_config(str(ctx["root"]))
+    model = needs.NeedsModel(config, rng=__import__("random").Random(0), connected=True)
+    start = time.monotonic()
+    polls = []
+    ticks = 0
+    last = None
+    while time.monotonic() - start < 125.0:
+        polls.append(time.monotonic() - start)
+        levels = {n: model.level(n) for n in needs.NeedId}
+        if last is not None and levels != last:
+            ticks += 1
+        last = levels
+        time.sleep(0.5)
+    elapsed = time.monotonic() - start
+    # The same model on a simulated clock, queried at the same instants.
+    clock = FakeClock()
+    reference = needs.NeedsModel(config, clock=clock, rng=__import__("random").Random(0), connected=True)
+    for t in polls:
+        clock.now = t
+        reference.update()
+    expected = {n: reference.levels[n] for n in needs.NeedId}
+    measured = {n: model.levels[n] for n in needs.NeedId}
+    worst = max(abs(measured[n] - expected[n]) for n in needs.NeedId)
+    rounded = {n.name: round(v, 4) for n, v in measured.items()}
+    status = "PASS" if ticks == int(elapsed // config.decay_period_seconds) and worst < 1e-3 else "FAIL"
+    report.add("needs", status, elapsed_s=round(elapsed, 1), decay_steps=ticks, max_difference=round(worst, 6),
+               levels=rounded)
+
+
+def test_mood(cli, state, report, ctx):
+    """ Feed the mood with the cliff event of the robot and check the emotion values and the penalty. """
+    from pycozmo import emotions
+    print("\nmood: emotion events from robot events")
+    root = str(ctx["root"])
+    types = emotions.load_emotion_types(root)
+    mood = emotions.Mood(types, emotions.load_emotion_events(root))
+    seen = []
+
+    def on_cliff(cli, detected):
+        if detected:
+            seen.append((time.monotonic(), mood.apply_event("CliffDetected"), mood.values()))
+
+    cli.add_handler(event.EvtCliffDetectedChange, on_cliff)
+    before = mood.values()
+    print("Lift the robot (and put it down) within 20 s; lifting it is seen as a cliff.")
+    deadline = time.monotonic() + 20.0
+    while not seen and time.monotonic() < deadline:
+        time.sleep(0.1)
+    cli.del_handler(event.EvtCliffDetectedChange, on_cliff)
+    if not seen:
+        report.add("mood", "FAIL", detail="no cliff event within 20 s")
+        return
+    after = seen[0][2]
+    changes = {k: round(after[k] - before[k], 3) for k in after if abs(after[k] - before[k]) > 1e-6}
+    expected = {"Happy": -0.12, "Calm": -0.12, "Brave": -0.12}
+    ok = all(abs(changes.get(k, 0) - v) < 0.01 for k, v in expected.items()) and mood.simple_mood() in (
+        "Default", "Sad")
+    report.add("mood", "PASS" if ok else "FAIL", first_event_changes=changes, events_seen=len(seen),
+               simple_mood=mood.simple_mood())
+
+
 # ---------------------------------------------------------------------------
 
 def resource_root(path):
@@ -300,8 +375,9 @@ def parse_args():
 def main():
     args = parse_args()
     report = Report()
-    ctx = dict(lib=None, vgmstream=args.vgmstream)
+    ctx = dict(lib=None, vgmstream=args.vgmstream, root=None)
     if args.resources:
+        ctx["root"] = resource_root(args.resources)
         try:
             from pycozmo import anim_library
         except ImportError:
@@ -315,6 +391,8 @@ def main():
             report.add(name, "SKIP", detail="--no-motion")
         elif name in ("face", "sound", "clip") and ctx["lib"] is None:
             report.add(name, "SKIP", detail="needs --resources and pycozmo.anim_library")
+        elif name in ("needs", "mood") and ctx["root"] is None:
+            report.add(name, "SKIP", detail="needs --resources")
         elif name == "sound" and not args.vgmstream:
             report.add(name, "SKIP", detail="needs --vgmstream")
         else:

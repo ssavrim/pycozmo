@@ -44,6 +44,7 @@ class Brain:
         self.reaction_trigger_beahvior_map = behavior.load_reaction_trigger_behavior_map(resource_dir)
         self.emotion_types = emotions.load_emotion_types(resource_dir)
         self.emotion_events = emotions.load_emotion_events(resource_dir)
+        self.mood = emotions.Mood(self.emotion_types, self.emotion_events)
         self.cli.load_anims()
         logger.info("Loaded resources in {:.02f} s.".format(time.perf_counter() - start_time))
 
@@ -162,11 +163,7 @@ class Brain:
 
     def process_emotion_event(self, reaction_trigger: str) -> None:
         """ Process emotion events by applying affectors to emotion types. """
-        emotion_event = self.emotion_events.get(reaction_trigger)
-        if emotion_event:
-            for affector, delta in emotion_event.affectors.items():
-                self.emotion_types[affector].add(delta)
-        else:
+        if not self.mood.apply_event(reaction_trigger):
             logger_reaction.warning("Failed to find emotion event for {}.".format(reaction_trigger))
 
     def process_reaction(self, reaction_trigger: str) -> None:

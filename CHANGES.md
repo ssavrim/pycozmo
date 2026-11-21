@@ -3,6 +3,15 @@ Revision History
 
 Unreleased
 ----------
+- Add pycozmo.needs.NeedsModel (repair, energy and play levels with decay by band, modifiers, brackets,
+    fullness cooldown, actions and broken parts) and pycozmo.emotions.Mood, driven by the needs and mood
+    configuration of the prepared resources (docs/specs/needs.md, docs/specs/mood.md).
+- Fix emotions (pycozmo.emotions): there are nine emotion types, not seven (Charged and Winning were missing);
+    the decay follows the graph from the last strengthening instead of restarting at every change; emotion events
+    apply their repetition penalty. Brain applies emotion events through Mood. EmotionType accepts an injectable
+    clock. Breaking: the decay of an emotion now continues after an add() instead of restarting, unless the
+    value is strengthened by more than 0.05 or changes sign; EmotionType loses its last_change and last_value
+    attributes (the decay is no longer computed from them).
 - Depend on opencv-contrib-python-headless (4.12 to 5.x) in place of opencv-python: face
     recognition and, from OpenCV 5, face detection need the contrib modules, and PyCozmo uses no
     OpenCV window. Breaking: remove opencv-python from environments that had it, as both
