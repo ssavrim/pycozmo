@@ -3,6 +3,10 @@ Revision History
 
 Unreleased
 ----------
+- Add tools/pycozmo_tts_dataset.py and pycozmo.speech_capture: rebuild the audio that the Cozmo app streams
+    to the robot from pcap captures, cut it into utterances and write a speech dataset in LJSpeech format
+    (docs/tts_dataset.md). Add pycozmo.audio.u_law_decoding() and cozmo_to_pcm(), the inverse of the
+    robot audio encoding.
 - Add pycozmo.needs.NeedsModel (repair, energy and play levels with decay by band, modifiers, brackets,
     fullness cooldown, actions and broken parts) and pycozmo.emotions.Mood, driven by the needs and mood
     configuration of the prepared resources (docs/specs/needs.md, docs/specs/mood.md).
