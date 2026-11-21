@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Add pycozmo.behavior_system: configuration of behaviors, activities, choosers and strategies of the prepared
+    resources, and the choice of the next behavior and of the activity (docs/specs/behavior-selection.md). The
+    selection is pure and starts no behavior.
 - Add pycozmo.needs.NeedsModel (repair, energy and play levels with decay by band, modifiers, brackets,
     fullness cooldown, actions and broken parts) and pycozmo.emotions.Mood, driven by the needs and mood
     configuration of the prepared resources (docs/specs/needs.md, docs/specs/mood.md).

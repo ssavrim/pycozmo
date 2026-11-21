@@ -37,6 +37,7 @@ from . import activity
 from . import behavior
 from . import emotions
 from . import needs
+from . import behavior_system
 from . import brain
 from . import audiokinetic
 from . import expressions
