@@ -10,6 +10,7 @@ PyCozmo
    external/architecture.md
    external/protocol.md
    external/capturing.md
+   external/tts_dataset.md
    external/functions.md
    external/offboard_functions.md
    external/robot_support_audit.md

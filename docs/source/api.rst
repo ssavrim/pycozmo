@@ -42,6 +42,7 @@ pycozmo package
     pycozmo.robot
     pycozmo.robot_debug
     pycozmo.run
+    pycozmo.speech_capture
     pycozmo.util
     pycozmo.vision
     pycozmo.window
