@@ -3,6 +3,13 @@ Revision History
 
 Unreleased
 ----------
+- Choose the next behavior (docs/specs/behavior-selection.md): Activity.choose() and the new StrictPriorityActivity
+    choose among the sub-activities and the behaviors with their strategies (ActivityStrategy), from a
+    SelectionContext; the choice starts no behavior. BehaviorChooser follows the specification: the repetition penalty
+    is evaluated at the time since the behavior stopped (it was a count), with the penalty of a running behavior,
+    the random value and the bonus of the behavior that runs; apply_repetition_penalty() now means "the behavior
+    stopped". Breaking: BehaviorChooser loses behavior_scores, behavior_names, behavior_repetitions, total_score and
+    repetition_penalties. Add behavior.BehaviorConfig and behavior.load_behavior_configs.
 - Add pycozmo.needs.NeedsModel (repair, energy and play levels with decay by band, modifiers, brackets,
     fullness cooldown, actions and broken parts) and pycozmo.emotions.Mood, driven by the needs and mood
     configuration of the prepared resources (docs/specs/needs.md, docs/specs/mood.md).

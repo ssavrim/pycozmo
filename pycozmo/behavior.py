@@ -11,6 +11,7 @@ from typing import Any, Self
 from . import event
 from . import client
 from .logger import logger
+from .emotions import DecayGraph, Node
 from .json_loader import get_json_files, load_json_file
 
 
@@ -18,9 +19,53 @@ __all__ = [
     "ReactionTrigger",
     "Behavior",
 
+    "BehaviorConfig",
+
     "load_behaviors",
+    "load_behavior_configs",
     "load_reaction_trigger_behavior_map",
 ]
+
+
+class BehaviorConfig:
+    """ Configuration of a behavior: its identity and the fields shared by all behavior classes. """
+    __slots__ = [
+        "id",
+        "class_name",
+        "required_unlock_id",
+        "anim_triggers",
+        "need",
+        "need_bracket",
+        "cooldown",
+        "params",
+    ]
+
+    def __init__(self, behavior_id: str, class_name: str, required_unlock_id: str | None = None,
+                 anim_triggers: list[str] | None = None, need: str | None = None, need_bracket: str | None = None,
+                 cooldown: DecayGraph | None = None, params: dict[str, Any] | None = None) -> None:
+        self.id = str(behavior_id)
+        self.class_name = str(class_name)
+        self.required_unlock_id = required_unlock_id
+        self.anim_triggers = list(anim_triggers or [])
+        self.need = need
+        self.need_bracket = need_bracket
+        self.cooldown = cooldown
+        self.params = dict(params or {})
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> Self:
+        cooldown = None
+        if 'cooldown' in data:
+            cooldown = DecayGraph([Node(x=n['x'], y=n['y']) for n in data['cooldown']['nodes']])
+        return cls(
+            behavior_id=data['behaviorID'],
+            class_name=data['behaviorClass'],
+            required_unlock_id=data.get('requiredUnlockId'),
+            anim_triggers=data.get('animTriggers'),
+            need=data.get('need'),
+            need_bracket=data.get('needBracket'),
+            cooldown=cooldown,
+            params=data)
 
 
 class ReactionTrigger:
@@ -143,6 +188,17 @@ def load_behaviors(resource_dir: str, cli: client.Client) -> dict[str, Behavior]
     logger.debug("Loaded {} behaviors in {:.02f} s.".format(len(behaviors), time.perf_counter() - start_time))
 
     return behaviors
+
+
+def load_behavior_configs(resource_dir: str) -> dict[str, BehaviorConfig]:
+    """ Load the configuration of all behaviors, without creating them. """
+    behavior_files = get_json_files(
+        resource_dir, [os.path.join('cozmo_resources', 'config', 'engine', 'behaviorSystem', 'behaviors')])
+    configs = {}
+    for filename in behavior_files:
+        data = load_json_file(filename)
+        configs[data['behaviorID']] = BehaviorConfig.from_json(data)
+    return configs
 
 
 def load_reaction_trigger_behavior_map(resource_dir: str) -> dict[str, ReactionTrigger]:

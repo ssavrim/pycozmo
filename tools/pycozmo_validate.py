@@ -28,6 +28,7 @@ Tests (--tests, comma-separated; default: all that apply):
     clip    one complete clip                                                      wheels
     needs   needs model driven by the real clock for 2 minutes (docs/specs/needs.md)   no movement
     mood    emotion events from robot events: lift the robot (docs/specs/mood.md)       you lift the robot
+    select  behavior selection with the charger state of the robot (docs/specs/behavior-selection.md)   no movement
 
 Tests that move the wheels ask for confirmation first. Ctrl+C stops the motors.
 A JSON report is written (--report).
@@ -48,7 +49,7 @@ import pycozmo
 from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, robot
 
 
-ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood")
+ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select")
 
 
 class State:
@@ -315,6 +316,22 @@ def test_needs(cli, state, report, ctx):
                levels=rounded)
 
 
+def test_select(cli, state, report, ctx):
+    """ Choose a behavior of the freeplay with DriveOffCharger runnable only when the robot is on its charger. """
+    from pycozmo import activity
+    print("\nselect: behavior selection with the charger state of the robot (no movement)")
+    activities = activity.load_activities(str(ctx["root"]))
+    on_charger = bool(cli.robot_status & pycozmo.robot.RobotStatusFlag.IS_ON_CHARGER)
+    context = activity.SelectionContext(
+        runnable=lambda behavior_id: behavior_id != "DriveOffCharger" or on_charger)
+    top = activities["StrictPriorityFreeplay"]
+    behavior_id = top.choose(context, activities)
+    choice = (getattr(top, "current", None), behavior_id)
+    chosen_drive_off = behavior_id == "DriveOffCharger"
+    report.add("select", "PASS" if chosen_drive_off == on_charger and behavior_id is not None else "FAIL",
+               on_charger=on_charger, choice=choice)
+
+
 def test_mood(cli, state, report, ctx):
     """ Feed the mood with the cliff event of the robot and check the emotion values and the penalty. """
     from pycozmo import emotions
@@ -391,7 +408,7 @@ def main():
             report.add(name, "SKIP", detail="--no-motion")
         elif name in ("face", "sound", "clip") and ctx["lib"] is None:
             report.add(name, "SKIP", detail="needs --resources and pycozmo.anim_library")
-        elif name in ("needs", "mood") and ctx["root"] is None:
+        elif name in ("needs", "mood", "select") and ctx["root"] is None:
             report.add(name, "SKIP", detail="needs --resources")
         elif name == "sound" and not args.vgmstream:
             report.add(name, "SKIP", detail="needs --vgmstream")
