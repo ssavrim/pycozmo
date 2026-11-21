@@ -61,6 +61,7 @@ script-files = [
     "tools/pycozmo_update.py",
     "tools/pycozmo_resources.py",
     "tools/pycozmo_app.py",
+    "tools/pycozmo_tts_dataset.py",
 ]
 
 [tool.setuptools.dynamic]

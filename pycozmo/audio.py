@@ -25,6 +25,8 @@ __all__ = [
     "load_wav",
     "load_wem",
     "synthesize_speech",
+    "u_law_decoding",
+    "cozmo_to_pcm",
 ]
 
 
@@ -87,6 +89,31 @@ def u_law_encoding(sample: int) -> int:
     segment = high.bit_length()
     mantissa = magnitude >> 4 if segment == 0 else (magnitude >> (segment + 3)) & 0x0f
     return sign | (segment << 4) | mantissa
+
+
+def u_law_decoding(code: int) -> int:
+    """ Decode one byte of robot audio to a 16-bit PCM sample.
+
+    Inverse of :func:`u_law_encoding`: the sample is reconstructed at the middle of the
+    magnitude interval that the code covers, so encoding the result gives the code back.
+    """
+    if not 0 <= code <= 0xff:
+        raise ValueError("Audio code must be a byte")
+    segment = (code >> 4) & 0x07
+    mantissa = code & 0x0f
+    if segment == 0:
+        magnitude = (mantissa << 4) + 8
+    else:
+        magnitude = ((0x10 | mantissa) << (segment + 3)) + (1 << (segment + 2))
+    return -magnitude - 1 if code & 0x80 else magnitude
+
+
+_U_LAW_DECODING_TABLE = np.array([u_law_decoding(code) for code in range(256)], dtype=np.int16)
+
+
+def cozmo_to_pcm(samples: bytes) -> np.ndarray:
+    """ Decode robot audio bytes (e.g. ``OutputAudio.samples``) to 16-bit PCM samples. """
+    return _U_LAW_DECODING_TABLE[np.frombuffer(bytes(samples), dtype=np.uint8)]
 
 
 def load_wem(filename: str, decoder: str = "vgmstream-cli",

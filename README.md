@@ -137,6 +137,8 @@ Tools
     [pypcap](https://github.com/pynetwork/pypcap).
 - [pycozmo_replay.py](tools/pycozmo_replay.py) - a basic command-line application that can replay .pcap files back to
     Cozmo.
+- [pycozmo_tts_dataset.py](tools/pycozmo_tts_dataset.py) - builds a speech dataset of Cozmo's voice from captures of
+    the Cozmo app talking to the robot (see [docs/tts_dataset.md](docs/tts_dataset.md)).
 - [pycozmo_anim.py](tools/pycozmo_anim.py) - a tool for examining and manipulating animation files.
 - [pycozmo_update.py](tools/pycozmo_update.py) - a tool for over-the-air (OTA) updates of Cozmo's firmware.
 - [pycozmo_protocol_generator.py](tools/pycozmo_protocol_generator.py) - a tool for generating Cozmo protocol encoder
