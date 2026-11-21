@@ -1,111 +1,222 @@
 """
 
-Activity representation and reading.
+Activity representation and reading, and the choice of the next behavior (docs/specs/behavior-selection.md).
+
+The choice is pure: time comes from an injectable clock, randomness from an injectable random generator and the state
+of the robot from a SelectionContext. It does not start any behavior.
 
 """
 
 import os
+import random
 import time
-from typing import Any, Self
-
-import numpy as np
+from dataclasses import dataclass, field
+from typing import Any, Callable, Self
 
 from .logger import logger
-from .emotions import DecayGraph, Node
+from .emotions import DecayGraph, Mood, Node
 from .json_loader import get_json_files, load_json_file
+from .needs import Bracket, NeedId, NeedsModel
 
 
 __all__ = [
+    "SelectionContext",
+    "BehaviorChooser",
+    "ActivityStrategy",
     "Activity",
+    "StrictPriorityActivity",
 
     "load_activities",
 ]
 
 
+# Largest random value added to the score of a behavior that is not running.
+SCORE_NOISE = 0.1
+# Smallest score of the behavior that is running, and what is added to it.
+RUNNING_SCORE_MIN = 0.01
+RUNNING_SCORE_BONUS = 0.1
+# Seconds without repetition penalty after a stop that asked for none.
+NO_PENALTY_SECONDS = 1.0
+# Rounds of the choice of a sub-activity.
+MAX_ROUNDS = 5
+# Strategy types that are not supported: they never start.
+UNSUPPORTED_STRATEGIES = ("SevereNeedTransition", "Spark", "Pyramid", "PlayWithHumans")
+
+
+def _graph(data: dict[str, Any] | None) -> DecayGraph | None:
+    if not data:
+        return None
+    return DecayGraph([Node(x=n['x'], y=n['y']) for n in data['nodes']])
+
+
+@dataclass
+class SelectionContext:
+    """
+    What the choice needs to know about the robot.
+
+    ``runnable`` tells whether a behavior can run now (unlocked, blocks, charger and the other conditions of the
+    behavior); ``last_on_treads`` returns the time at which the robot was last put on its treads, or None.
+    """
+    clock: Callable[[], float] = time.monotonic
+    rng: random.Random = field(default_factory=random.Random)
+    needs: NeedsModel | None = None
+    mood: Mood | None = None
+    runnable: Callable[[str], bool] = lambda behavior_id: True
+    last_on_treads: Callable[[], float | None] = lambda: None
+
+
+@dataclass
+class _BehaviorState:
+    running: bool = False
+    start_time: float = 0.0
+    last_stop: float | None = None
+    no_penalty_until: float = 0.0
+
+
 class BehaviorChooser:
+    """
+    Chooser of the next behavior: "StrictPriority", "Scoring" or "Selection".
+
+    ``behaviors`` is the list of the configuration: identifiers for a StrictPriority chooser, entries with a
+    ``scoring`` (``flatScore``, ``repetitionPenalty``, ``runningPenalty``) for a Scoring chooser.
+    """
+
     __slots__ = [
         "choice_type",
         "behaviors",
         "iteration",
-        "__dict__",
+        "score_bonus_for_current",
+        "context",
+        "_entries",
+        "_states",
     ]
 
     def __init__(self,
                  choice_type: str,
-                 behaviors: list) -> None:
-
+                 behaviors: list,
+                 score_bonus_for_current: DecayGraph | None = None,
+                 context: SelectionContext | None = None) -> None:
         self.choice_type = str(choice_type)
         self.behaviors = behaviors
         self.iteration = 0
-
-        if self.choice_type == 'Scoring':
-            self.init_scores()
-            self.init_repetition_penalty()
+        self.score_bonus_for_current = score_bonus_for_current
+        self.context = context or SelectionContext()
+        self._entries: list[tuple[str, float, DecayGraph | None, DecayGraph | None]] = []
+        for item in behaviors:
+            if isinstance(item, str):
+                self._entries.append((item, 0.0, None, None))
+                continue
+            scoring = item.get('scoring', {})
+            self._entries.append((
+                item['behaviorID'],
+                float(scoring.get('flatScore', 0.0)),
+                _graph(scoring.get('repetitionPenalty')),
+                _graph(scoring.get('runningPenalty'))))
+        self._states = {entry[0]: _BehaviorState() for entry in self._entries}
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
             choice_type=data['type'],
-            behaviors=data.get('behaviors', [])
+            behaviors=data.get('behaviors', []),
+            score_bonus_for_current=_graph(data.get('scoreBonusForCurrentBehavior')),
         )
 
     def reset(self) -> None:
         self.iteration = 0
-        self.init_scores()
+        self._states = {entry[0]: _BehaviorState() for entry in self._entries}
 
-    def init_scores(self) -> None:
-        self.behavior_scores: list[float] = []
-        self.behavior_names: list[str] = []
-        self.behavior_repetitions: list[int] = []
-        for b in self.behaviors:
-            self.behavior_scores.append(b['scoring']['flatScore'])
-            self.behavior_names.append(b['behaviorID'])
-            self.behavior_repetitions.append(0)
-        self.total_score = sum(self.behavior_scores)
+    def started(self, behavior_id: str) -> None:
+        """ The behavior started. """
+        state = self._states[behavior_id]
+        state.running = True
+        state.start_time = self.context.clock()
 
-    def init_repetition_penalty(self) -> None:
-        self.repetition_penalties: list[DecayGraph] = []
-        for b in self.behaviors:
-            if 'repetitionPenalty' in b['scoring']:
-                self.repetition_penalties.append(
-                    DecayGraph([Node(x=n['x'], y=n['y']) for n in b['scoring']['repetitionPenalty']['nodes']]))
-            else:
-                self.repetition_penalties.append(DecayGraph([Node(x=1, y=0)]))
+    def stopped(self, behavior_id: str, immediate_penalty: bool = True) -> None:
+        """ The behavior stopped. Without ``immediate_penalty`` its repetition penalty starts after 1 s. """
+        state = self._states[behavior_id]
+        now = self.context.clock()
+        state.running = False
+        state.last_stop = now
+        if not immediate_penalty:
+            state.no_penalty_until = now + NO_PENALTY_SECONDS
 
     def apply_repetition_penalty(self, ref: str | int) -> None:
-        if self.choice_type == 'Scoring':
-            if isinstance(ref, str):
-                idx = self.behavior_names.index(ref)
-            elif isinstance(ref, int):
-                idx = ref
-            else:
-                raise TypeError('Invalid behavior index: {}'.format(ref))
-            self.behavior_repetitions[idx] += 1
-            self.behavior_scores[idx] -= self.repetition_penalties[idx].evaluate(self.behavior_repetitions[idx])
-            self.behavior_scores[idx] = max(0, self.behavior_scores[idx])
-            self.total_score = sum(self.behavior_scores)
+        """ A behavior was run: it stopped now. """
+        if isinstance(ref, int):
+            ref = self._entries[ref][0]
+        elif not isinstance(ref, str):
+            raise TypeError('Invalid behavior index: {}'.format(ref))
+        self.stopped(ref)
 
-    def get_sorted_choices(self) -> list[Any] | None:
+    def is_runnable(self, behavior_id: str) -> bool:
+        return self._states[behavior_id].running or bool(self.context.runnable(behavior_id))
+
+    def _score(self, index: int) -> float:
+        """ Score of a behavior, before the chooser adds its noise or its bonus. """
+        behavior_id, flat_score, repetition_penalty, running_penalty = self._entries[index]
+        state = self._states[behavior_id]
+        now = self.context.clock()
+        if state.running:
+            score = flat_score
+            if running_penalty is not None:
+                score *= float(running_penalty.evaluate(now - state.start_time))
+            return score
+        if not self.context.runnable(behavior_id):
+            return 0.0
+        score = flat_score
+        if repetition_penalty is not None and state.last_stop is not None and now >= state.no_penalty_until:
+            score *= float(repetition_penalty.evaluate(now - state.last_stop))
+        return score
+
+    def _final_scores(self) -> list[tuple[str, float]]:
+        """ Final score of the behaviors that score above 0, in the order of the configuration. """
+        now = self.context.clock()
+        result = []
+        for index, entry in enumerate(self._entries):
+            score = self._score(index)
+            if score <= 0.0:
+                continue
+            state = self._states[entry[0]]
+            if state.running:
+                bonus = 0.0
+                if self.score_bonus_for_current is not None:
+                    bonus = float(self.score_bonus_for_current.evaluate(now - state.start_time))
+                score = max(RUNNING_SCORE_MIN, bonus + score + RUNNING_SCORE_BONUS)
+            else:
+                score += self.context.rng.uniform(0.0, SCORE_NOISE)
+            result.append((entry[0], score))
+        return result
+
+    def choose(self, context: SelectionContext | None = None) -> str | None:
+        """ Identifier of the behavior to run, or None. """
+        if context is not None:
+            self.context = context
+        if self.choice_type == 'StrictPriority':
+            for behavior_id, *_ in self._entries:
+                if self.is_runnable(behavior_id):
+                    return behavior_id
+            return None
+        if self.choice_type == 'Scoring':
+            best = 0.0
+            chosen = None
+            for behavior_id, score in self._final_scores():
+                if score > best:
+                    best = score
+                    chosen = behavior_id
+            return chosen
+        return None
+
+    def get_sorted_choices(self) -> list[str] | None:
+        """ Behaviors in the order in which they would be tried; None for a Selection chooser. """
         if self.choice_type == 'Selection':
             return None
         if self.choice_type == 'StrictPriority':
-            if self.iteration <= len(self.behaviors):
-                return self.behaviors
-            else:
-                return None
-        elif self.choice_type == 'Scoring':
-            if self.behavior_names and self.behavior_scores:
-                probability_distribution: list[float] = []
-                for s in self.behavior_scores:
-                    probability_distribution.append(float(s) / self.total_score)
-
-                val = np.random.choice(self.behavior_names, p=probability_distribution,
-                                       size=np.count_nonzero(probability_distribution), replace=False)
-                return list(val.tolist())
-            else:
-                return None
-        else:
-            raise ValueError('Unknown choice type: {}'.format(self.choice_type))
+            return [entry[0] for entry in self._entries if self.is_runnable(entry[0])]
+        if self.choice_type == 'Scoring':
+            ranked = sorted(self._final_scores(), key=lambda item: item[1], reverse=True)
+            return [behavior_id for behavior_id, _ in ranked]
+        raise ValueError('Unknown choice type: {}'.format(self.choice_type))
 
 
 class Objective:
@@ -144,6 +255,124 @@ class Objective:
                    random_completions_needed_max=data.get('randomCompletionsNeededMax', 0))
 
 
+class ActivityStrategy:
+    """
+    Decides when an activity may start and when it must end.
+
+    Times are in seconds; a value of 0 or less means "not set".
+    """
+
+    __slots__ = [
+        "type",
+        "can_end_secs",
+        "should_end_secs",
+        "cooldown_base_secs",
+        "cooldown_randomness_secs",
+        "required_recent_on_treads_secs",
+        "need_id",
+        "need_cooldown",
+        "need_cooldown_randomness",
+        "wants_to_run",
+        "higher_priority",
+        "cooldown_secs",
+    ]
+
+    def __init__(self,
+                 strategy_type: str,
+                 can_end_secs: float = -1.0,
+                 should_end_secs: float = 60.0,
+                 cooldown_base_secs: float = -1.0,
+                 cooldown_randomness_secs: float = 0.0,
+                 required_recent_on_treads_secs: float = -1.0,
+                 need_id: str | None = None,
+                 need_cooldown: DecayGraph | None = None,
+                 need_cooldown_randomness: DecayGraph | None = None,
+                 wants_to_run: dict[str, Any] | None = None,
+                 higher_priority: dict[str, Any] | None = None) -> None:
+        self.type = str(strategy_type)
+        self.can_end_secs = float(can_end_secs)
+        self.should_end_secs = float(should_end_secs)
+        self.cooldown_base_secs = float(cooldown_base_secs)
+        self.cooldown_randomness_secs = float(cooldown_randomness_secs)
+        self.required_recent_on_treads_secs = float(required_recent_on_treads_secs)
+        self.need_id = need_id
+        self.need_cooldown = need_cooldown
+        self.need_cooldown_randomness = need_cooldown_randomness
+        self.wants_to_run = wants_to_run
+        self.higher_priority = higher_priority
+        self.cooldown_secs = self.cooldown_base_secs
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> Self:
+        return cls(
+            strategy_type=data['type'],
+            can_end_secs=data.get('activityCanEndDurationSecs', -1.0),
+            should_end_secs=data.get('activityShouldEndDurationSecs', 60.0),
+            cooldown_base_secs=data.get('cooldownBaseSecs', -1.0),
+            cooldown_randomness_secs=data.get('cooldownRandomnessSecs', 0.0),
+            required_recent_on_treads_secs=data.get('requiredRecentOnTreadsEventSecs', -1.0),
+            need_id=data.get('needId'),
+            need_cooldown=_graph(data.get('needCooldownGraph')),
+            need_cooldown_randomness=_graph(data.get('needCooldownRandomnessGraph')),
+            wants_to_run=data.get('wantsToRunStrategyConfig'),
+            higher_priority=data.get('higherPriorityStrategyConfig'))
+
+    def update_needs(self, context: SelectionContext) -> None:
+        """ NeedBasedCooldown: set the cooldown from the level of the need. """
+        if self.type != "NeedBasedCooldown" or self.need_id is None or context.needs is None:
+            return
+        level = context.needs.level(NeedId(self.need_id))
+        if self.need_cooldown is not None:
+            self.cooldown_base_secs = float(self.need_cooldown.evaluate(level))
+            self.cooldown_secs = self.cooldown_base_secs
+        if self.need_cooldown_randomness is not None:
+            self.cooldown_randomness_secs = float(self.need_cooldown_randomness.evaluate(level))
+
+    @staticmethod
+    def _in_bracket(context: SelectionContext, rule: dict[str, Any] | None) -> bool:
+        if rule is None or context.needs is None or rule.get('strategyType') != "InNeedsBracket":
+            return False
+        return context.needs.bracket(NeedId(rule['need'])) == Bracket(rule['needBracket'])
+
+    def wants_to_start(
+            self, context: SelectionContext, last_end: float | None = None,
+            last_on_treads: float | None = None) -> bool:
+        """ ``last_end`` is the time at which the activity last ended, if it ever did. """
+        if self.type in UNSUPPORTED_STRATEGIES:
+            return False
+        now = context.clock()
+        if self.cooldown_secs > 1e-5 and last_end is not None:
+            if now < last_end + self.cooldown_secs:
+                return False
+            self.cooldown_secs = self.cooldown_base_secs + context.rng.uniform(0.0, self.cooldown_randomness_secs)
+        if self.required_recent_on_treads_secs > 1e-5:
+            event = context.last_on_treads() if last_on_treads is None else last_on_treads
+            if event is None or event <= 1e-5:
+                return False
+            if last_end is not None and event <= last_end:
+                return False
+            if now - event >= self.required_recent_on_treads_secs:
+                return False
+        if self.type == "Needs":
+            return self._in_bracket(context, self.wants_to_run)
+        return True
+
+    def wants_to_end(self, context: SelectionContext, start_time: float) -> bool:
+        """ ``start_time`` is the time at which the activity started. """
+        if self.type in UNSUPPORTED_STRATEGIES:
+            return True
+        now = context.clock()
+        if self.can_end_secs > 1e-5 and now < start_time + self.can_end_secs - 1e-5:
+            return False
+        if self.should_end_secs > 1e-5 and start_time + self.should_end_secs + 1e-5 < now:
+            return True
+        if self.type == "Needs":
+            if self._in_bracket(context, self.higher_priority):
+                return True
+            return not self._in_bracket(context, self.wants_to_run)
+        return False
+
+
 class Activity:
     """ Activity representation class. """
 
@@ -151,27 +380,34 @@ class Activity:
         "id",
         "type",
         "strategy",
+        "strategy_config",
     ]
 
     def __init__(self,
                  activity_id: str,
                  activity_type: str,
                  strategy: str) -> None:
-
         self.id = str(activity_id)
         self.type = str(activity_type)
         self.strategy = str(strategy)
+        self.strategy_config = ActivityStrategy(self.strategy)
 
-    def choose(self) -> None:
-        # TODO: method to choose from list of options
-        # Some notes for this:
-        # The Behavior chooser will provide a list of behaviors to try one at the time.
-        # Since some behaviors will not always be available (like DriveOffCharger or ReactToObstacle), a method is
-        # required to check wether a behavior can be run or not, and then execute it.
-        # Once a behavior is executed, the behavior chooser needs to be notified of the action using
-        # apply_repetition_penalty()
-        # Until we have a better defined structure of the brain, this cannot be finished.
-        pass
+    def get_chooser(self) -> BehaviorChooser | None:
+        """ Chooser of the behaviors of the activity, if it has one. """
+        return None
+
+    def choose(self, context: SelectionContext | None = None,
+               activities: dict[str, "Activity"] | None = None) -> str | None:
+        """
+        Identifier of the next behavior of the activity, or None.
+
+        ``activities`` are the activities that a container activity chooses from.
+        """
+        del activities
+        chooser = self.get_chooser()
+        if chooser is None:
+            return None
+        return chooser.choose(context)
 
 
 class BehaviorsActivity(Activity):
@@ -184,6 +420,9 @@ class BehaviorsActivity(Activity):
                  *args: Any, **kwargs: Any) -> None:
         self.behavior_chooser = behavior_chooser
         super().__init__(*args, **kwargs)
+
+    def get_chooser(self) -> BehaviorChooser | None:
+        return self.behavior_chooser
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> Self:
@@ -217,6 +456,11 @@ class FeedingActivity(Activity):
                  *args: Any, **kwargs: Any) -> None:
         self.universal_chooser = universal_chooser
         super().__init__(*args, **kwargs)
+
+    def get_chooser(self) -> BehaviorChooser | None:
+        if self.universal_chooser is None:
+            return None
+        return BehaviorChooser('StrictPriority', self.universal_chooser)
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> Self:
@@ -396,6 +640,9 @@ class SocializeActivity(Activity):
 
         super().__init__(*args, **kwargs)
 
+    def get_chooser(self) -> BehaviorChooser | None:
+        return self.behavior_chooser
+
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -419,6 +666,9 @@ class NeedsActivity(Activity):
         self.behavior_chooser = behavior_chooser
         super().__init__(*args, **kwargs)
 
+    def get_chooser(self) -> BehaviorChooser | None:
+        return self.behavior_chooser
+
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -428,7 +678,68 @@ class NeedsActivity(Activity):
             strategy=data['activityStrategy']['type'])
 
 
-def from_dict(info: dict) -> Activity:
+class StrictPriorityActivity(Activity):
+    """ Activity that chooses among sub-activities, taken by increasing priority number. """
+
+    __slots__ = [
+        "sub_activities",
+        "current",
+        "start_time",
+        "last_end",
+    ]
+
+    def __init__(self,
+                 sub_activities: list[tuple[str, int]],
+                 *args: Any, **kwargs: Any) -> None:
+        self.sub_activities = sorted(sub_activities, key=lambda sub: sub[1])
+        self.current: str | None = None
+        self.start_time = 0.0
+        self.last_end: dict[str, float] = {}
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> Self:
+        return cls(
+            sub_activities=[(sub['activityID'], int(sub.get('activityPriority', 0)))
+                            for sub in data.get('subActivities', [])],
+            activity_id=data['activityID'],
+            activity_type=data['activityType'],
+            strategy=data['activityStrategy']['type'])
+
+    def reset(self) -> None:
+        self.current = None
+        self.last_end = {}
+
+    def choose(self, context: SelectionContext | None = None,
+               activities: dict[str, Activity] | None = None) -> str | None:
+        """ Behavior of the current sub-activity, which is chosen first, if needed (``self.current``). """
+        context = context or SelectionContext()
+        activities = activities or {}
+        for _ in range(MAX_ROUNDS):
+            current = activities.get(self.current) if self.current is not None else None
+            if current is not None:
+                if not current.strategy_config.wants_to_end(context, self.start_time):
+                    behavior_id = current.choose(context, activities)
+                    if behavior_id is not None:
+                        return behavior_id
+                assert self.current is not None
+                self.last_end[self.current] = context.clock()
+            self.current = None
+            for sub_id, _ in self.sub_activities:
+                sub = activities.get(sub_id)
+                if sub is None:
+                    continue
+                sub.strategy_config.update_needs(context)
+                if sub.strategy_config.wants_to_start(context, self.last_end.get(sub_id)):
+                    self.current = sub_id
+                    self.start_time = context.clock()
+                    break
+            if self.current is None:
+                return None
+        return None
+
+
+def _from_dict(info: dict) -> Activity:
     if info['activityType'] == 'VoiceCommand':
         return VoiceCommandActivity.from_json(info)
 
@@ -452,6 +763,8 @@ def from_dict(info: dict) -> Activity:
 
     elif info['activityType'] == 'NeedsExpression':
         return NeedsActivity.from_json(info)
+    elif info['activityType'] == 'StrictPriority':
+        return StrictPriorityActivity.from_json(info)
 
     else:
         return Activity(
@@ -459,6 +772,13 @@ def from_dict(info: dict) -> Activity:
             activity_type=info['activityType'],
             strategy=info['activityStrategy']['type']
         )
+
+
+def from_dict(info: dict) -> Activity:
+    """ Create an activity, and its strategy, from its configuration. """
+    activity = _from_dict(info)
+    activity.strategy_config = ActivityStrategy.from_json(info['activityStrategy'])
+    return activity
 
 
 def load_activities(resource_dir: str) -> dict[str, Activity]:
