@@ -28,6 +28,7 @@ Tests (--tests, comma-separated; default: all that apply):
     clip    one complete clip                                                      wheels
     needs   needs model driven by the real clock for 2 minutes (docs/specs/needs.md)   no movement
     mood    emotion events from robot events: lift the robot (docs/specs/mood.md)       you lift the robot
+    react   reaction trigger from a robot event: lift the robot (docs/specs/reaction-triggers.md)   you lift the robot
     select  behavior selection with the charger state of the robot (docs/specs/behavior-selection.md)   no movement
 
 Tests that move the wheels ask for confirmation first. Ctrl+C stops the motors.
@@ -49,7 +50,7 @@ import pycozmo
 from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, robot
 
 
-ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select")
+ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react")
 
 
 class State:
@@ -332,6 +333,32 @@ def test_select(cli, state, report, ctx):
                on_charger=on_charger, choice=choice)
 
 
+def test_react(cli, state, report, ctx):
+    """ Notify the reaction trigger manager of the pick up of the robot and check the reaction that fires. """
+    from pycozmo import behavior
+    print("\nreact: reaction trigger from a robot event")
+    manager = behavior.ReactionTriggerManager(behavior.load_reaction_triggers(str(ctx["root"])))
+    seen = []
+
+    def on_picked_up(cli, picked_up):
+        if picked_up:
+            manager.notify("RobotPickedUp")
+            seen.append([e.behavior_id for e in manager.check()])
+
+    cli.add_handler(event.EvtRobotPickedUpChange, on_picked_up)
+    print("Lift the robot (and put it down) within 20 s.")
+    deadline = time.monotonic() + 20.0
+    while not seen and time.monotonic() < deadline:
+        time.sleep(0.1)
+    cli.del_handler(event.EvtRobotPickedUpChange, on_picked_up)
+    if not seen:
+        report.add("react", "FAIL", detail="no pick up within 20 s")
+        return
+    report.add("react", "PASS" if seen[0] == ["ReactToPickup"] else "FAIL", fired=seen[0])
+    if manager.check():
+        report.add("react:used", "FAIL", detail="the notification was not used")
+
+
 def test_mood(cli, state, report, ctx):
     """ Feed the mood with the cliff event of the robot and check the emotion values and the penalty. """
     from pycozmo import emotions
@@ -408,7 +435,7 @@ def main():
             report.add(name, "SKIP", detail="--no-motion")
         elif name in ("face", "sound", "clip") and ctx["lib"] is None:
             report.add(name, "SKIP", detail="needs --resources and pycozmo.anim_library")
-        elif name in ("needs", "mood", "select") and ctx["root"] is None:
+        elif name in ("needs", "mood", "select", "react") and ctx["root"] is None:
             report.add(name, "SKIP", detail="needs --resources")
         elif name == "sound" and not args.vgmstream:
             report.add(name, "SKIP", detail="needs --vgmstream")
