@@ -56,6 +56,11 @@ class SelectionContext:
 
     ``runnable`` tells whether a behavior can run now (unlocked, blocks, charger and the other conditions of the
     behavior); ``last_on_treads`` returns the time at which the robot was last put on its treads, or None.
+
+    For the reaction triggers: ``running`` tells whether a behavior is running, ``running_reaction`` returns the
+    reaction trigger that is running, or None, ``can_interrupt(trigger, running_trigger)`` whether a trigger may
+    interrupt the running one, ``carrying_block`` whether the robot carries a cube and ``wants_to_run(strategy_type)``
+    whether the state condition of that name holds.
     """
     clock: Callable[[], float] = time.monotonic
     rng: random.Random = field(default_factory=random.Random)
@@ -63,6 +68,11 @@ class SelectionContext:
     mood: Mood | None = None
     runnable: Callable[[str], bool] = lambda behavior_id: True
     last_on_treads: Callable[[], float | None] = lambda: None
+    running: Callable[[str], bool] = lambda behavior_id: False
+    running_reaction: Callable[[], str | None] = lambda: None
+    can_interrupt: Callable[[str, str], bool] = lambda trigger, running_trigger: False
+    carrying_block: Callable[[], bool] = lambda: False
+    wants_to_run: Callable[[str], bool] = lambda strategy_type: False
 
 
 @dataclass

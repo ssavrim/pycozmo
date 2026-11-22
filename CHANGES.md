@@ -3,6 +3,10 @@ Revision History
 
 Unreleased
 ----------
+- Decide which reaction triggers fire (docs/specs/reaction-triggers.md): ReactionTriggerManager, with the
+    parameters of FistBump and Frustration read by ReactionTrigger, and load_reaction_triggers, which keeps the
+    entries that share a trigger (load_reaction_trigger_behavior_map keeps the last one). SelectionContext gains the
+    state that the triggers need. The decision starts no behavior.
 - Choose the next behavior (docs/specs/behavior-selection.md): Activity.choose() and the new StrictPriorityActivity
     choose among the sub-activities and the behaviors with their strategies (ActivityStrategy), from a
     SelectionContext; the choice starts no behavior. BehaviorChooser follows the specification: the repetition penalty
