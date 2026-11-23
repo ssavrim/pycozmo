@@ -571,12 +571,17 @@ def estimate_marker_pose(
     # The corners of a marker are in the order top left, bottom left, top right, bottom right.
     points = np.array([[-half_w, -half_h, 0], [-half_w, half_h, 0], [half_w, -half_h, 0], [half_w, half_h, 0]],
                       dtype=np.float64)
-    ok, rotation, translation = cv2.solvePnP(
-        points, marker.corners.astype(np.float64), np.asarray(camera_matrix, dtype=np.float64),
-        None if distortion is None else np.asarray(distortion, dtype=np.float64), flags=cv2.SOLVEPNP_IPPE)
-    if not ok:
-        return None
-    return np.asarray(rotation, dtype=np.float64).reshape(3), np.asarray(translation, dtype=np.float64).reshape(3)
+    corners = marker.corners.astype(np.float64)
+    matrix = np.asarray(camera_matrix, dtype=np.float64)
+    coefficients = None if distortion is None else np.asarray(distortion, dtype=np.float64)
+    # IPPE is made for a planar marker; on some platforms it returned values that are not numbers (macOS arm64 with
+    # OpenCV 5.1), so the iterative solver is tried when it fails.
+    for flags in (cv2.SOLVEPNP_IPPE, cv2.SOLVEPNP_ITERATIVE):
+        ok, rotation, translation = cv2.solvePnP(points, corners, matrix, coefficients, flags=flags)
+        if ok and np.isfinite(rotation).all() and np.isfinite(translation).all():
+            return (np.asarray(rotation, dtype=np.float64).reshape(3),
+                    np.asarray(translation, dtype=np.float64).reshape(3))
+    return None
 
 
 def _to_gray(image: Any) -> npt.NDArray[np.uint8]:
