@@ -36,6 +36,11 @@ __all__ = [
     "extract_marker_library",
     "homography_from_corners",
     "estimate_marker_pose",
+    "cube_marker",
+    "marker_size_mm",
+    "CUBE_SIZE_MM",
+    "CUBE_MARKER_SIZE_MM",
+    "CHARGER_MARKER_SIZE_MM",
     "sample_probes",
     "classify_probes",
 ]
@@ -45,6 +50,12 @@ __all__ = [
 MATCH_THRESHOLD = 50
 #: Name of the library file in the directory of the resources.
 LIBRARY_FILENAME = os.path.join("cozmo_resources", "config", "engine", "vision", "markers.npz")
+
+#: Side of a cube, and of the square frame of its markers, in millimeters.
+CUBE_SIZE_MM = 44.0
+CUBE_MARKER_SIZE_MM = 25.0
+#: Width and height of the frame of the marker of the charger, in millimeters.
+CHARGER_MARKER_SIZE_MM = (27.0, 20.0)
 
 #: The engine library of the reference application (3.4.0), in the APK, that holds the symbols.
 ENGINE_LIBRARY = "lib/armeabi-v7a/libcozmoEngine.so"
@@ -66,6 +77,10 @@ _ADDR_CENTERS_Y = 0xdc87ec
 _NUM_LABELS = 150
 _INVALID_LABEL = 149
 _SECOND_BEST_FACTOR = 1.25
+#: Quads whose coarse distance is still above this many thresholds after the search are not polished.
+_POLISH_FACTOR = 1.3
+#: Number of symbols that the refinement of the corners compares with.
+_CANDIDATES = 12
 
 
 class MarkerType(enum.IntEnum):
@@ -183,6 +198,27 @@ class Marker:
     def center(self) -> tuple[float, float]:
         x, y = self.corners.mean(axis=0)
         return float(x), float(y)
+
+
+def cube_marker(marker_type: MarkerType) -> tuple[int, str] | None:
+    """
+    The cube and the face of a marker: the number of the object (1, 2 or 3 for LIGHTCUBE1, 2 or 3) and the name of the
+    face (BACK, BOTTOM, FRONT, LEFT, RIGHT or TOP); None for the other markers.
+    """
+    name = marker_type.name
+    if not name.startswith("LIGHTCUBE"):
+        return None
+    letter, face = name[len("LIGHTCUBE"):].split("_")
+    return "IJK".index(letter) + 1, face
+
+
+def marker_size_mm(marker_type: MarkerType) -> tuple[float, float] | None:
+    """ Width and height of the frame of a marker, in millimeters; None when it depends on the object. """
+    if cube_marker(marker_type) is not None:
+        return CUBE_MARKER_SIZE_MM, CUBE_MARKER_SIZE_MM
+    if marker_type == MarkerType.CHARGER:
+        return CHARGER_MARKER_SIZE_MM
+    return None
 
 
 def load_marker_library(resource_dir: str) -> MarkerLibrary:
@@ -320,80 +356,143 @@ class MarkerDetector:
     """ Finds the markers of an image. """
 
     def __init__(self, library: MarkerLibrary, threshold: int = MATCH_THRESHOLD, min_area: float = 100.0,
-                 max_area_fraction: float = 0.5, refine_iterations: int = 5, refine_step: float = 1.5,
-                 refine_limit: int = 110) -> None:
+                 max_area_fraction: float = 0.5, edge_margin: float = 2.0, refine_iterations: int = 5,
+                 refine_step: float = 1.5, refine_limit: int = 110) -> None:
         self.library = library
         self.threshold = threshold
         self.min_area = min_area
         self.max_area_fraction = max_area_fraction
+        self.edge_margin = edge_margin
         # Refinement of the corners: number of rounds, first step in pixels, and the distance above which the quad
         # is not worth refining.
         self.refine_iterations = refine_iterations
         self.refine_step = refine_step
         self.refine_limit = refine_limit
+        # The refinement compares a quarter of the probes, each at its center only.
+        side = int(round(len(library.centers_x) ** 0.5))
+        index = np.arange(len(library.centers_x))
+        if side * side == len(index):
+            coarse = np.flatnonzero((index // side % 2 == 0) & (index % side % 2 == 0))
+        else:
+            coarse = index
         self._probes16 = library.probes.astype(np.int16)
+        self._coarse = coarse
+        self._coarse_x = library.centers_x[coarse]
+        self._coarse_y = library.centers_y[coarse]
+        self._coarse_probes = library.probes[:, coarse].astype(np.int16)
 
     def find_quads(self, image: npt.NDArray[np.uint8]) -> list[npt.NDArray[np.float32]]:
-        """ Dark square frames, each as four corners (clockwise, from the one nearest to the top left). """
+        """
+        Dark square frames, each as four corners (clockwise, from the one nearest to the top left).
+
+        The image is binarized in several ways, because the frame of a small or faded marker only comes out with
+        some of them; the squares that come out of two of them at the same place count once.
+        """
         height, width = image.shape[:2]
         blur = cv2.GaussianBlur(image, (3, 3), 0)
-        block = max(15, (min(height, width) // 8) | 1)
-        binary = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 10)
-        contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        quads = []
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            if area < self.min_area or area > self.max_area_fraction * width * height:
-                continue
-            perimeter = cv2.arcLength(contour, True)
-            polygon = cv2.approxPolyDP(contour, 0.03 * perimeter, True)
-            if len(polygon) != 4 or not cv2.isContourConvex(polygon):
-                continue
-            corners = polygon.reshape(4, 2).astype(np.float32)
-            # Reject thin or very distorted shapes.
-            sides = np.linalg.norm(corners - np.roll(corners, 1, axis=0), axis=1)
-            if sides.min() < 0.35 * sides.max():
-                continue
-            if cv2.contourArea(corners) < 0.6 * area:
-                continue
-            # Clockwise on the screen (y down), starting at the corner nearest to the top left.
-            if cv2.contourArea(corners, oriented=True) < 0:
-                corners = corners[::-1]
-            start = int(np.argmin(corners.sum(axis=1)))
-            quads.append(np.roll(corners, -start, axis=0))
+        big = max(15, (min(height, width) // 8) | 1)
+        binaries = [
+            cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, c)
+            for block, c in ((big, 10), (big, 4), (15, 6), (31, 8))]
+        _, otsu = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+        binaries.append(otsu)
+        quads: list[npt.NDArray[np.float32]] = []
+        for binary in binaries:
+            contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            for contour in contours:
+                quad = self._quad(contour, image.shape)
+                if quad is None:
+                    continue
+                if not any(np.abs(quad - other).max() < 3.0 for other in quads):
+                    quads.append(quad)
         return quads
 
+    def _quad(self, contour: Any, shape: tuple[int, ...]) -> npt.NDArray[np.float32] | None:
+        """ The four corners of a contour that looks like the frame of a marker, if it does. """
+        height, width = shape[:2]
+        area = cv2.contourArea(contour)
+        if area < self.min_area or area > self.max_area_fraction * width * height:
+            return None
+        perimeter = cv2.arcLength(contour, True)
+        polygon = cv2.approxPolyDP(contour, 0.03 * perimeter, True)
+        if len(polygon) != 4 or not cv2.isContourConvex(polygon):
+            return None
+        corners = polygon.reshape(4, 2).astype(np.float32)
+        # A marker cut by the edge of the image cannot be told from a part of something else.
+        edge = self.edge_margin
+        if (corners.min() < edge or corners[:, 0].max() > width - 1 - edge or corners[:, 1].max() > height - 1 - edge):
+            return None
+        # Reject thin or very distorted shapes.
+        sides = np.linalg.norm(corners - np.roll(corners, 1, axis=0), axis=1)
+        if sides.min() < 0.35 * sides.max() or cv2.contourArea(corners) < 0.6 * area:
+            return None
+        # Clockwise on the screen (y down), starting at the corner nearest to the top left.
+        if cv2.contourArea(corners, oriented=True) < 0:
+            corners = corners[::-1]
+        start = int(np.argmin(corners.sum(axis=1)))
+        return np.asarray(np.roll(corners, -start, axis=0), dtype=np.float32)
+
+    def _probes(self, image: npt.NDArray[np.uint8], corners: npt.NDArray[np.float32],
+                full: bool) -> npt.NDArray[np.int16]:
+        """ The probes of the corners, stretched to 0-255: all of them, or a quarter of them at their centers. """
+        if full:
+            probes = sample_probes(image, homography_from_corners(corners), self.library).astype(np.int16)
+        else:
+            h = homography_from_corners(corners).astype(np.float32)
+            w = h[2, 0] * self._coarse_x + h[2, 1] * self._coarse_y + h[2, 2]
+            cols = np.rint((h[0, 0] * self._coarse_x + h[0, 1] * self._coarse_y + h[0, 2]) / w).astype(np.intp)
+            rows = np.rint((h[1, 0] * self._coarse_x + h[1, 1] * self._coarse_y + h[1, 2]) / w).astype(np.intp)
+            height, width = image.shape[:2]
+            probes = image[np.clip(rows, 0, height - 1), np.clip(cols, 0, width - 1)].astype(np.int16)
+        low, high = int(np.min(probes)), int(np.max(probes))
+        return ((probes - low) * 255 // max(1, high - low)).astype(np.int16)
+
+    def _distances(self, image: npt.NDArray[np.uint8], corners: npt.NDArray[np.float32], full: bool,
+                   rows: npt.NDArray[np.intp] | None = None) -> npt.NDArray[np.int64]:
+        """ Distance to the symbols (or to the ``rows`` of the library) of the probes of the corners. """
+        library = self._probes16 if full else self._coarse_probes
+        if rows is not None:
+            library = library[rows]
+        probes = self._probes(image, corners, full)
+        return np.asarray(np.abs(library - probes[None, :]).sum(axis=1) // library.shape[1], dtype=np.int64)
+
     def _distance(self, image: npt.NDArray[np.uint8], corners: npt.NDArray[np.float32]) -> int:
-        """ Distance of the closest symbol, for the refinement of the corners. """
-        probes = sample_probes(image, homography_from_corners(corners), self.library)
-        stretched = cv2.normalize(probes.reshape(-1, 1), None, 255, 0, cv2.NORM_MINMAX).reshape(-1)
-        diffs = np.abs(self._probes16 - stretched.astype(np.int16)[None, :]).sum(axis=1)
-        return int(diffs.min() // self._probes16.shape[1])
+        """ Distance of the closest symbol on the coarse probes. """
+        return int(np.min(self._distances(image, corners, False)))
 
-    def refine_corners(self, image: npt.NDArray[np.uint8],
-                       corners: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
-        """
-        Move the corners, a fraction of a pixel at a time, to the place where the symbols fit best.
-
-        The corners found in the image are a few pixels off; the symbols are compared on a fine grid.
-        """
-        best = self._distance(image, corners)
-        if best > self.refine_limit:
-            return corners
-        step = self.refine_step
-        for _ in range(self.refine_iterations):
+    def _search(self, image: npt.NDArray[np.uint8], corners: npt.NDArray[np.float32], full: bool,
+                rows: npt.NDArray[np.intp], step: float, rounds: int) -> npt.NDArray[np.float32]:
+        best = int(np.min(self._distances(image, corners, full, rows)))
+        for _ in range(rounds):
             improved = False
             for i in range(4):
                 for axis in (0, 1):
                     for sign in (-1.0, 1.0):
                         candidate = corners.copy()
                         candidate[i, axis] += sign * step
-                        distance = self._distance(image, candidate)
-                        if distance < best:
-                            best, corners, improved = distance, candidate, True
+                        value = int(np.min(self._distances(image, candidate, full, rows)))
+                        if value < best:
+                            best, corners, improved = value, candidate, True
             if not improved:
                 step /= 2
         return corners
+
+    def refine_corners(self, image: npt.NDArray[np.uint8],
+                       corners: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
+        """
+        Move the corners, a fraction of a pixel at a time, to the place where the symbols fit best.
+
+        The corners found in the image are a few pixels off. The search compares only the closest symbols, on a
+        quarter of the probes, then goes on with all the probes for a last round of small steps.
+        """
+        distances = self._distances(image, corners, False)
+        if int(np.min(distances)) > self.refine_limit:
+            return corners
+        rows = np.argsort(distances)[:_CANDIDATES].astype(np.intp)
+        corners = self._search(image, corners, False, rows, self.refine_step, self.refine_iterations)
+        if int(np.min(self._distances(image, corners, False, rows))) > self.threshold * _POLISH_FACTOR:
+            return corners          # far from any symbol: not worth a closer look
+        return self._search(image, corners, True, rows, 0.5, 2)
 
     def classify_quad(self, image: npt.NDArray[np.uint8], corners: npt.NDArray[np.float32]) -> Marker | None:
         """ The marker framed by four corners (top left, top right, bottom right, bottom left), if any. """
@@ -436,17 +535,29 @@ class MarkerDetector:
 
 
 def estimate_marker_pose(
-        marker: Marker, size_mm: float, camera_matrix: npt.ArrayLike,
+        marker: Marker, size_mm: float | tuple[float, float] | None, camera_matrix: npt.ArrayLike,
         distortion: npt.ArrayLike | None = None) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
     """
     Pose of a marker with respect to the camera: a rotation vector and a translation in millimeters.
 
-    ``size_mm`` is the side of the square frame of the marker, which is not known from the image. The frame of the
-    marker has x to the right, y down and z away from the symbol. Returns None when the pose cannot be found.
+    ``size_mm`` is the side of the square frame of the marker, or its width and height; it is not known from the image.
+    None takes the size of the marker of a cube or of the charger (``marker_size_mm``). The frame of the marker has
+    x to the right, y down and z away from the symbol. Returns None when the size is unknown or the pose cannot be
+    found.
     """
-    half = float(size_mm) / 2.0
+    if size_mm is None:
+        size = marker_size_mm(marker.type)
+        if size is None:
+            return None
+        width, height = size
+    elif isinstance(size_mm, tuple):
+        width, height = size_mm
+    else:
+        width = height = float(size_mm)
+    half_w, half_h = width / 2.0, height / 2.0
     # The corners of a marker are in the order top left, bottom left, top right, bottom right.
-    points = np.array([[-half, -half, 0], [-half, half, 0], [half, -half, 0], [half, half, 0]], dtype=np.float64)
+    points = np.array([[-half_w, -half_h, 0], [-half_w, half_h, 0], [half_w, -half_h, 0], [half_w, half_h, 0]],
+                      dtype=np.float64)
     ok, rotation, translation = cv2.solvePnP(
         points, marker.corners.astype(np.float64), np.asarray(camera_matrix, dtype=np.float64),
         None if distortion is None else np.asarray(distortion, dtype=np.float64), flags=cv2.SOLVEPNP_IPPE)

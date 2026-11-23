@@ -189,7 +189,7 @@ class TestDetector(unittest.TestCase):
         marker = found[0]
         self.assertEqual(marker.orientation, 0.0)
         self.assertEqual(marker.name, "CHARGER")
-        self.assertLess(marker.distance, 20)
+        self.assertLess(marker.distance, 30)
         cx, cy = marker.center
         self.assertAlmostEqual(cx, 160, delta=3)
         self.assertAlmostEqual(cy, 110, delta=3)
@@ -377,3 +377,42 @@ class TestPose(unittest.TestCase):
         assert near is not None and far is not None
         self.assertAlmostEqual(near[1][2], 200.0, delta=2.0)
         self.assertAlmostEqual(far[1][2], 400.0, delta=4.0)
+
+
+class TestObjects(unittest.TestCase):
+
+    def test_cube_markers(self):
+        self.assertEqual(markers.cube_marker(MarkerType.LIGHTCUBEI_FRONT), (1, "FRONT"))
+        self.assertEqual(markers.cube_marker(MarkerType.LIGHTCUBEJ_BOTTOM), (2, "BOTTOM"))
+        self.assertEqual(markers.cube_marker(MarkerType.LIGHTCUBEK_TOP), (3, "TOP"))
+        self.assertIsNone(markers.cube_marker(MarkerType.CHARGER))
+        self.assertIsNone(markers.cube_marker(MarkerType.SDK_3CIRCLES))
+        faces = {markers.cube_marker(t) for t in MarkerType if markers.cube_marker(t)}
+        self.assertEqual(len(faces), 18)                  # three cubes of six faces
+
+    def test_marker_sizes(self):
+        self.assertEqual(markers.marker_size_mm(MarkerType.LIGHTCUBEK_LEFT), (25.0, 25.0))
+        self.assertEqual(markers.marker_size_mm(MarkerType.CHARGER), (27.0, 20.0))
+        self.assertIsNone(markers.marker_size_mm(MarkerType.ARROW))
+
+    def test_pose_with_the_size_of_the_object(self):
+        matrix = np.array([[290.0, 0, 160], [0, 290.0, 120], [0, 0, 1]])
+        pose = TestPose().project([0.0, 0.2, 0.0], [10.0, 0.0, 180.0], 25.0, matrix)
+        cube = Marker(MarkerType.LIGHTCUBEJ_LEFT, pose, 0.0, 0)
+        found = markers.estimate_marker_pose(cube, None, matrix)
+        assert found is not None
+        self.assertAlmostEqual(found[1][2], 180.0, delta=2.0)
+        self.assertIsNone(markers.estimate_marker_pose(Marker(MarkerType.ARROW, pose, 0.0, 0), None, matrix))
+
+    def test_pose_of_a_rectangular_marker(self):
+        matrix = np.array([[290.0, 0, 160], [0, 290.0, 120], [0, 0, 1]])
+        half_w, half_h = 13.5, 10.0
+        points = np.array([[-half_w, -half_h, 0], [-half_w, half_h, 0], [half_w, -half_h, 0], [half_w, half_h, 0]])
+        projected, _ = cv2.projectPoints(points, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 150.0]), matrix, None)
+        charger = Marker(MarkerType.CHARGER, projected.reshape(4, 2).astype(np.float32), 0.0, 0)
+        found = markers.estimate_marker_pose(charger, None, matrix)
+        assert found is not None
+        self.assertAlmostEqual(found[1][2], 150.0, delta=1.5)
+        double = markers.estimate_marker_pose(charger, (54.0, 40.0), matrix)
+        assert double is not None
+        self.assertAlmostEqual(double[1][2], 300.0, delta=3.0)

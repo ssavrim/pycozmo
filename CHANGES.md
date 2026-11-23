@@ -4,7 +4,8 @@ Revision History
 Unreleased
 ----------
 - Add pycozmo.markers (docs/specs/markers.md): recognize the markers of Cozmo (faces of the cubes, charger, custom
-    object markers) in an image, with MarkerDetector, and estimate_marker_pose. The library of symbols is read from the
+    object markers) in an image, with MarkerDetector, and estimate_marker_pose (sizes of the cube and charger markers
+    included); tools/pycozmo_markers_eval.py measures it on synthetic images. The library of symbols is read from the
     engine library of the APK by pycozmo_resources.py prepare (3.4.0 only; a warning when it is not available) and kept
     in the resources of the user as cozmo_resources/config/engine/vision/markers.npz.
 - Add the SetCubeGamma command (0x0c) and send it from Client.set_cube_lights before the first lights of a cube, and

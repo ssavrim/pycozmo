@@ -52,20 +52,42 @@ that the first is the top left of the marker itself.
 
 - **Original.** A scale-space binarization, connected components and quadrilaterals with refinement of the corners.
   **Not modeled**: the frames are found with OpenCV (**Assumed**).
-- **Frames.** Adaptive threshold of the blurred image, contours, polygons with 4 convex corners, an area from 100 pixels
-  to half of the image, sides not shorter than 35 % of the longest, and the polygon close to its contour. The corners are
-  ordered clockwise from the one nearest to the top left, and mapped to the corners of the unit square.
+- **Frames.** The blurred image is binarized in five ways (four adaptive thresholds and Otsu), because the frame of a small
+  or faded marker only comes out with some of them. In each, contours with 4 convex corners, an area from 100 pixels to half
+  of the image, sides not shorter than 35 % of the longest, the polygon close to its contour, and no corner within 2 pixels
+  of the edge of the image (a cut marker cannot be told from something else). The same square found twice counts once.
+  The corners are ordered clockwise from the one nearest to the top left, and mapped to the corners of the unit square.
 - **Refinement** (Assumed). The corners are off by a few pixels, which spoils the comparison. Each corner is moved a step
-  at a time (1.5 pixels, halved when nothing improves, 5 rounds) where the distance of the closest symbol decreases. It is
-  only tried when the first distance is below 110.
+  at a time (1.5 pixels, halved when nothing improves, 5 rounds) where the distance of the closest symbol decreases; the
+  search compares the 12 closest symbols on a quarter of the probes, then 2 rounds of 0.5 pixel on all the probes. It is
+  only tried when the first distance is below 110, and the second part when the coarse distance is below 1.3 thresholds.
 - **Duplicates.** The frame of the marker and the border of the symbol both look like a square: of the markers that
   are closer than half a side from a better one, only the best is kept.
+
+## Objects
+
+- **Cubes** (Specified). `LIGHTCUBEI`, `LIGHTCUBEJ` and `LIGHTCUBEK` are the object types `LIGHTCUBE1`, `LIGHTCUBE2` and
+  `LIGHTCUBE3`; each has six faces with a marker of its own (`cube_marker` gives the number and the face). A cube is 44 mm
+  wide and the square frame of its markers is 25 mm.
+- **Charger** (Specified, the order of the two sizes is assumed). The marker `CHARGER` has a frame of 27 mm by 20 mm; the
+  charger is 96 x 80 x 31 mm.
+- **Other markers**: the size depends on the object (custom objects) and is not known.
 
 ## Pose
 
 `estimate_marker_pose(marker, size_mm, camera_matrix)` gives the rotation and the translation of a marker with respect to the
-camera from its four corners (`cv2.solvePnP`). The size of the frame is not known from the image: the caller gives it.
-The sizes of the cubes and of the charger are not modeled.
+camera from its four corners (`cv2.solvePnP`). The size of the frame, one value or a width and a height, is not known from
+the image: it is given, or taken from the marker of a cube or of the charger (`marker_size_mm`) when it is None. The pose of
+the object from the pose of a marker (where its center is) is not modeled.
+
+## Measure
+
+`tools/pycozmo_markers_eval.py` draws each symbol of the library with a random perspective (turn up to 35 degrees, tilt),
+size (40 to 110 pixels), blur, noise and contrast on a textured background, and counts what `MarkerDetector` finds; it also
+runs on frames that look like markers but hold a random pattern. On 114 images and 60 without marker (320 x 240):
+99 % found with the right type and orientation, no wrong type or orientation, no false detection.
+This does not say how it behaves on real images, which have lighting, motion blur and clutter: they were only checked by
+eye on a few frames of the robot (see the audit).
 
 ## Open points
 
@@ -75,6 +97,7 @@ The sizes of the cubes and of the charger are not modeled.
 | Types, orientations and corner orders of the labels | Specified |
 | Reading the library from the engine library of the APK (3.4.0) | Specified |
 | Detection of the frames and refinement of the corners | Assumed (OpenCV, not the original algorithm) |
-| Letters of the cubes (I, J, K) and their object numbers | Not modeled |
-| Size of the markers of the cubes and of the charger, pose of the objects | Not modeled |
-| Speed | About 0.8 s for an image of 320 x 240 on the test machine: not real time |
+| Letters of the cubes (I, J, K) are the cubes 1, 2, 3; sizes of the markers and of the cubes | Specified |
+| Pose of an object (its center) from its markers | Not modeled |
+| Recognition on synthetic images (99 %, no false detection) | Measured; real images were not measured |
+| Speed | About 0.15 to 0.3 s for an image of 320 x 240 on the test machine: about 4 images per second |
