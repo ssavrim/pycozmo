@@ -511,7 +511,8 @@ def test_protocol(cli, state, report, ctx):
     names = ("IMURawDataChunk", "CliffEvent", "PotentialCliff", "MotorAutoEnabled", "RobotStopped", "RobotErrorReport",
              "IMUTemperature",
              "MainCycleTimeError", "FactoryTestParameter", "WiFiFlashID", "RampTraverseStart", "RampTraverseComplete",
-             "BridgeTraverseStart", "BridgeTraverseComplete")
+             "BridgeTraverseStart", "BridgeTraverseComplete", "PrintText", "GoalPose", "DataDump", "TimeProfileStat",
+             "IMUDataChunk", "DefaultCameraParams", "CrashReport", "FWVersionInfo")
     seen: collections.Counter = collections.Counter()
     examples: dict[str, str] = {}
     unknown: collections.Counter = collections.Counter()
