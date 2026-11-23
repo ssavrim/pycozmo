@@ -67,3 +67,13 @@ The commands are `('wheels', left, right)` in mm/s, `('stop',)`, `('react', situ
 | Footprint, sensor position, speeds, margins and times | Assumed: measured on one robot (firmware 2381) in Cozmonaute, not derived from the original |
 | Edges seen by the sides or the back | Not done: only the front sensor exists |
 | Use in the MCP server (`drive`, `turn`) | Not done in this change |
+| On a robot (`--tests edges`, 2026-11-23, firmware 2381) | Validated once, see below |
+
+## Validation on a robot
+
+`tools/pycozmo_validate.py --tests edges`, on a table, with a hand under the robot: the robot was put about 15 cm from the
+edge, facing it, and drove at 15 mm/s, stopping at the first cliff flag. The drop was seen after 157 mm, one edge was noted
+and 16 poses recorded; at the drop the memory gave a backup room of 100 mm and `can_turn` was false (the edge was too close
+to turn). `CliffRetreat` then ended with `safe`: the operator saw the robot back off and turn away, with its wheels still on
+the table at the drop and without any touch. This is one run on one table: the margins were not measured on other surfaces
+or edges.
