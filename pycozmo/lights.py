@@ -83,8 +83,18 @@ def white_balance(color: RGBA) -> RGBA:
     return r, g, b, a
 
 
-def encode_color(color: RGBA) -> int:
-    """ 16-bit color of the cube: 5 bits per channel after the white balance, bit 15 when the alpha is not 0. """
+def encode_color(color: RGBA, cube: bool = False) -> int:
+    """
+    16-bit color of a LED, 5 bits per channel.
+
+    By default the channels are scaled from 0-255 to 0-31 and the alpha is ignored. With ``cube``, the color is
+    encoded as the light patterns of the original application do: white balance, channels divided by 8, and bit 15
+    set when the alpha is not 0.
+    """
+    if not cube:
+        r, g, b, _ = color
+        return ((r * 31 // 255) << LED_ENC_RED_SHIFT) | ((g * 31 // 255) << LED_ENC_GREEN_SHIFT) | (
+            (b * 31 // 255) << LED_ENC_BLUE_SHIFT)
     r, g, b, a = white_balance(color)
     value = ((r >> 3) << LED_ENC_RED_SHIFT) | ((g >> 3) << LED_ENC_GREEN_SHIFT) | (b >> 3)
     if a != 0:
@@ -112,8 +122,8 @@ def make_light_state(
         off_color = on_color
         off_period_ms = SOLID_PERIOD
     return protocol_encoder.LightState(
-        on_color=encode_color(on_color),
-        off_color=encode_color(off_color),
+        on_color=encode_color(on_color, cube=True),
+        off_color=encode_color(off_color, cube=True),
         on_frames=ms_to_frames(on_period_ms),
         off_frames=ms_to_frames(off_period_ms),
         transition_on_frames=ms_to_frames(transition_on_ms),
@@ -150,17 +160,10 @@ class Color:
     def int_color(self) -> int:
         return self._int_color
 
-    def to_int16(self) -> int:
-        r = ((self._int_color & 0xFF000000) >> 24) * 31 // 255
-        g = ((self._int_color & 0x00FF0000) >> 16) * 31 // 255
-        b = ((self._int_color & 0x0000FF00) >> 8) * 31 // 255
-        value = (r << LED_ENC_RED_SHIFT) | (g << LED_ENC_GREEN_SHIFT) | (b << LED_ENC_BLUE_SHIFT)
-        return value
-
-    def to_cube_int16(self) -> int:
-        """ Color as the light patterns of the original application encode it (see encode_color). """
+    def to_int16(self, cube: bool = False) -> int:
+        """ 16-bit color; ``cube`` selects the encoding of the cube light patterns (see encode_color). """
         c = self._int_color
-        return encode_color(((c >> 24) & 0xff, (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff))
+        return encode_color(((c >> 24) & 0xff, (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff), cube=cube)
 
     @classmethod
     def from_int16(cls, value: int) -> "Color":

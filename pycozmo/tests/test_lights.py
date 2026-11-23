@@ -7,6 +7,10 @@ from pycozmo import lights
 from pycozmo.lights import Color, encode_color, make_light_state, ms_to_frames, offset_to_frames, white_balance
 
 
+def cube_color(color):
+    return encode_color(color, cube=True)
+
+
 class TestCubeEncoding(unittest.TestCase):
 
     def test_frames(self):
@@ -25,17 +29,18 @@ class TestCubeEncoding(unittest.TestCase):
         self.assertEqual(white_balance((10, 0, 0, 255)), (10, 0, 0, 255))
 
     def test_color(self):
-        self.assertEqual(encode_color((255, 0, 0, 0)), 31 << 10)
-        self.assertEqual(encode_color((0, 255, 0, 0)), 31 << 5)
-        self.assertEqual(encode_color((0, 0, 255, 0)), 31)
-        self.assertEqual(encode_color((0, 0, 0, 255)), 0x8000)
-        self.assertEqual(encode_color((8, 0, 0, 0)), 1 << 10)       # divided by 8, not scaled
-        self.assertEqual(encode_color((7, 0, 0, 0)), 0)
+        self.assertEqual(cube_color((255, 0, 0, 0)), 31 << 10)
+        self.assertEqual(cube_color((0, 255, 0, 0)), 31 << 5)
+        self.assertEqual(cube_color((0, 0, 255, 0)), 31)
+        self.assertEqual(cube_color((0, 0, 0, 255)), 0x8000)
+        self.assertEqual(cube_color((8, 0, 0, 0)), 1 << 10)       # divided by 8, not scaled
+        self.assertEqual(cube_color((7, 0, 0, 0)), 0)
 
-    def test_color_to_cube_int16(self):
-        self.assertEqual(Color(rgb=(255, 0, 0)).to_cube_int16(), (31 << 10) | 0x8000)
-        self.assertEqual(Color(rgb=(255, 0, 0)).to_int16(), 31 << 10)       # unchanged
-        self.assertEqual(lights.off.to_cube_int16(), 0)
+    def test_color_to_int16_for_the_cube(self):
+        self.assertEqual(Color(rgb=(255, 0, 0)).to_int16(cube=True), (31 << 10) | 0x8000)
+        self.assertEqual(Color(rgb=(255, 0, 0)).to_int16(), 31 << 10)       # default encoding: no alpha bit
+        self.assertEqual(encode_color((8, 8, 8, 255)), 0)                   # default: scaled, 8 * 31 // 255 = 0
+        self.assertEqual(lights.off.to_int16(cube=True), 0)
 
     def test_make_light_state(self):
         red, blue = (255, 0, 0, 255), (0, 0, 255, 255)
@@ -43,12 +48,12 @@ class TestCubeEncoding(unittest.TestCase):
         state = make_light_state(red, blue, 100, 200, 30, 60, 31)
         self.assertEqual((state.on_frames, state.off_frames, state.transition_on_frames,
                           state.transition_off_frames, state.offset), (4, 7, 1, 2, 2))
-        self.assertEqual((state.on_color, state.off_color), (encode_color(red), encode_color(blue)))
+        self.assertEqual((state.on_color, state.off_color), (cube_color(red), cube_color(blue)))
         black = make_light_state(red, blue, 0, 0)
         self.assertEqual((black.on_color, black.off_color, black.on_frames, black.off_frames), (0, 0, solid, solid))
         off_solid = make_light_state(red, blue, 0, 50)
         self.assertEqual((off_solid.on_color, off_solid.off_color, off_solid.on_frames, off_solid.off_frames),
-                         (encode_color(blue), encode_color(blue), solid, 2))
+                         (cube_color(blue), cube_color(blue), solid, 2))
         on_solid = make_light_state(red, blue, 100, 0)
         self.assertEqual((on_solid.on_color, on_solid.off_color, on_solid.on_frames, on_solid.off_frames),
-                         (encode_color(red), encode_color(red), 4, solid))
+                         (cube_color(red), cube_color(red), 4, solid))
