@@ -32,7 +32,8 @@ transition of `transition on` / `transition off` between the two, shifted by `of
 1. **Solid LEDs** (Specified). A LED whose on period is 0 is solid in its off color (if the off period is also 0: black);
    a LED whose off period is 0 is solid in its on color. A solid LED gets both colors equal and the period
    2147483647.
-2. **White balance** (Specified). Applied to each color before encoding: when the red value is not 0, green and blue
+2. **White balance** (Specified). Applied to each color of the cube lights before encoding (the backpack lights of
+   the robot are encoded the same way but without the white balance): when the red value is not 0, green and blue
    are multiplied by 0.6 (in 32-bit floats, then truncated); otherwise the color is unchanged.
 3. **Color** (Specified). 16 bits: red, green and blue on 5 bits (the value divided by 8) in bits 10-14, 5-9 and 0-4,
    and bit 15 set when the alpha value is not 0.

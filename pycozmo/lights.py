@@ -83,12 +83,13 @@ def white_balance(color: RGBA) -> RGBA:
     return r, g, b, a
 
 
-def encode_color(color: RGBA) -> int:
+def encode_color(color: RGBA, balance: bool = False) -> int:
     """
-    16-bit color of a LED, as the original application encodes it: white balance, 5 bits per channel (the value divided
-    by 8) and bit 15 set when the alpha is not 0.
+    16-bit color of a LED, as the original application encodes it: 5 bits per channel (the value divided by 8) and
+    bit 15 set when the alpha is not 0. The cube lights also go through the white balance (``balance``); the backpack
+    lights do not.
     """
-    r, g, b, a = white_balance(color)
+    r, g, b, a = white_balance(color) if balance else color
     value = ((r >> 3) << LED_ENC_RED_SHIFT) | ((g >> 3) << LED_ENC_GREEN_SHIFT) | (b >> 3)
     if a != 0:
         value |= LED_ENC_IR
@@ -115,8 +116,8 @@ def make_light_state(
         off_color = on_color
         off_period_ms = SOLID_PERIOD
     return protocol_encoder.LightState(
-        on_color=encode_color(on_color),
-        off_color=encode_color(off_color),
+        on_color=encode_color(on_color, balance=True),
+        off_color=encode_color(off_color, balance=True),
         on_frames=ms_to_frames(on_period_ms),
         off_frames=ms_to_frames(off_period_ms),
         transition_on_frames=ms_to_frames(transition_on_ms),
@@ -153,10 +154,10 @@ class Color:
     def int_color(self) -> int:
         return self._int_color
 
-    def to_int16(self) -> int:
-        """ 16-bit color of a LED (see encode_color). """
+    def to_int16(self, balance: bool = False) -> int:
+        """ 16-bit color of a LED (see encode_color); ``balance`` applies the white balance of the cube lights. """
         c = self._int_color
-        return encode_color(((c >> 24) & 0xff, (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff))
+        return encode_color(((c >> 24) & 0xff, (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff), balance=balance)
 
     @classmethod
     def from_int16(cls, value: int) -> "Color":

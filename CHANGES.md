@@ -17,9 +17,10 @@ Unreleased
     triggers of the prepared resources, convert a pattern to the four LightState of a cube and its rotation period,
     and play an animation with CubeLightPlayer (durations, resume of the previous animation, canBeOverridden). The
     color and frame conversions are in pycozmo.lights (encode_color, white_balance, ms_to_frames, make_light_state,
-    Color.to_int16). Breaking: Color.to_int16 now encodes as the original application does (white balance, channels
-    divided by 8, bit 15 set when the alpha is not 0, which is the case of the colors made from an RGB value), so a few
-    values differ by one step from before; no difference was visible on the robot backpack or on a cube.
+    Color.to_int16). Breaking: Color.to_int16 now encodes as the original application does (channels divided by 8, bit
+    15 set when the alpha is not 0, which is the case of the colors made from an RGB value), so a few values differ by
+    one step from before; Color.to_int16(balance=True) adds the white balance of the cube lights, which the backpack
+    lights do not use.
 - Decide which reaction triggers fire (docs/specs/reaction-triggers.md): ReactionTriggerManager, with the
     parameters of FistBump and Frustration read by ReactionTrigger, and load_reaction_triggers, which keeps the
     entries that share a trigger (load_reaction_trigger_behavior_map keeps the last one). SelectionContext gains the

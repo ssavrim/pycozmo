@@ -35,7 +35,14 @@ class TestEncoding(unittest.TestCase):
     def test_color_to_int16(self):
         self.assertEqual(Color(rgb=(255, 0, 0)).to_int16(), (31 << 10) | 0x8000)       # opaque: bit 15
         self.assertEqual(lights.off.to_int16(), 0)
-        self.assertEqual(Color(rgb=(255, 255, 255)).to_int16(), encode_color((255, 255, 255, 255)))
+        # The white balance is for the cube lights only.
+        self.assertEqual(Color(rgb=(255, 255, 255)).to_int16(), 0xffff)
+        self.assertEqual(Color(rgb=(255, 255, 255)).to_int16(balance=True), 0xfe73)
+        self.assertEqual(encode_color((255, 255, 255, 255), balance=True), 0xfe73)
+        self.assertEqual(encode_color((0, 255, 255, 255), balance=True), encode_color((0, 255, 255, 255)))
+        # The cube LEDs are balanced.
+        white = (255, 255, 255, 255)
+        self.assertEqual(make_light_state(white, white, 100, 100).on_color, 0xfe73)
 
     def test_make_light_state(self):
         red, blue = (255, 0, 0, 255), (0, 0, 255, 255)
