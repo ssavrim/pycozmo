@@ -6,6 +6,11 @@ Unreleased
 - Declare the 13 remaining messages of the original application, which have arrays or strings (WriteBodyStorage,
     PrintText, DataDump, TimeProfileStat, IMUDataChunk, DefaultCameraParams, CrashReport, FWVersionInfo...), read from the
     unpacking functions of the original: a length on 1 byte for arrays and strings. All 136 messages are now declared.
+- Name the fields of the messages from the C# code of the application (CliffEvent, PowerState, IMURawDataChunk...), and
+    of TurnInPlace (num_half_revolutions), AppendPathSegPointTurn (use_shortest_direction), SetOrigin (timestamp,
+    pose_angle_rad), HardwareInfo (hw_version, one uint16 instead of two uint8) and FirmwareSignature (robot_id). The
+    keywords unknown* of these fields no longer exist; the wire format is the same. IMUDataChunk and IMUTemperature hold
+    floats.
 - Declare 51 messages of the original application that PyCozmo did not (docs/specs/protocol-gaps.md): commands of the
     robot (TurnInPlaceAtAngularSpeed, IMURequest, SetCliffDetectThreshold, EnableMotorPower, EnableBraceWhenFalling,
     the factory and test ones...) and messages from the robot (IMURawDataChunk, CliffEvent, MotorAutoEnabled,

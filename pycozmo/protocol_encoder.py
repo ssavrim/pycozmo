@@ -1809,8 +1809,7 @@ class TurnInPlace(Packet):
         "_speed_rad_per_sec",  # float
         "_accel_rad_per_sec2",  # float
         "_angle_tolerance_rad",  # float
-        "_unknown4",  # uint8
-        "_unknown5",  # uint8
+        "_num_half_revolutions",  # uint16
         "_is_absolute",  # bool
         "_action_id",  # uint8
     )
@@ -1820,8 +1819,7 @@ class TurnInPlace(Packet):
                  speed_rad_per_sec=0.0,
                  accel_rad_per_sec2=0.0,
                  angle_tolerance_rad=0.0,
-                 unknown4=0,
-                 unknown5=0,
+                 num_half_revolutions=0,
                  is_absolute=False,
                  action_id=0):
         super().__init__(PacketType.COMMAND, packet_id=0x39)
@@ -1829,8 +1827,7 @@ class TurnInPlace(Packet):
         self.speed_rad_per_sec = speed_rad_per_sec
         self.accel_rad_per_sec2 = accel_rad_per_sec2
         self.angle_tolerance_rad = angle_tolerance_rad
-        self.unknown4 = unknown4
-        self.unknown5 = unknown5
+        self.num_half_revolutions = num_half_revolutions
         self.is_absolute = is_absolute
         self.action_id = action_id
 
@@ -1867,20 +1864,12 @@ class TurnInPlace(Packet):
         self._angle_tolerance_rad = validate_float("angle_tolerance_rad", value)
 
     @property
-    def unknown4(self):
-        return self._unknown4
+    def num_half_revolutions(self):
+        return self._num_half_revolutions
 
-    @unknown4.setter
-    def unknown4(self, value):
-        self._unknown4 = validate_integer("unknown4", value, 0, 255)
-
-    @property
-    def unknown5(self):
-        return self._unknown5
-
-    @unknown5.setter
-    def unknown5(self, value):
-        self._unknown5 = validate_integer("unknown5", value, 0, 255)
+    @num_half_revolutions.setter
+    def num_half_revolutions(self, value):
+        self._num_half_revolutions = validate_integer("num_half_revolutions", value, 0, 65535)
 
     @property
     def is_absolute(self):
@@ -1904,8 +1893,7 @@ class TurnInPlace(Packet):
             4 + \
             4 + \
             4 + \
-            1 + \
-            1 + \
+            2 + \
             1 + \
             1
 
@@ -1915,8 +1903,7 @@ class TurnInPlace(Packet):
                "speed_rad_per_sec={speed_rad_per_sec}, " \
                "accel_rad_per_sec2={accel_rad_per_sec2}, " \
                "angle_tolerance_rad={angle_tolerance_rad}, " \
-               "unknown4={unknown4}, " \
-               "unknown5={unknown5}, " \
+               "num_half_revolutions={num_half_revolutions}, " \
                "is_absolute={is_absolute}, " \
                "action_id={action_id})".format(
                 type=type(self).__name__,
@@ -1924,8 +1911,7 @@ class TurnInPlace(Packet):
                 speed_rad_per_sec=self._speed_rad_per_sec,
                 accel_rad_per_sec2=self._accel_rad_per_sec2,
                 angle_tolerance_rad=self._angle_tolerance_rad,
-                unknown4=self._unknown4,
-                unknown5=self._unknown5,
+                num_half_revolutions=self._num_half_revolutions,
                 is_absolute=self._is_absolute,
                 action_id=self._action_id)
 
@@ -1939,8 +1925,7 @@ class TurnInPlace(Packet):
         writer.write(self._speed_rad_per_sec, "f")
         writer.write(self._accel_rad_per_sec2, "f")
         writer.write(self._angle_tolerance_rad, "f")
-        writer.write(self._unknown4, "B")
-        writer.write(self._unknown5, "B")
+        writer.write(self._num_half_revolutions, "H")
         writer.write(int(self._is_absolute), "b")
         writer.write(self._action_id, "B")
 
@@ -1956,8 +1941,7 @@ class TurnInPlace(Packet):
         speed_rad_per_sec = reader.read("f")
         accel_rad_per_sec2 = reader.read("f")
         angle_tolerance_rad = reader.read("f")
-        unknown4 = reader.read("B")
-        unknown5 = reader.read("B")
+        num_half_revolutions = reader.read("H")
         is_absolute = bool(reader.read("b"))
         action_id = reader.read("B")
         return cls(
@@ -1965,8 +1949,7 @@ class TurnInPlace(Packet):
             speed_rad_per_sec=speed_rad_per_sec,
             accel_rad_per_sec2=accel_rad_per_sec2,
             angle_tolerance_rad=angle_tolerance_rad,
-            unknown4=unknown4,
-            unknown5=unknown5,
+            num_half_revolutions=num_half_revolutions,
             is_absolute=is_absolute,
             action_id=action_id)
 
@@ -2388,7 +2371,7 @@ class AppendPathSegPointTurn(Packet):
         "_speed_mmps",  # float
         "_accel_mmps2",  # float
         "_decel_mmps2",  # float
-        "_unknown",  # bool
+        "_use_shortest_direction",  # bool
     )
 
     def __init__(self,
@@ -2399,7 +2382,7 @@ class AppendPathSegPointTurn(Packet):
                  speed_mmps=0.0,
                  accel_mmps2=0.0,
                  decel_mmps2=0.0,
-                 unknown=False):
+                 use_shortest_direction=False):
         super().__init__(PacketType.COMMAND, packet_id=0x3f)
         self.x = x
         self.y = y
@@ -2408,7 +2391,7 @@ class AppendPathSegPointTurn(Packet):
         self.speed_mmps = speed_mmps
         self.accel_mmps2 = accel_mmps2
         self.decel_mmps2 = decel_mmps2
-        self.unknown = unknown
+        self.use_shortest_direction = use_shortest_direction
 
     @property
     def x(self):
@@ -2467,12 +2450,12 @@ class AppendPathSegPointTurn(Packet):
         self._decel_mmps2 = validate_float("decel_mmps2", value)
 
     @property
-    def unknown(self):
-        return self._unknown
+    def use_shortest_direction(self):
+        return self._use_shortest_direction
 
-    @unknown.setter
-    def unknown(self, value):
-        self._unknown = validate_bool("unknown", value)
+    @use_shortest_direction.setter
+    def use_shortest_direction(self, value):
+        self._use_shortest_direction = validate_bool("use_shortest_direction", value)
 
     def __len__(self):
         return \
@@ -2494,7 +2477,7 @@ class AppendPathSegPointTurn(Packet):
                "speed_mmps={speed_mmps}, " \
                "accel_mmps2={accel_mmps2}, " \
                "decel_mmps2={decel_mmps2}, " \
-               "unknown={unknown})".format(
+               "use_shortest_direction={use_shortest_direction})".format(
                 type=type(self).__name__,
                 x=self._x,
                 y=self._y,
@@ -2503,7 +2486,7 @@ class AppendPathSegPointTurn(Packet):
                 speed_mmps=self._speed_mmps,
                 accel_mmps2=self._accel_mmps2,
                 decel_mmps2=self._decel_mmps2,
-                unknown=self._unknown)
+                use_shortest_direction=self._use_shortest_direction)
 
     def to_bytes(self):
         writer = BinaryWriter()
@@ -2518,7 +2501,7 @@ class AppendPathSegPointTurn(Packet):
         writer.write(self._speed_mmps, "f")
         writer.write(self._accel_mmps2, "f")
         writer.write(self._decel_mmps2, "f")
-        writer.write(int(self._unknown), "b")
+        writer.write(int(self._use_shortest_direction), "b")
 
     @classmethod
     def from_bytes(cls, buffer):
@@ -2535,7 +2518,7 @@ class AppendPathSegPointTurn(Packet):
         speed_mmps = reader.read("f")
         accel_mmps2 = reader.read("f")
         decel_mmps2 = reader.read("f")
-        unknown = bool(reader.read("b"))
+        use_shortest_direction = bool(reader.read("b"))
         return cls(
             x=x,
             y=y,
@@ -2544,7 +2527,7 @@ class AppendPathSegPointTurn(Packet):
             speed_mmps=speed_mmps,
             accel_mmps2=accel_mmps2,
             decel_mmps2=decel_mmps2,
-            unknown=unknown)
+            use_shortest_direction=use_shortest_direction)
 
 
 class TrimPath(Packet):
@@ -2909,36 +2892,36 @@ class AbortDocking(Packet):
 class SetOrigin(Packet):
 
     __slots__ = (
-        "_unknown0",  # uint32
+        "_timestamp",  # uint32
         "_pose_frame_id",  # uint32
         "_pose_origin_id",  # uint32
         "_pose_x",  # float
         "_pose_y",  # float
-        "_unknown5",  # uint32
+        "_pose_angle_rad",  # float
     )
 
     def __init__(self,
-                 unknown0=0,
+                 timestamp=0,
                  pose_frame_id=0,
                  pose_origin_id=1,
                  pose_x=0.0,
                  pose_y=0.0,
-                 unknown5=2147483648):
+                 pose_angle_rad=-0.0):
         super().__init__(PacketType.COMMAND, packet_id=0x45)
-        self.unknown0 = unknown0
+        self.timestamp = timestamp
         self.pose_frame_id = pose_frame_id
         self.pose_origin_id = pose_origin_id
         self.pose_x = pose_x
         self.pose_y = pose_y
-        self.unknown5 = unknown5
+        self.pose_angle_rad = pose_angle_rad
 
     @property
-    def unknown0(self):
-        return self._unknown0
+    def timestamp(self):
+        return self._timestamp
 
-    @unknown0.setter
-    def unknown0(self, value):
-        self._unknown0 = validate_integer("unknown0", value, 0, 4294967295)
+    @timestamp.setter
+    def timestamp(self, value):
+        self._timestamp = validate_integer("timestamp", value, 0, 4294967295)
 
     @property
     def pose_frame_id(self):
@@ -2973,12 +2956,12 @@ class SetOrigin(Packet):
         self._pose_y = validate_float("pose_y", value)
 
     @property
-    def unknown5(self):
-        return self._unknown5
+    def pose_angle_rad(self):
+        return self._pose_angle_rad
 
-    @unknown5.setter
-    def unknown5(self, value):
-        self._unknown5 = validate_integer("unknown5", value, 0, 4294967295)
+    @pose_angle_rad.setter
+    def pose_angle_rad(self, value):
+        self._pose_angle_rad = validate_float("pose_angle_rad", value)
 
     def __len__(self):
         return \
@@ -2991,19 +2974,19 @@ class SetOrigin(Packet):
 
     def __repr__(self):
         return "{type}(" \
-               "unknown0={unknown0}, " \
+               "timestamp={timestamp}, " \
                "pose_frame_id={pose_frame_id}, " \
                "pose_origin_id={pose_origin_id}, " \
                "pose_x={pose_x}, " \
                "pose_y={pose_y}, " \
-               "unknown5={unknown5})".format(
+               "pose_angle_rad={pose_angle_rad})".format(
                 type=type(self).__name__,
-                unknown0=self._unknown0,
+                timestamp=self._timestamp,
                 pose_frame_id=self._pose_frame_id,
                 pose_origin_id=self._pose_origin_id,
                 pose_x=self._pose_x,
                 pose_y=self._pose_y,
-                unknown5=self._unknown5)
+                pose_angle_rad=self._pose_angle_rad)
 
     def to_bytes(self):
         writer = BinaryWriter()
@@ -3011,12 +2994,12 @@ class SetOrigin(Packet):
         return writer.dumps()
 
     def to_writer(self, writer):
-        writer.write(self._unknown0, "L")
+        writer.write(self._timestamp, "L")
         writer.write(self._pose_frame_id, "L")
         writer.write(self._pose_origin_id, "L")
         writer.write(self._pose_x, "f")
         writer.write(self._pose_y, "f")
-        writer.write(self._unknown5, "L")
+        writer.write(self._pose_angle_rad, "f")
 
     @classmethod
     def from_bytes(cls, buffer):
@@ -3026,19 +3009,19 @@ class SetOrigin(Packet):
 
     @classmethod
     def from_reader(cls, reader):
-        unknown0 = reader.read("L")
+        timestamp = reader.read("L")
         pose_frame_id = reader.read("L")
         pose_origin_id = reader.read("L")
         pose_x = reader.read("f")
         pose_y = reader.read("f")
-        unknown5 = reader.read("L")
+        pose_angle_rad = reader.read("f")
         return cls(
-            unknown0=unknown0,
+            timestamp=timestamp,
             pose_frame_id=pose_frame_id,
             pose_origin_id=pose_origin_id,
             pose_x=pose_x,
             pose_y=pose_y,
-            unknown5=unknown5)
+            pose_angle_rad=pose_angle_rad)
 
 
 class DockingErrorSignal(Packet):
@@ -5582,18 +5565,15 @@ class HardwareInfo(Packet):
 
     __slots__ = (
         "_serial_number_head",  # uint32
-        "_unknown1",  # uint8
-        "_unknown2",  # uint8
+        "_hw_version",  # uint16
     )
 
     def __init__(self,
                  serial_number_head=0,
-                 unknown1=0,
-                 unknown2=0):
+                 hw_version=0):
         super().__init__(PacketType.COMMAND, packet_id=0xc9)
         self.serial_number_head = serial_number_head
-        self.unknown1 = unknown1
-        self.unknown2 = unknown2
+        self.hw_version = hw_version
 
     @property
     def serial_number_head(self):
@@ -5604,36 +5584,25 @@ class HardwareInfo(Packet):
         self._serial_number_head = validate_integer("serial_number_head", value, 0, 4294967295)
 
     @property
-    def unknown1(self):
-        return self._unknown1
+    def hw_version(self):
+        return self._hw_version
 
-    @unknown1.setter
-    def unknown1(self, value):
-        self._unknown1 = validate_integer("unknown1", value, 0, 255)
-
-    @property
-    def unknown2(self):
-        return self._unknown2
-
-    @unknown2.setter
-    def unknown2(self, value):
-        self._unknown2 = validate_integer("unknown2", value, 0, 255)
+    @hw_version.setter
+    def hw_version(self, value):
+        self._hw_version = validate_integer("hw_version", value, 0, 65535)
 
     def __len__(self):
         return \
             4 + \
-            1 + \
-            1
+            2
 
     def __repr__(self):
         return "{type}(" \
                "serial_number_head={serial_number_head}, " \
-               "unknown1={unknown1}, " \
-               "unknown2={unknown2})".format(
+               "hw_version={hw_version})".format(
                 type=type(self).__name__,
                 serial_number_head=self._serial_number_head,
-                unknown1=self._unknown1,
-                unknown2=self._unknown2)
+                hw_version=self._hw_version)
 
     def to_bytes(self):
         writer = BinaryWriter()
@@ -5642,8 +5611,7 @@ class HardwareInfo(Packet):
 
     def to_writer(self, writer):
         writer.write(self._serial_number_head, "L")
-        writer.write(self._unknown1, "B")
-        writer.write(self._unknown2, "B")
+        writer.write(self._hw_version, "H")
 
     @classmethod
     def from_bytes(cls, buffer):
@@ -5654,12 +5622,10 @@ class HardwareInfo(Packet):
     @classmethod
     def from_reader(cls, reader):
         serial_number_head = reader.read("L")
-        unknown1 = reader.read("B")
-        unknown2 = reader.read("B")
+        hw_version = reader.read("H")
         return cls(
             serial_number_head=serial_number_head,
-            unknown1=unknown1,
-            unknown2=unknown2)
+            hw_version=hw_version)
 
 
 class AnimationStarted(Packet):
@@ -6717,25 +6683,25 @@ class BodyInfo(Packet):
 class FirmwareSignature(Packet):
 
     __slots__ = (
-        "_unknown",  # uint16
+        "_robot_id",  # uint16
         "_signature",  # str
     )
 
     def __init__(self,
-                 unknown=0,
+                 robot_id=0,
                  signature=''):
         super().__init__(PacketType.COMMAND, packet_id=0xee)
         # Last 2 bytes of head s/n?
-        self.unknown = unknown
+        self.robot_id = robot_id
         self.signature = signature
 
     @property
-    def unknown(self):
-        return self._unknown
+    def robot_id(self):
+        return self._robot_id
 
-    @unknown.setter
-    def unknown(self, value):
-        self._unknown = validate_integer("unknown", value, 0, 65535)
+    @robot_id.setter
+    def robot_id(self, value):
+        self._robot_id = validate_integer("robot_id", value, 0, 65535)
 
     @property
     def signature(self):
@@ -6752,10 +6718,10 @@ class FirmwareSignature(Packet):
 
     def __repr__(self):
         return "{type}(" \
-               "unknown={unknown}, " \
+               "robot_id={robot_id}, " \
                "signature={signature})".format(
                 type=type(self).__name__,
-                unknown=self._unknown,
+                robot_id=self._robot_id,
                 signature=self._signature)
 
     def to_bytes(self):
@@ -6764,7 +6730,7 @@ class FirmwareSignature(Packet):
         return writer.dumps()
 
     def to_writer(self, writer):
-        writer.write(self._unknown, "H")
+        writer.write(self._robot_id, "H")
         writer.write_string(self._signature, "H")
 
     @classmethod
@@ -6775,10 +6741,10 @@ class FirmwareSignature(Packet):
 
     @classmethod
     def from_reader(cls, reader):
-        unknown = reader.read("H")
+        robot_id = reader.read("H")
         signature = reader.read_string("H")
         return cls(
-            unknown=unknown,
+            robot_id=robot_id,
             signature=signature)
 
 
