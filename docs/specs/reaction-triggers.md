@@ -20,7 +20,7 @@ behaviors (`docs/specs/behavior-selection.md`): time, randomness and the state o
 | `hiccupParams` | parameters of the Hiccup reaction (loaded, not used) |
 
 A trigger can have several entries: `Frustration` has a minor and a major one. `load_reaction_triggers` returns all the
-entries in the order of the file; `load_reaction_trigger_behavior_map` keeps only the last entry of each trigger.
+entries in the order of the file; `load_reaction_trigger_behavior_map` keeps only the last entry of each trigger, so `Brain` uses `load_reaction_triggers` with `select_reaction_trigger`.
 
 ## Order
 

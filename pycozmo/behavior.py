@@ -29,6 +29,7 @@ __all__ = [
     "load_behavior_configs",
     "load_reaction_triggers",
     "load_reaction_trigger_behavior_map",
+    "select_reaction_trigger",
 ]
 
 
@@ -363,7 +364,30 @@ def load_reaction_triggers(resource_dir: str) -> list[ReactionTrigger]:
     return [ReactionTrigger.from_json(trigger) for trigger in json_data['reactionTriggerBehaviorMap']]
 
 
+def select_reaction_trigger(
+        entries: list[ReactionTrigger], mood_values: dict[str, float] | None = None) -> ReactionTrigger | None:
+    """
+    Choose the entry to run among the entries of one trigger.
+
+    An entry with a maximum confidence only applies while the Confident emotion is below it; when several entries
+    apply, the last one of the file wins (the most severe one for Frustration).
+    """
+    confidence = (mood_values or {}).get("Confident", 0.0)
+    selected = None
+    for entry in entries:
+        if entry.max_confidence is not None and confidence >= entry.max_confidence:
+            continue
+        selected = entry
+    return selected
+
+
 def load_reaction_trigger_behavior_map(resource_dir: str) -> dict[str, ReactionTrigger]:
+    """
+    Load the reaction trigger map, with one entry per trigger.
+
+    Triggers with several entries (Frustration) only keep the last one. Use load_reaction_triggers and
+    select_reaction_trigger to take them all into account.
+    """
 
     start_time = time.perf_counter()
 

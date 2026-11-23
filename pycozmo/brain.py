@@ -41,7 +41,9 @@ class Brain:
         resource_dir = str(util.get_cozmo_asset_dir())
         self.activities = activity.load_activities(resource_dir)
         self.behaviors = behavior.load_behaviors(resource_dir, self.cli)
-        self.reaction_trigger_beahvior_map = behavior.load_reaction_trigger_behavior_map(resource_dir)
+        self.reaction_triggers: dict[str, list[behavior.ReactionTrigger]] = {}
+        for trigger in behavior.load_reaction_triggers(resource_dir):
+            self.reaction_triggers.setdefault(trigger.name, []).append(trigger)
         self.emotion_types = emotions.load_emotion_types(resource_dir)
         self.emotion_events = emotions.load_emotion_events(resource_dir)
         self.mood = emotions.Mood(self.emotion_types, self.emotion_events)
@@ -167,7 +169,8 @@ class Brain:
             logger_reaction.warning("Failed to find emotion event for {}.".format(reaction_trigger))
 
     def process_reaction(self, reaction_trigger: str) -> None:
-        reaction = self.reaction_trigger_beahvior_map.get(reaction_trigger)
+        entries = self.reaction_triggers.get(reaction_trigger, [])
+        reaction = behavior.select_reaction_trigger(entries, self.mood.values())
         if reaction:
             # TODO: Handle should_resume_last.
             self.activate_behavior(reaction.behavior_id)

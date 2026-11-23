@@ -7,7 +7,7 @@ import unittest
 from typing import Any
 
 from pycozmo.activity import SelectionContext
-from pycozmo.behavior import ReactionTrigger, ReactionTriggerManager, load_reaction_triggers
+from pycozmo.behavior import ReactionTrigger, ReactionTriggerManager, load_reaction_triggers, select_reaction_trigger
 from pycozmo.emotions import DecayGraph, EmotionType, Mood, Node
 from pycozmo.tests.test_mood_needs import Clock
 
@@ -204,3 +204,13 @@ class TestReactionTriggers(unittest.TestCase):
         self.assertEqual([t.behavior_id for t in triggers], ["Minor", "ReactToCliff", "Major"])
         manager = ReactionTriggerManager(triggers)
         self.assertEqual([t.behavior_id for t in manager.entries], ["ReactToCliff", "Minor", "Major"])
+
+
+def test_select_reaction_trigger_frustration():
+    minor = ReactionTrigger("Frustration", "ReactToFrustrationMinor", max_confidence=-0.6)
+    major = ReactionTrigger("Frustration", "ReactToFrustrationMajor", max_confidence=-0.9)
+    entries = [minor, major]
+    assert select_reaction_trigger(entries, {"Confident": 0.0}) is None
+    assert select_reaction_trigger(entries, {"Confident": -0.7}) is minor
+    assert select_reaction_trigger(entries, {"Confident": -0.95}) is major
+    assert select_reaction_trigger([], {}) is None
