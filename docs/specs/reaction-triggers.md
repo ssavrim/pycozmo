@@ -60,7 +60,7 @@ objective. For an objective that has parameters: nothing happens when the last f
 
 | Point | Status |
 | --- | --- |
-| Order of the triggers, all tried in one check, interruption is per trigger | Specified (the order is the one of the identifiers). |
+| Order of the triggers, all tried in one check, interruption is per trigger | Assumed (the order is the one of the identifiers, not of the file; it only matters when several triggers fire together). |
 | FistBump: cooldown, probability, expiration, carrying block, validation of the parameters | Specified. |
 | Frustration: current reaction, confidence, cooldown | Specified; the default cooldown of an entry that has none is assumed to be none. |
 | Locks of a trigger | Specified as a count. |
