@@ -384,13 +384,21 @@ def _connect(robot_addr: tuple[str, int] | None) -> Any:
     from . import client as client_module
     cli = client_module.Client(robot_addr=robot_addr, enable_procedural_face=False) if robot_addr else \
         client_module.Client(enable_procedural_face=False)
-    cli.start()
-    cli.connect()
-    cli.wait_for_robot()
-    # The first state of the robot (battery, pose) arrives a moment after it is ready.
-    deadline = time.monotonic() + 3.0
-    while cli.battery_voltage <= 0.0 and time.monotonic() < deadline:
-        time.sleep(0.05)
+    try:
+        cli.start()
+        cli.connect()
+        cli.wait_for_robot()
+        # The first state of the robot (battery, pose) arrives a moment after it is ready.
+        deadline = time.monotonic() + 3.0
+        while cli.battery_voltage <= 0.0 and time.monotonic() < deadline:
+            time.sleep(0.05)
+    except BaseException:
+        # A failed connection must not leave the threads of the client running.
+        try:
+            cli.disconnect()
+        finally:
+            cli.stop()
+        raise
     return cli
 
 

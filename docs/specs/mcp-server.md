@@ -76,5 +76,7 @@ A tool that fails returns an error with its reason (not connected, picked up, cl
   in `--no-drive` came back with its reason.
 - On a robot, on the floor (2026-11-23): through the same MCP client, `drive` 50 mm forward then 50 mm backward and `turn` 90
   degrees, twice; the operator saw the movements as expected. The angles on the floor were not measured (the odometry read
-  right after the stop is late and gave 33 degrees once, so it is not a measure). The stop on a pick up or a cliff during a
-  movement was not tried on the robot.
+  right after the stop is late and gave 33 degrees once, so it is not a measure).
+- On a robot (2026-11-23): `drive` of 100 mm at 20 mm/s, the operator picked the robot up while it rolled: the wheels
+  stopped (the robot had moved 22 mm), the answer was `stopped_by: "cliff"` (the cliff sensor reacted before the picked up
+  flag), `status` showed `cliff_detected`, and the next `drive` was refused with "A cliff is detected".
