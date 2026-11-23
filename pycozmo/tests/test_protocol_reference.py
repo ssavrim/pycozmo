@@ -124,3 +124,13 @@ class TestProtocolReference(unittest.TestCase):
         self.assertEqual(len(pe.IMUDataChunk(a_x=(0.0,) * 8, a_y=(0.0,) * 8, a_z=(0.0,) * 8,
                                              g_x=(0.0,) * 8, g_y=(0.0,) * 8, g_z=(0.0,) * 8,
                                              seq_id=0, chunk_id=0, total_num_chunks=0).to_bytes()), 195)
+
+    def test_renamed_fields_keep_the_wire_format(self):
+        """ Fields that PyCozmo already declared were named from the original (docs/specs/protocol-gaps.md). """
+        origin = pe.SetOrigin()
+        self.assertEqual(origin.to_bytes(), bytes(8) + (1).to_bytes(4, "little") + bytes(8) + b"\x00\x00\x00\x80")
+        info = pe.HardwareInfo(serial_number_head=1, hw_version=0x0105)
+        self.assertEqual(info.to_bytes(), b"\x01\x00\x00\x00\x05\x01")
+        turn = pe.TurnInPlace(angle_rad=1.0, speed_rad_per_sec=2.0, accel_rad_per_sec2=3.0, angle_tolerance_rad=0.1,
+                              num_half_revolutions=0x0201, is_absolute=True, action_id=7)
+        self.assertEqual(turn.to_bytes()[16:], b"\x01\x02\x01\x07")
