@@ -56,7 +56,7 @@ float, signed or unsigned integer, boolean. The original does not keep the names
 
 ## Messages declared by this change
 
-51 messages were not declared and are now (the original name is given when PyCozmo's differs). The fields are named only
+51 messages were not declared; 50 are now (`FlashObjectIDs` was removed again, see below) (the original name is given when PyCozmo's differs). The fields are named only
 where the name of the message says what they are (`threshold`, `enable`, `angle_rad`, `motor_id`...): the others are
 `unknown0`, `unknown1`... with their type. **Not validated**, unless the next section says so.
 
@@ -75,7 +75,6 @@ where the name of the message says what they are (`threshold`, `enable`, `angle_
 | 0x46 | StartControllerTestMode | engine to robot | 13 | factory |
 | 0x47 | ControllerGains | engine to robot | 17 | factory |
 | 0x4a | IMURequest | engine to robot | 4 | system |
-| 0x4d | FlashObjectIDs | engine to robot | 4 | objects |
 | 0x4e | ObjectBeingCarried | engine to robot | 5 | localization |
 | 0x50 | EnableMotorPower | engine to robot | 2 | motors |
 | 0x51 | SetMotionModelParams | engine to robot | 4 | motors |
@@ -138,7 +137,7 @@ and **must not be sent to a robot**.
   The robot kept answering (no error), but neither the cliff flag of `RobotState` (always off) nor the raw cliff values
   (`cliff_data_raw` about 922, 0, 0, 0) changed: the effect of the threshold could not be observed at rest, and the default
   value is still not known. The robot has to be restarted afterwards.
-- `FlashObjectIDs` (0x4d): sent 5 times, 3 s apart, with the object identifier of a connected cube (object 1): **nothing was
+- `FlashObjectIDs` (0x4d, **not declared**, see below): sent 5 times, 3 s apart, with the object identifier of a connected cube (object 1): **nothing was
   seen on the cube** (watched by the operator). Tried again with the factory identifier of the cube (0xb85e9ee4) in the
   field, 3 messages 3 s apart after 3 with the object identifier: nothing was seen either. The message is not known to do
   anything on this robot; maybe the cube lights have to be in a given state, or the message is not handled by this firmware.
@@ -166,7 +165,6 @@ Applied (names and, where it differed, the type):
 | 0x3a | TurnInPlaceAtAngularSpeed | `speed_rad_per_sec`, `accel_rad_per_sec2` |
 | 0x46 | StartControllerTestMode | `p1`, `p2`, `p3` (int32), `mode` |
 | 0x47 | ControllerGains | `kp`, `ki`, `kd`, `max_integral_error`, `controller` |
-| 0x4d | FlashObjectIDs | `object_id` |
 | 0x51 | SetMotionModelParams | `slip_factor` |
 | 0x53 | PowerState | `v_bat_fixed`, `v_ext_fixed`, `unused` (int32), `battery_level`, `on_charger`, `is_charging`, `operating_mode`, `charger_oos` |
 | 0x59 | RollActionParams | `lift_height_mm`, `drive_speed_mmps`, `drive_accel_mmps2`, `drive_duration_ms`, `back_up_dist_mm` |
@@ -191,6 +189,14 @@ keyword of the field (nothing in PyCozmo used the old ones):
 
 The messages without a type in the C# keep `unknown*`: the game layer does not use them, so the names are only in the
 native code, which does not keep them.
+
+## Message not declared: FlashObjectIDs
+
+`FlashObjectIDs` (0x4d, engine to robot, 4 bytes: an uint32 `_objectID` in the C# of the application) is the only message of the
+original that PyCozmo does not declare. It was declared at first, then removed: sent to a connected cube three times (the
+object identifier, then the factory identifier of the cube, on two different cubes, while the cube lights worked), it had no
+visible effect, and nothing says what it does. A packet with this number is received as an unknown command. The reference
+test lists it as the exception (`NOT_DECLARED`).
 
 ## Messages with arrays and strings
 
@@ -238,7 +244,7 @@ the protocol (the animation stream, the radio of the robot) and are not compared
 | Point | Status |
 |---|---|
 | Numbers, names and sizes of the 136 messages | Specified |
-| Layout of the 51 messages that are now declared | Specified (order and size), types from the original |
+| Layout of the 50 messages that are now declared | Specified (order and size), types from the original |
 | Meaning of the fields of the declared messages | Not validated |
 | Messages with a variable size or an unrecovered layout (13) | Not modeled |
 | The `factory` messages | Declared, never to be sent |

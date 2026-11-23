@@ -21,6 +21,11 @@ KNOWN_DIFFERENCES = {
     0xa9: "ShutdownRobot: the original has a payload of 32 bytes that PyCozmo does not declare",
 }
 
+#: Messages of the original application that PyCozmo does not declare, and why.
+NOT_DECLARED = {
+    0x4d: "FlashObjectIDs: no effect seen on a cube (three attempts), see docs/specs/protocol-gaps.md",
+}
+
 
 def argument_size(argument):
     name = type(argument).__name__
@@ -104,7 +109,9 @@ class TestProtocolReference(unittest.TestCase):
     def test_all_messages_are_declared(self):
         reference = load_reference()
         packets = declared()
-        self.assertEqual(sorted(set(reference) - set(packets)), [])
+        self.assertEqual(sorted(set(reference) - set(packets) - set(NOT_DECLARED)), [])
+        for number in NOT_DECLARED:
+            self.assertNotIn(number, packets)
 
     def test_arrays_and_strings(self):
         """ The arrays and strings of the messages added from the original application have a length on 1 byte. """

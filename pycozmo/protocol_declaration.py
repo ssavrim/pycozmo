@@ -783,9 +783,6 @@ PROTOCOL = Protocol(
         Command(0x4a, "IMURequest", group="system", arguments=[
             UInt32Argument("length_ms", description="Duration of the stream of IMURawDataChunk, in milliseconds."),
         ]),
-        Command(0x4d, "FlashObjectIDs", group="objects", arguments=[
-            UInt32Argument("object_id"),
-        ]),
         Command(0x4e, "ObjectBeingCarried", group="localization", arguments=[
             UInt32Argument("object_id"),
             BoolArgument("carried"),
