@@ -404,6 +404,30 @@ class TestObjects(unittest.TestCase):
         self.assertAlmostEqual(found[1][2], 180.0, delta=2.0)
         self.assertIsNone(markers.estimate_marker_pose(Marker(MarkerType.ARROW, pose, 0.0, 0), None, matrix))
 
+    def test_pose_falls_back_when_the_first_solver_gives_nan(self):
+        """ IPPE gave values that are not numbers on macOS arm64: the next solver is used, and None if all fail. """
+        from unittest import mock
+        matrix = np.array([[290.0, 0, 160], [0, 290.0, 120], [0, 0, 1]])
+        pose = TestPose().project([0.0, 0.2, 0.0], [10.0, 0.0, 180.0], 25.0, matrix)
+        cube = Marker(MarkerType.LIGHTCUBEJ_LEFT, pose, 0.0, 0)
+        real = markers.cv2.solvePnP
+        calls = []
+
+        def broken_ippe(points, corners, matrix_, coefficients, flags):
+            calls.append(flags)
+            if flags == markers.cv2.SOLVEPNP_IPPE:
+                return True, np.full((3, 1), np.nan), np.full((3, 1), np.nan)
+            return real(points, corners, matrix_, coefficients, flags=flags)
+
+        with mock.patch.object(markers.cv2, "solvePnP", broken_ippe):
+            found = markers.estimate_marker_pose(cube, None, matrix)
+        assert found is not None
+        self.assertAlmostEqual(found[1][2], 180.0, delta=2.0)
+        self.assertEqual(calls, [markers.cv2.SOLVEPNP_IPPE, markers.cv2.SOLVEPNP_ITERATIVE])
+        with mock.patch.object(markers.cv2, "solvePnP",
+                               lambda *args, **kwargs: (True, np.full((3, 1), np.nan), np.zeros((3, 1)))):
+            self.assertIsNone(markers.estimate_marker_pose(cube, None, matrix))
+
     def test_pose_of_a_rectangular_marker(self):
         matrix = np.array([[290.0, 0, 160], [0, 290.0, 120], [0, 0, 1]])
         half_w, half_h = 13.5, 10.0
