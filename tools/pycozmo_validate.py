@@ -54,7 +54,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
     "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold", "turn",
-    "braincubes")
+    "braincubes", "edges")
 
 
 class State:
@@ -722,6 +722,76 @@ def test_braincubes(cli, state, report, ctx):
     report.add("braincubes", "MEASURED", cubes=len(brain.cube_lights.object_ids), markers=sorted(markers_seen),
                images_submitted=images[0], images_processed=images[1], behaviors=seen,
                look="the cube animations are to confirm by the operator")
+
+
+def test_edges(cli, state, report, ctx):
+    """ The table edge: drive slowly at it, note the drop, then retreat with CliffRetreat (a hand under the robot). """
+    from pycozmo import edges
+    print("\nedges: the robot drives at 15 mm/s toward the edge of the table, stops at the drop and backs away")
+    print("  Put Cozmo on a table, about 15 cm from the edge, facing it, with the edge clear in front.")
+    print("  Keep a hand ready under the robot. The test stops at the first drop and moves only a few centimeters.")
+    if not ask("Is Cozmo on the table facing the edge, 15 cm away, with a hand ready?", False):
+        report.add("edges", "SKIP", detail="not confirmed")
+        return
+    memory = edges.TableMemory()
+
+    def on_state(_cli, *_):
+        pose = cli.pose
+        memory.observe(pose.position.x, pose.position.y, pose.rotation.angle_z.radians, pose.origin_id,
+                       cli.robot_status, time.monotonic())
+
+    handler = cli.add_handler(event.EvtRobotStateUpdated, on_state)
+    cliff = int(robot.RobotStatusFlag.CLIFF_DETECTED)
+    outcome = None
+    try:
+        time.sleep(1.0)
+        start = cli.pose
+        deadline = time.monotonic() + 12.0
+        cli.drive_wheels(15.0, 15.0)
+        while time.monotonic() < deadline and not cli.robot_status & cliff:
+            time.sleep(0.02)
+        cli.stop_all_motors()
+        saw = bool(cli.robot_status & cliff)
+        pose = cli.pose
+        travelled = math.hypot(pose.position.x - start.position.x, pose.position.y - start.position.y)
+        time.sleep(0.5)
+        heading = pose.rotation.angle_z.radians
+        origin = pose.origin_id
+        now = time.monotonic()
+        print("   drop seen: {}, travelled {:.0f} mm, edges noted: {}, poses recorded: {}".format(
+            saw, travelled, len(memory.edges_known(origin, now)), len(memory.poses)))
+        print("   backup room {:.0f} mm, can turn here: {}".format(
+            memory.backup_room(pose.position.x, pose.position.y, heading, origin),
+            memory.can_turn(pose.position.x, pose.position.y, origin, now)))
+        if saw:
+            retreat = edges.CliffRetreat(pose.position.x, pose.position.y, heading, time.monotonic(),
+                                         memory.backup_room(pose.position.x, pose.position.y, heading, origin,
+                                                            edges.CliffRetreat.BACKUP_MM))
+            commands = retreat.first()
+            end = time.monotonic() + 15.0
+            while commands is not None and time.monotonic() < end:
+                for command in commands:
+                    if command[0] == "wheels":
+                        cli.drive_wheels(command[1], command[2])
+                    elif command[0] == "stop":
+                        cli.stop_all_motors()
+                    elif command[0] == "done":
+                        outcome = command[1]
+                if outcome is not None:
+                    break
+                time.sleep(0.05)
+                pose = cli.pose
+                commands = retreat.step(
+                    pose.position.x, pose.position.y, pose.rotation.angle_z.radians,
+                    bool(cli.robot_status & cliff), time.monotonic(),
+                    memory.can_turn(pose.position.x, pose.position.y, pose.origin_id, time.monotonic()))
+            print("   retreat outcome: {}".format(outcome))
+    finally:
+        cli.stop_all_motors()
+        cli.del_handler(event.EvtRobotStateUpdated, handler)
+    # Whether the robot stayed on the table is seen by the operator, not by this tool.
+    report.add("edges", "MEASURED", drop_seen=saw, travelled_mm=round(travelled), retreat=outcome,
+               edges_noted=len(memory.edges), look="the operator confirms that the robot stayed on the table")
 
 
 def test_brain(cli, state, report, ctx):
