@@ -13,7 +13,9 @@ import enum
 import hashlib
 import os
 import struct
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,6 +31,7 @@ __all__ = [
     "MarkerLibrary",
     "Marker",
     "MarkerDetector",
+    "MarkerWatcher",
     "MATCH_THRESHOLD",
     "LIBRARY_FILENAME",
 
@@ -296,15 +299,26 @@ def homography_from_corners(corners: npt.ArrayLike) -> npt.NDArray[np.float64]:
     return np.asarray(cv2.getPerspectiveTransform(src, dst), dtype=np.float64)
 
 
+def _project(h: npt.NDArray[np.float32], x: npt.NDArray[np.float32],
+             y: npt.NDArray[np.float32]) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
+    """
+    Points through a homography. A degenerate homography (a frame that collapsed while its corners were moved) sends
+    points to infinity: they are put at 0, which gives probes that match nothing, instead of invalid values.
+    """
+    with np.errstate(divide="ignore", invalid="ignore"):
+        w = h[2, 0] * x + h[2, 1] * y + h[2, 2]
+        u = (h[0, 0] * x + h[0, 1] * y + h[0, 2]) / w
+        v = (h[1, 0] * x + h[1, 1] * y + h[1, 2]) / w
+    return (np.nan_to_num(u, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32),
+            np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32))
+
+
 def sample_probes(image: npt.NDArray[np.uint8], homography: npt.NDArray[np.float64],
                   library: MarkerLibrary) -> npt.NDArray[np.uint8]:
     """ The value of each probe: the mean of the pixels at its points, through the homography. """
     xs = library.centers_x[:, None] + library.offsets_x[None, :]
     ys = library.centers_y[:, None] + library.offsets_y[None, :]
-    h = homography.astype(np.float32)
-    w = h[2, 0] * xs + h[2, 1] * ys + h[2, 2]
-    u = (h[0, 0] * xs + h[0, 1] * ys + h[0, 2]) / w
-    v = (h[1, 0] * xs + h[1, 1] * ys + h[1, 2]) / w
+    u, v = _project(homography.astype(np.float32), xs, ys)
     # Round half away from zero, as the original application.
     cols = np.where(u > 0, np.floor(u + 0.5), np.ceil(u - 0.5)).astype(np.int64)
     rows = np.where(v > 0, np.floor(v + 0.5), np.ceil(v - 0.5)).astype(np.int64)
@@ -438,10 +452,9 @@ class MarkerDetector:
         if full:
             probes = sample_probes(image, homography_from_corners(corners), self.library).astype(np.int16)
         else:
-            h = homography_from_corners(corners).astype(np.float32)
-            w = h[2, 0] * self._coarse_x + h[2, 1] * self._coarse_y + h[2, 2]
-            cols = np.rint((h[0, 0] * self._coarse_x + h[0, 1] * self._coarse_y + h[0, 2]) / w).astype(np.intp)
-            rows = np.rint((h[1, 0] * self._coarse_x + h[1, 1] * self._coarse_y + h[1, 2]) / w).astype(np.intp)
+            u, v = _project(homography_from_corners(corners).astype(np.float32), self._coarse_x, self._coarse_y)
+            cols = np.rint(u).astype(np.intp)
+            rows = np.rint(v).astype(np.intp)
             height, width = image.shape[:2]
             probes = image[np.clip(rows, 0, height - 1), np.clip(cols, 0, width - 1)].astype(np.int16)
         low, high = int(np.min(probes)), int(np.max(probes))
@@ -571,3 +584,67 @@ def _to_gray(image: Any) -> npt.NDArray[np.uint8]:
     if array.ndim == 3:
         array = cv2.cvtColor(array, cv2.COLOR_RGB2GRAY)
     return np.ascontiguousarray(array, dtype=np.uint8)
+
+
+class MarkerWatcher:
+    """
+    Finds the markers of the images that arrive, in a thread of its own.
+
+    Looking for markers takes a fraction of a second, longer than the time between two images: ``submit`` only keeps
+    the latest image, and the images that come while one is processed replace each other. ``on_markers`` is called
+    with the markers of each processed image (an empty list when there is none).
+    """
+
+    def __init__(self, detector: MarkerDetector, on_markers: Callable[[list[Marker]], None]) -> None:
+        self.detector = detector
+        self.on_markers = on_markers
+        #: Number of images submitted and of images processed (the others were replaced by a newer one).
+        self.submitted = 0
+        self.processed = 0
+        self._latest: Any = None
+        self._lock = threading.Lock()
+        self._wake = threading.Event()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(daemon=True, name="MarkerThread", target=self._run)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._wake.set()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join()
+        self._thread = None
+
+    def submit(self, image: Any) -> None:
+        """ Give an image to process; it replaces an image that was not taken yet. """
+        with self._lock:
+            self._latest = image
+            self.submitted += 1
+        self._wake.set()
+
+    def process_latest(self) -> bool:
+        """ Process the image that was submitted, if any. Returns whether there was one. """
+        with self._lock:
+            image, self._latest = self._latest, None
+        if image is None:
+            return False
+        try:
+            markers = self.detector.detect(image)
+            self.processed += 1
+            self.on_markers(markers)
+        except Exception as e:
+            logger.error("Failed to look for markers. {}".format(e))
+        return True
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            self._wake.wait(0.2)
+            self._wake.clear()
+            while not self._stop.is_set() and self.process_latest():
+                pass

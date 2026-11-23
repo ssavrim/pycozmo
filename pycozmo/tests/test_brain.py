@@ -1,10 +1,15 @@
 
+import os
+import tempfile
 import unittest
+from queue import Queue
 from threading import RLock
 from types import SimpleNamespace
 from typing import Any
 
-from pycozmo import activity, behavior, robot
+import numpy as np
+
+from pycozmo import activity, behavior, markers, robot
 from pycozmo.brain import Brain
 from pycozmo.emotions import DecayGraph, EmotionType, Mood, Node
 from pycozmo.tests.test_mood_needs import Clock
@@ -54,7 +59,32 @@ def make_brain(triggers: list[dict[str, Any]], behavior_ids: list[str], freeplay
         running=brain.is_behavior_running, running_reaction=lambda: brain.running_reaction)
     brain.reaction_manager = behavior.ReactionTriggerManager(
         [behavior.ReactionTrigger.from_json(t) for t in triggers], brain.context)
+    brain.reaction_queue = Queue()
+    brain.marker_watcher = None
+    brain.visible_markers = []
+    brain._object_seen = {}
+    brain._cube_moved_time = None
     return brain
+
+
+def marker(marker_type: markers.MarkerType) -> markers.Marker:
+    return markers.Marker(marker_type, np.zeros((4, 2), dtype=np.float32), 0.0, 10)
+
+
+def posted(brain: Brain) -> list[str]:
+    result = []
+    while not brain.reaction_queue.empty():
+        result.append(brain.reaction_queue.get())
+    return result
+
+
+class FakeCubeLights:
+    def __init__(self) -> None:
+        self.played: list[tuple[str, int | None]] = []
+
+    def play(self, name: str, object_id: int | None = None) -> int:
+        self.played.append((name, object_id))
+        return 1
 
 
 FRUSTRATION: list[dict[str, Any]] = [
@@ -148,3 +178,78 @@ class TestBrain(unittest.TestCase):
         brain.process_reaction("RobotPickedUp")
         self.assertEqual(brain.behavior.get_id(), "Pickup")      # type: ignore[union-attr]
         self.assertEqual(brain.cli.deactivated, ["A"])           # type: ignore[attr-defined]
+
+
+class TestCubesAndMarkers(unittest.TestCase):
+
+    def test_a_cube_seen_posts_object_position_updated_once(self):
+        brain = make_brain([], [])
+        brain.on_markers([marker(markers.MarkerType.LIGHTCUBEI_FRONT)])
+        self.assertEqual(posted(brain), ["ObjectPositionUpdated"])
+        self.assertEqual(len(brain.visible_markers), 1)
+        brain.on_markers([marker(markers.MarkerType.LIGHTCUBEI_TOP)])          # same cube, other face
+        self.assertEqual(posted(brain), [])
+        brain.on_markers([marker(markers.MarkerType.LIGHTCUBEJ_FRONT)])        # another cube
+        self.assertEqual(posted(brain), ["ObjectPositionUpdated"])
+
+    def test_a_cube_seen_again_after_the_timeout(self):
+        brain = make_brain([], [])
+        brain.on_markers([marker(markers.MarkerType.LIGHTCUBEK_BACK)])
+        posted(brain)
+        brain._object_seen["LIGHTCUBE3"] -= 10.0
+        brain.on_markers([marker(markers.MarkerType.LIGHTCUBEK_BACK)])
+        self.assertEqual(posted(brain), ["ObjectPositionUpdated"])
+
+    def test_charger_counts_other_markers_do_not(self):
+        brain = make_brain([], [])
+        brain.on_markers([marker(markers.MarkerType.ARROW), marker(markers.MarkerType.STAR5)])
+        self.assertEqual(posted(brain), [])
+        brain.on_markers([marker(markers.MarkerType.CHARGER)])
+        self.assertEqual(posted(brain), ["ObjectPositionUpdated"])
+        brain.on_markers([])
+        self.assertEqual(brain.visible_markers, [])
+
+    def test_a_moving_cube_posts_cube_moved_at_a_limited_rate(self):
+        brain = make_brain([], [])
+        brain.on_object_moved(brain.cli, None)      # type: ignore[arg-type]
+        brain.on_object_moved(brain.cli, None)      # type: ignore[arg-type]
+        self.assertEqual(posted(brain), ["CubeMoved"])
+        brain._cube_moved_time -= 3.0               # type: ignore[operator]
+        brain.on_object_moved(brain.cli, None)      # type: ignore[arg-type]
+        self.assertEqual(posted(brain), ["CubeMoved"])
+
+    def test_play_cube_animation(self):
+        brain = make_brain([], [])
+        brain.cube_lights = FakeCubeLights()        # type: ignore[assignment]
+        self.assertEqual(brain.play_cube_animation("Flash", 2), 1)
+        self.assertEqual(brain.cube_lights.played, [("Flash", 2)])       # type: ignore[attr-defined]
+
+    def test_camera_images_go_to_the_watcher(self):
+        brain = make_brain([], [])
+        brain.on_camera_image(brain.cli, "image")   # type: ignore[arg-type]
+        submitted: list[object] = []
+        brain.marker_watcher = SimpleNamespace(submit=submitted.append)       # type: ignore[assignment]
+        brain.on_camera_image(brain.cli, "image")   # type: ignore[arg-type]
+        self.assertEqual(submitted, ["image"])
+
+    def test_missing_library_disables_the_markers(self):
+        brain = make_brain([], [])
+        handlers: list[object] = []
+        brain.cli.add_handler = lambda cls, handler: handlers.append(cls)     # type: ignore
+        with tempfile.TemporaryDirectory() as root:
+            brain._init_markers(root)
+        self.assertIsNone(brain.marker_watcher)
+        self.assertEqual(handlers, [])
+
+    def test_library_enables_the_markers(self):
+        from pycozmo.tests.test_markers import make_library
+        brain = make_brain([], [])
+        handlers: list[object] = []
+        brain.cli.add_handler = lambda cls, handler: handlers.append(cls)     # type: ignore
+        with tempfile.TemporaryDirectory() as root:
+            filename = os.path.join(root, markers.LIBRARY_FILENAME)
+            os.makedirs(os.path.dirname(filename))
+            make_library().save(filename)
+            brain._init_markers(root)
+        self.assertIsNotNone(brain.marker_watcher)
+        self.assertEqual(len(handlers), 1)

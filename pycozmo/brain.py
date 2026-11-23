@@ -18,6 +18,9 @@ from . import emotions
 from . import needs
 from . import behavior
 from . import activity
+from . import cube_lights
+from . import markers as marker_lib
+from . import protocol_encoder
 from . import util
 from . import robot
 
@@ -27,13 +30,26 @@ __all__ = [
 ]
 
 
+#: Seconds without a marker of an object before it is seen again (and ObjectPositionUpdated is posted again).
+OBJECT_SEEN_TIMEOUT = 5.0
+#: Seconds between two CubeMoved reactions: a cube that moves sends many packets.
+CUBE_MOVED_INTERVAL = 2.0
+
+
 class Brain:
     """ Cozmo robot brain class. """
 
-    def __init__(self, cli: client.Client, freeplay: bool = False):
+    def __init__(self, cli: client.Client, freeplay: bool = False, markers: bool = False):
         """
         ``freeplay`` lets the brain choose and run behaviors by itself, from the freeplay activities, when no reaction
         is running. It is off by default: the brain then only reacts.
+
+        ``markers`` makes the brain look for markers (the cubes and the charger) in the images of the camera, which
+        turns the camera on and costs a thread of its own. It needs the marker library of the prepared resources
+        (docs/specs/markers.md); without it, a warning is logged and the markers are not used. It is off by default.
+
+        The cubes that connect play the light animation of the trigger ``Connected`` and can play the others with
+        ``play_cube_animation``.
         """
         super().__init__()
 
@@ -59,6 +75,17 @@ class Brain:
         self.reaction_manager = behavior.ReactionTriggerManager(
             behavior.load_reaction_triggers(resource_dir), self.context)
         self.cli.load_anims()
+        self.cube_lights = cube_lights.CubeLightManager(
+            self.cli, cube_lights.load_cube_light_animations(resource_dir),
+            cube_lights.load_cube_animation_triggers(resource_dir))
+        self.cube_lights.attach()
+        # Markers: the watcher that looks for them (if enabled), those of the last image and when each object was seen.
+        self.marker_watcher: marker_lib.MarkerWatcher | None = None
+        self.visible_markers: list[marker_lib.Marker] = []
+        self._object_seen: dict[str, float] = {}
+        self._cube_moved_time: float | None = None
+        if markers:
+            self._init_markers(resource_dir)
         logger.info("Loaded resources in {:.02f} s.".format(time.perf_counter() - start_time))
 
         self.cli.add_handler(event.EvtBehaviorDone, self.on_behavior_done)
@@ -67,6 +94,7 @@ class Brain:
         self.cli.add_handler(event.EvtRobotPickedUpChange, self.on_robot_picked_up_change)
         self.cli.add_handler(event.EvtRobotFallingChange, self.on_robot_falling_change)
         self.cli.add_handler(event.EvtRobotOnChargerChange, self.on_robot_on_charger_change)
+        self.cli.add_handler(protocol_encoder.ObjectMoved, self.on_object_moved)
         # TODO: ...
 
         # Reaction trigger queue
@@ -89,9 +117,11 @@ class Brain:
         # Connect to robot
         self.reaction_thread.start()
         self.heartbeat_thread.start()
+        if self.marker_watcher is not None:
+            self.cli.enable_camera(True)
+            self.marker_watcher.start()
 
         # TODO: Enable stop on cliff.
-        # TODO: Enable camera.
         # TODO: Drive off if on charger.
 
     def stop(self) -> None:
@@ -101,6 +131,9 @@ class Brain:
             self.heartbeat_thread.join()
         if self.reaction_thread.is_alive():
             self.reaction_thread.join()
+        if self.marker_watcher is not None:
+            self.marker_watcher.stop()
+        self.cube_lights.stop()
 
     def on_behavior_done(self, cli: client.Client) -> None:
         if self.behavior:
@@ -138,6 +171,8 @@ class Brain:
 
     def on_camera_image(self, cli: client.Client, new_im: Image.Image) -> None:
         """ Process images, coming from the robot camera. """
+        if self.marker_watcher is not None:
+            self.marker_watcher.submit(new_im)
         # TODO: See cozmo_resources/config/engine/vision_config.json
         # TODO: motion detection
         # self.process_reaction_trigger("UnexpectedMovement")
@@ -146,13 +181,61 @@ class Brain:
         # TODO: pet detection
         # self.process_reaction_trigger("PetInitialDetection")
         # TODO: laser detection
-        # TODO: cube marker detection
         # TODO: facial expression estimation
         # TODO: smile amount detection
         # TODO: blink amount detection
         # TODO: gaze detection?
         # TODO: image quality check
         pass
+
+    def _init_markers(self, resource_dir: str) -> None:
+        """ Load the marker library and set up the watcher; without the library, the markers are not used. """
+        try:
+            library = marker_lib.load_marker_library(resource_dir)
+        except FileNotFoundError:
+            logger.warning("No marker library in the resources: the markers are not used. "
+                           "See docs/specs/markers.md to prepare it.")
+            return
+        self.marker_watcher = marker_lib.MarkerWatcher(marker_lib.MarkerDetector(library), self.on_markers)
+        self.cli.add_handler(event.EvtNewRawCameraImage, self.on_camera_image)
+
+    def on_markers(self, found: list[marker_lib.Marker]) -> None:
+        """
+        The markers of an image. A cube or the charger that was not seen for OBJECT_SEEN_TIMEOUT seconds posts
+        ObjectPositionUpdated, the trigger that makes the robot acknowledge an object.
+        """
+        self.visible_markers = list(found)
+        now = time.monotonic()
+        new_object = False
+        for marker in found:
+            cube = marker_lib.cube_marker(marker.type)
+            if cube is not None:
+                key = "LIGHTCUBE{}".format(cube[0])
+            elif marker.type == marker_lib.MarkerType.CHARGER:
+                key = "CHARGER"
+            else:
+                continue
+            last = self._object_seen.get(key)
+            self._object_seen[key] = now
+            if last is None or now - last > OBJECT_SEEN_TIMEOUT:
+                logger_reaction.debug("Saw {}".format(key))
+                new_object = True
+        if new_object:
+            self.post_reaction("ObjectPositionUpdated")
+
+    def on_object_moved(self, cli: client.Client, pkt: protocol_encoder.ObjectMoved) -> None:
+        """ A cube that moves posts CubeMoved, at most once per CUBE_MOVED_INTERVAL seconds. """
+        now = time.monotonic()
+        if self._cube_moved_time is None or now - self._cube_moved_time >= CUBE_MOVED_INTERVAL:
+            self._cube_moved_time = now
+            self.post_reaction("CubeMoved")
+
+    def play_cube_animation(self, name: str, object_id: int | None = None) -> int:
+        """
+        Play a light animation, by the name of its trigger (``Flash``, ``Dance_01``...) or of the animation, on a
+        connected cube or on all of them. Returns the number of cubes it plays on.
+        """
+        return self.cube_lights.play(name, object_id)
 
     def post_reaction(self, reaction_trigger: str) -> None:
         """ Post a reaction trigger to the reaction trigger queue. """
@@ -273,6 +356,7 @@ class Brain:
         while not self.stop_flag:
 
             self.update_emotion_types()
+            self.cube_lights.update()
             # TODO: Timers
 
             if cnt % robot.FRAME_RATE == 0:

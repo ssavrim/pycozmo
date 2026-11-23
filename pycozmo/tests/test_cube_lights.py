@@ -6,9 +6,12 @@ import unittest
 from typing import Any
 
 from pycozmo.cube_lights import (
-    CubeLightPlayer, LightAnimation, LightPattern, load_cube_animation_triggers, load_cube_light_animations,
+    CubeLightManager, CubeLightPlayer, LightAnimation, LightPattern, load_cube_animation_triggers,
+    load_cube_light_animations,
     pattern_to_light_states)
 from pycozmo import lights
+from pycozmo.protocol_encoder import ObjectType
+from types import SimpleNamespace
 from pycozmo.lights import encode_color, ms_to_frames
 from pycozmo.tests.test_mood_needs import Clock
 
@@ -189,3 +192,85 @@ class TestPlayer(unittest.TestCase):
         player = CubeLightPlayer.for_cube(FakeClient(), 3, clock=self.clock)
         player.play(LightAnimation("a", [pattern(0, rotationPeriod_ms=100)]))
         self.assertEqual(calls, [(3, 4, 4)])
+
+
+class FakeCube:
+    def __init__(self) -> None:
+        self.handlers: list[Any] = []
+        self.calls: list[tuple[int, int, int]] = []     # object id, on color of the first LED, rotation
+
+    def add_handler(self, cls: Any, handler: Any) -> None:
+        self.handlers.append((cls, handler))
+
+    def set_cube_lights(self, object_id, states, *, rotation_period_frames=0):
+        self.calls.append((object_id, states[0].on_color, rotation_period_frames))
+
+
+def connection(object_id: int, connected: bool = True, object_type: Any = ObjectType.Block_LIGHTCUBE1) -> Any:
+    return SimpleNamespace(object_id=object_id, connected=connected, object_type=object_type, factory_id=1)
+
+
+class TestManager(unittest.TestCase):
+
+    def setUp(self):
+        self.clock = Clock()
+        self.cli = FakeCube()
+        red = LightAnimation("connected", [pattern(0, onColors=[[255, 0, 0, 255]] * 4)])
+        blue = LightAnimation("flash", [pattern(500, onColors=[[0, 0, 255, 255]] * 4)])
+        self.manager = CubeLightManager(
+            self.cli, {"connected": red, "flash": blue}, {"Connected": "connected", "Flash": "flash"}, clock=self.clock)
+
+    def test_attach(self):
+        self.manager.attach()
+        self.assertEqual(len(self.cli.handlers), 1)
+
+    def test_connection_plays_the_connected_animation(self):
+        self.manager.on_connection(self.cli, connection(2))
+        self.assertEqual(self.manager.object_ids, [2])
+        self.assertEqual([c[0] for c in self.cli.calls], [2])
+        self.manager.on_connection(self.cli, connection(2, connected=False))
+        self.assertEqual(self.manager.object_ids, [])
+
+    def test_only_cubes_get_a_player(self):
+        self.manager.on_connection(self.cli, connection(3, object_type=ObjectType.Charger_Basic))
+        self.assertEqual(self.manager.object_ids, [])
+        self.assertEqual(self.cli.calls, [])
+
+    def test_play_by_trigger_name_and_animation_name(self):
+        self.manager.on_connection(self.cli, connection(1))
+        self.manager.on_connection(self.cli, connection(2, object_type=ObjectType.Block_LIGHTCUBE2))
+        self.cli.calls.clear()
+        self.assertEqual(self.manager.play("Flash"), 2)                 # all the cubes
+        self.assertEqual(sorted(c[0] for c in self.cli.calls), [1, 2])
+        self.cli.calls.clear()
+        self.assertEqual(self.manager.play("flash", 2), 1)              # one cube, by the name of the animation
+        self.assertEqual([c[0] for c in self.cli.calls], [2])
+        self.assertEqual(self.manager.play("Flash", 7), 0)              # not connected
+        self.assertEqual(self.manager.play("Unknown"), 0)
+
+    def test_update_ends_the_animation_and_resumes(self):
+        self.manager.on_connection(self.cli, connection(1))
+        self.manager.play("Flash")
+        self.clock.now = 0.6
+        self.manager.update()
+        # Back to the connected animation: the red of the first play, not the blue.
+        self.assertEqual(self.cli.calls[-1][1], self.cli.calls[0][1])
+        self.assertNotEqual(self.cli.calls[1][1], self.cli.calls[0][1])
+
+    def test_stop_turns_the_lights_off(self):
+        self.manager.on_connection(self.cli, connection(1))
+        self.manager.stop()
+        self.assertEqual(self.cli.calls[-1][1], lights.off_light.on_color)
+        self.manager.update()
+        self.assertEqual(self.manager.play("Flash"), 1)                 # the cube still has its player
+
+    def test_errors_are_logged_not_raised(self):
+        self.manager.on_connection(self.cli, connection(1))
+
+        def broken(*args, **kwargs):
+            raise OSError("not connected")
+
+        self.cli.set_cube_lights = broken      # type: ignore[method-assign]
+        self.assertEqual(self.manager.play("Flash"), 0)
+        self.manager.update()
+        self.manager.stop()
