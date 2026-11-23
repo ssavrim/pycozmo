@@ -68,7 +68,8 @@ that the first is the top left of the marker itself.
 
 - **Cubes** (Specified). `LIGHTCUBEI`, `LIGHTCUBEJ` and `LIGHTCUBEK` are the object types `LIGHTCUBE1`, `LIGHTCUBE2` and
   `LIGHTCUBE3`; each has six faces with a marker of its own (`cube_marker` gives the number and the face). A cube is 44 mm
-  wide and the square frame of its markers is 25 mm.
+  wide and the square frame of its markers is 25 mm. Checked on three cubes: lighting the cubes 1, 2 and 3 lit the cubes
+  with the paperclip, the lamp and the "ab T" symbols, which the camera recognized as I, J and K.
 - **Charger** (Specified, the order of the two sizes is assumed). The marker `CHARGER` has a frame of 27 mm by 20 mm; the
   charger is 96 x 80 x 31 mm.
 - **Other markers**: the size depends on the object (custom objects) and is not known.
