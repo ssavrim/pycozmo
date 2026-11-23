@@ -387,6 +387,10 @@ def _connect(robot_addr: tuple[str, int] | None) -> Any:
     cli.start()
     cli.connect()
     cli.wait_for_robot()
+    # The first state of the robot (battery, pose) arrives a moment after it is ready.
+    deadline = time.monotonic() + 3.0
+    while cli.battery_voltage <= 0.0 and time.monotonic() < deadline:
+        time.sleep(0.05)
     return cli
 
 
