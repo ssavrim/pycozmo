@@ -139,28 +139,34 @@ and **must not be sent to a robot**.
   (`cliff_data_raw` about 922, 0, 0, 0) changed: the effect of the threshold could not be observed at rest, and the default
   value is still not known. The robot has to be restarted afterwards.
 
-## Messages not declared
+## Messages with arrays and strings
 
-13 messages are still not declared, because their size varies or their layout was not recovered (arrays, strings,
-samples of sensors):
+The 13 messages that were left out of the first declaration (the automatic extraction of the layouts did not follow
+arrays and strings) were read in the unpacking functions of the original application. Their layouts are complete and
+their sizes match the original where it is fixed.
 
-| Number | Name | Direction | Size |
-|---|---|---|---|
-| 0x0f | WriteBodyStorage | engine to robot | variable |
-| 0xa0 | SetAppRunID | engine to robot | 16 |
-| 0xa1 | TestState | engine to robot | 49 |
-| 0xa4 | BodyStorageContents | engine to robot | variable |
-| 0xaa | AppConnectConfigString | engine to robot | 17 |
-| 0xb1 | PrintText | robot to engine | variable |
-| 0xb3 | GoalPose | robot to engine | variable |
-| 0xb7 | DataDump | robot to engine | variable |
-| 0xbe | TimeProfileStat | robot to engine | variable |
-| 0xbf | IMUDataChunk | robot to engine | 195 |
-| 0xc8 | DefaultCameraParams | robot to engine | 29 |
-| 0xcf | CrashReport | robot to engine | variable |
-| 0xd2 | FWVersionInfo | robot to engine | 44 |
+Rule: an array or a string is a **length on 1 byte** followed by the elements (PyCozmo's default is 2 bytes, so the
+declaration says it). A fixed array has no length.
 
-A packet with one of these numbers received from the robot is not decoded.
+| Number | Name | Layout |
+|---|---|---|
+| 0x0f | WriteBodyStorage | uint8, array of uint8 |
+| 0xa0 | SetAppRunID | 4 uint32 (16 bytes) |
+| 0xa1 | TestState | 4 uint32, 4 uint32, int16, 3 uint16, 3 uint16, 3 uint8 (49 bytes) |
+| 0xa4 | BodyStorageContents | uint8, uint8, array of uint8 |
+| 0xaa | AppConnectConfigString | uint8, 16 uint8 (17 bytes) |
+| 0xb1 | PrintText | uint8, string |
+| 0xb3 | GoalPose | 5 values of 4 bytes (a pose of the robot, 20 bytes), bool |
+| 0xb7 | DataDump | uint32, array of uint8 |
+| 0xbe | TimeProfileStat | uint32, int32, bool, string |
+| 0xbf | IMUDataChunk | 6 arrays of 8 values of 4 bytes, 3 uint8 (195 bytes) |
+| 0xc8 | DefaultCameraParams | float, float, uint16, int16, 17 uint8 (29 bytes) |
+| 0xcf | CrashReport | uint32, int16, uint8, array of uint32 |
+| 0xd2 | FWVersionInfo | uint32, int32, int32, 16 uint8, 16 uint8 (44 bytes) |
+
+Assumed: the types of the values of `GoalPose` (4 floats and a uint32, as in the pose of `RobotState`) and of
+`IMUDataChunk` (signed 32-bit) are not given by the unpacking, only their size. The fields are named `unknown*` except
+the data, the text and the name. None of these messages was received from a robot.
 
 ## Messages that only PyCozmo declares
 
