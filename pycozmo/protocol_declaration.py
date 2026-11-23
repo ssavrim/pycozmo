@@ -372,8 +372,7 @@ PROTOCOL = Protocol(
             FloatArgument("speed_rad_per_sec"),
             FloatArgument("accel_rad_per_sec2"),
             FloatArgument("angle_tolerance_rad"),
-            UInt8Argument("unknown4"),
-            UInt8Argument("unknown5"),
+            UInt16Argument("num_half_revolutions"),
             BoolArgument("is_absolute"),
             UInt8Argument("action_id"),
         ]),
@@ -408,7 +407,7 @@ PROTOCOL = Protocol(
             FloatArgument("speed_mmps"),        # TODO: PathSegmentSpeed
             FloatArgument("accel_mmps2"),
             FloatArgument("decel_mmps2"),
-            BoolArgument("unknown")
+            BoolArgument("use_shortest_direction")
         ]),
         Command(0x40, "TrimPath", group="motors", arguments=[
             UInt8Argument("head"),
@@ -434,12 +433,12 @@ PROTOCOL = Protocol(
         ]),
         Command(0x43, "AbortDocking", group="docking"),
         Command(0x45, "SetOrigin", group="localization", arguments=[
-            UInt32Argument("unknown0"),
+            UInt32Argument("timestamp"),
             UInt32Argument("pose_frame_id"),
             UInt32Argument("pose_origin_id", default=1),
             FloatArgument("pose_x"),
             FloatArgument("pose_y"),
-            UInt32Argument("unknown5", default=0x80000000),
+            FloatArgument("pose_angle_rad", default=-0.0),
         ]),
         Command(0x48, "DockingErrorSignal", group="docking", arguments=[
             UInt32Argument("timestamp", description="Robot timestamp of the image the marker was seen in."),
@@ -588,8 +587,7 @@ PROTOCOL = Protocol(
         ]),
         Command(0xc9, "HardwareInfo", group="system", arguments=[
             UInt32Argument("serial_number_head"),
-            UInt8Argument("unknown1"),
-            UInt8Argument("unknown2"),
+            UInt16Argument("hw_version"),
         ]),
         Command(0xca, "AnimationStarted", group="anim", arguments=[
             UInt8Argument("anim_id")
@@ -654,7 +652,7 @@ PROTOCOL = Protocol(
             EnumArgument("body_color", BODY_COLOR, data_type=Int32Argument(), default=-1),
         ]),
         Command(0xee, "FirmwareSignature", group="system", arguments=[
-            UInt16Argument("unknown", description="Last 2 bytes of head s/n?"),
+            UInt16Argument("robot_id", description="Last 2 bytes of head s/n?"),
             StringArgument("signature"),
         ]),
         Command(0xef, "FirmwareUpdateResult", group="firmware", arguments=[

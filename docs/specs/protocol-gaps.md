@@ -166,8 +166,17 @@ Applied (names and, where it differed, the type):
 | 0xdc | IMUTemperature | `temperature_degc`, a **float** (the first declaration said uint32) |
 
 The C# types of two messages did not match (`PlaceObjectOnGround` has 11 fields in the C#, 7 on the wire), they were not
-used. Names that other analyses give for messages that PyCozmo already declared (for example `SetBodyAngle`:
-`numHalfRevolutions`, `isAbsolute`) were not applied, to keep the names of the existing API.
+used. Names that the catalog of a third-party analysis (`cozmo-stack`, from the strings of the engine, not checked against the
+C#) gives for fields that PyCozmo already declared as `unknown*` were applied too; the wire format does not change, only the
+keyword of the field (nothing in PyCozmo used the old ones):
+
+| Number | PyCozmo | Field | Name |
+|---|---|---|---|
+| 0x39 | TurnInPlace | `unknown4`, `unknown5` (two bytes) | `num_half_revolutions` (uint16) |
+| 0x3f | AppendPathSegPointTurn | `unknown` | `use_shortest_direction` |
+| 0x45 | SetOrigin | `unknown0`, `unknown5` (uint32 `0x80000000`) | `timestamp`, `pose_angle_rad` (float, -0.0) |
+| 0xc9 | HardwareInfo | `unknown1`, `unknown2` (two bytes) | `hw_version` (uint16) |
+| 0xee | FirmwareSignature | `unknown` | `robot_id` |
 
 The messages without a type in the C# keep `unknown*`: the game layer does not use them, so the names are only in the
 native code, which does not keep them.
