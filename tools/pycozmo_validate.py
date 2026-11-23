@@ -52,7 +52,8 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 
 ALL_TESTS = (
-    "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain")
+    "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
+    "brainreact")
 
 
 class State:
@@ -361,22 +362,50 @@ def test_react(cli, state, report, ctx):
         report.add("react:used", "FAIL", detail="the notification was not used")
 
 
-def test_brain(cli, state, report, ctx):
-    """ Make the brain react to a frustration with two levels of confidence and check the reaction it runs. """
+def _make_brain(cli, ctx):
+    """ Create a brain on the prepared resources. """
     import tempfile
     from pycozmo import brain as brain_module
-    print("\nbrain: frustration reactions chosen from the confidence")
     with tempfile.TemporaryDirectory() as tmp:
         os.symlink(os.path.abspath(str(ctx["root"])), os.path.join(tmp, "assets"))
         previous = os.environ.get("PYCOZMO_DIR")
         os.environ["PYCOZMO_DIR"] = tmp
         try:
-            brain = brain_module.Brain(cli)
+            return brain_module.Brain(cli)
         finally:
             if previous is None:
                 del os.environ["PYCOZMO_DIR"]
             else:
                 os.environ["PYCOZMO_DIR"] = previous
+
+
+def test_brainreact(cli, state, report, ctx):
+    """ Start the brain and check that lifting the robot makes it run the pick up reaction. """
+    print("\nbrainreact: the started brain reacts to the pick up of the robot")
+    brain = _make_brain(cli, ctx)
+    seen = []
+    original = brain.activate_behavior
+
+    def spy(behavior_id, *args, **kwargs):
+        seen.append(behavior_id)
+        original(behavior_id, *args, **kwargs)
+
+    brain.activate_behavior = spy
+    brain.start()
+    try:
+        print("Lift the robot (and put it down) within 20 s.")
+        deadline = time.monotonic() + 20.0
+        while "ReactToPickup" not in seen and time.monotonic() < deadline:
+            time.sleep(0.1)
+    finally:
+        brain.stop()
+    report.add("brainreact", "PASS" if "ReactToPickup" in seen else "FAIL", behaviors=seen)
+
+
+def test_brain(cli, state, report, ctx):
+    """ Make the brain react to a frustration with two levels of confidence and check the reaction it runs. """
+    print("\nbrain: frustration reactions chosen from the confidence")
+    brain = _make_brain(cli, ctx)
     got = {}
     for confidence in (0.0, -0.7, -0.95):
         brain.deactivate_behavior()
@@ -472,7 +501,7 @@ def main():
             report.add(name, "SKIP", detail="--no-motion")
         elif name in ("face", "sound", "clip") and ctx["lib"] is None:
             report.add(name, "SKIP", detail="needs --resources and pycozmo.anim_library")
-        elif name in ("needs", "mood", "select", "react", "brain") and ctx["root"] is None:
+        elif name in ("needs", "mood", "select", "react", "brain", "brainreact") and ctx["root"] is None:
             report.add(name, "SKIP", detail="needs --resources")
         elif name == "sound" and not args.vgmstream:
             report.add(name, "SKIP", detail="needs --vgmstream")

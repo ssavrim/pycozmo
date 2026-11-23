@@ -79,6 +79,12 @@ class TestBrain(unittest.TestCase):
         self.assertEqual(brain.check_reactions(), "Major")
         self.assertEqual(brain.cli.activated, ["Minor", "Major"])        # type: ignore[attr-defined]
 
+    def test_reaction_with_an_unimplemented_behavior_still_fires(self):
+        brain = make_brain(FRUSTRATION, [])
+        brain.behaviors = {b: make_behavior(behavior.Behavior, b) for b in ("Minor", "Major")}
+        brain.emotion_types["Confident"].set(-0.7)
+        self.assertEqual(brain.check_reactions(), "Minor")
+
     def test_reaction_to_a_posted_trigger(self):
         triggers = [dict(reactionTrigger="RobotPickedUp", behaviorID="Pickup"),
                     dict(reactionTrigger="CliffDetected", behaviorID="Cliff")]
@@ -100,7 +106,10 @@ class TestBrain(unittest.TestCase):
         brain.behaviors["Placeholder"] = make_behavior(behavior.Behavior, "Placeholder")
         brain.behaviors["DriveOffCharger"] = make_behavior(Implemented, "DriveOffCharger")
         self.assertTrue(brain.is_behavior_runnable("Real"))
-        self.assertFalse(brain.is_behavior_runnable("Placeholder"))
+        self.assertTrue(brain.is_behavior_runnable("Placeholder"))      # a reaction runs anyway
+        self.assertTrue(brain.is_behavior_implemented("Real"))
+        self.assertFalse(brain.is_behavior_implemented("Placeholder"))
+        self.assertFalse(brain.is_behavior_implemented("Unknown"))
         self.assertFalse(brain.is_behavior_runnable("Unknown"))
         self.assertFalse(brain.is_behavior_runnable("DriveOffCharger"))
         brain.cli.robot_status = robot.RobotStatusFlag.IS_ON_CHARGER
@@ -122,6 +131,15 @@ class TestBrain(unittest.TestCase):
         self.assertIsNone(brain.behavior)
         self.assertFalse(chooser._states["A"].running)
         self.assertIsNotNone(chooser._states["A"].last_stop)
+
+    def test_freeplay_skips_unimplemented_behaviors(self):
+        brain = make_brain([], ["A", "B"], freeplay=True)
+        brain.behaviors["A"] = make_behavior(behavior.Behavior, "A")
+        chooser = activity.BehaviorChooser("StrictPriority", ["A", "B"])
+        brain.activities = {"Sub": SimpleNamespace(get_chooser=lambda: chooser)}      # type: ignore[dict-item]
+        brain.freeplay_activity = SimpleNamespace(      # type: ignore[assignment]
+            current="Sub", choose=lambda context, activities: chooser.choose(context))
+        self.assertEqual(brain.choose_behavior(), "B")
 
     def test_a_reaction_interrupts_a_freeplay_behavior(self):
         triggers = [dict(reactionTrigger="RobotPickedUp", behaviorID="Pickup")]
