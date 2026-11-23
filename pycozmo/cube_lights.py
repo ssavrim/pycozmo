@@ -226,6 +226,13 @@ class CubeLightPlayer:
         self.clock = clock
         self._stack: list[_Playing] = []
 
+    @classmethod
+    def for_cube(cls, cli: Any, object_id: int, clock: Callable[[], float] = time.monotonic) -> "CubeLightPlayer":
+        """ A player that sets the lights of a connected cube (by object ID) with ``Client.set_cube_lights``. """
+        def set_lights(states: tuple[protocol_encoder.LightState, ...], rotation: int) -> None:
+            cli.set_cube_lights(object_id, states, rotation_period_frames=rotation)
+        return cls(set_lights, clock=clock)
+
     @property
     def current(self) -> LightAnimation | None:
         return self._stack[-1].animation if self._stack else None
