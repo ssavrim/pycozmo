@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Declare the 13 remaining messages of the original application, which have arrays or strings (WriteBodyStorage,
+    PrintText, DataDump, TimeProfileStat, IMUDataChunk, DefaultCameraParams, CrashReport, FWVersionInfo...), read from the
+    unpacking functions of the original: a length on 1 byte for arrays and strings. All 136 messages are now declared.
 - Declare 51 messages of the original application that PyCozmo did not (docs/specs/protocol-gaps.md): commands of the
     robot (TurnInPlaceAtAngularSpeed, IMURequest, SetCliffDetectThreshold, EnableMotorPower, EnableBraceWhenFalling,
     the factory and test ones...) and messages from the robot (IMURawDataChunk, CliffEvent, MotorAutoEnabled,

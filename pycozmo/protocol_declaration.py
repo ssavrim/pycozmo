@@ -941,6 +941,87 @@ PROTOCOL = Protocol(
             UInt8Argument("unknown6"),
             UInt8Argument("unknown7"),
         ]),
+        # Messages with arrays and strings, read from the unpacking functions of the original application
+        # (docs/specs/protocol-gaps.md). Arrays and strings have a length on 1 byte.
+        Command(0x0f, "WriteBodyStorage", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            VArrayArgument("data", data_type=UInt8Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xa0, "SetAppRunID", group="system", arguments=[
+            FArrayArgument("unknown0", data_type=UInt32Argument(), length=4),
+        ]),
+        Command(0xa1, "TestState", group="factory", arguments=[
+            FArrayArgument("unknown0", data_type=UInt32Argument(), length=4),
+            FArrayArgument("unknown1", data_type=UInt32Argument(), length=4),
+            Int16Argument("unknown2"),
+            FArrayArgument("unknown3", data_type=UInt16Argument(), length=3),
+            FArrayArgument("unknown4", data_type=UInt16Argument(), length=3),
+            UInt8Argument("unknown5"),
+            UInt8Argument("unknown6"),
+            UInt8Argument("unknown7"),
+        ]),
+        Command(0xa4, "BodyStorageContents", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            UInt8Argument("unknown1"),
+            VArrayArgument("data", data_type=UInt8Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xaa, "AppConnectConfigString", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            FArrayArgument("unknown1", data_type=UInt8Argument(), length=16),
+        ]),
+        Command(0xb1, "PrintText", group="debug", arguments=[
+            UInt8Argument("unknown0"),
+            StringArgument("text", length_type=UInt8Argument()),
+        ]),
+        Command(0xb3, "GoalPose", group="state", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            FloatArgument("unknown2"),
+            FloatArgument("unknown3"),
+            UInt32Argument("unknown4"),
+            BoolArgument("unknown5"),
+        ]),
+        Command(0xb7, "DataDump", group="debug", arguments=[
+            UInt32Argument("unknown0"),
+            VArrayArgument("data", data_type=UInt8Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xbe, "TimeProfileStat", group="debug", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            BoolArgument("unknown2"),
+            StringArgument("name", length_type=UInt8Argument()),
+        ]),
+        Command(0xbf, "IMUDataChunk", group="state", arguments=[
+            FArrayArgument("data0", data_type=Int32Argument(), length=8),
+            FArrayArgument("data1", data_type=Int32Argument(), length=8),
+            FArrayArgument("data2", data_type=Int32Argument(), length=8),
+            FArrayArgument("data3", data_type=Int32Argument(), length=8),
+            FArrayArgument("data4", data_type=Int32Argument(), length=8),
+            FArrayArgument("data5", data_type=Int32Argument(), length=8),
+            UInt8Argument("unknown6"),
+            UInt8Argument("unknown7"),
+            UInt8Argument("unknown8"),
+        ]),
+        Command(0xc8, "DefaultCameraParams", group="camera", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            UInt16Argument("unknown2"),
+            Int16Argument("unknown3"),
+            FArrayArgument("unknown4", data_type=UInt8Argument(), length=17),
+        ]),
+        Command(0xcf, "CrashReport", group="system", arguments=[
+            UInt32Argument("unknown0"),
+            Int16Argument("unknown1"),
+            UInt8Argument("unknown2"),
+            VArrayArgument("dump", data_type=UInt32Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xd2, "FWVersionInfo", group="system", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            FArrayArgument("unknown3", data_type=UInt8Argument(), length=16),
+            FArrayArgument("unknown4", data_type=UInt8Argument(), length=16),
+        ]),
     ]
 
 )

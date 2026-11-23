@@ -11606,6 +11606,1355 @@ class IMURawDataChunk(Packet):
             unknown7=unknown7)
 
 
+class WriteBodyStorage(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint8
+        "_data",  # uint8[uint8]
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 data=()):
+        super().__init__(PacketType.COMMAND, packet_id=0x0f)
+        self.unknown0 = unknown0
+        self.data = data
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 255)
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = validate_varray(
+            "data", value, 255, lambda name, value_inner: validate_integer(name, value_inner, 0, 255))
+
+    def __len__(self):
+        return \
+            1 + \
+            get_varray_size(self._data, 'B', 'B')
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "data={data})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                data=self._data)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "B")
+        writer.write_varray(self._data, "B", "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("B")
+        data = reader.read_varray("B", "B")
+        return cls(
+            unknown0=unknown0,
+            data=data)
+
+
+class SetAppRunID(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint32[4]
+    )
+
+    def __init__(self,
+                 unknown0=()):
+        super().__init__(PacketType.COMMAND, packet_id=0xa0)
+        self.unknown0 = unknown0
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_farray(
+            "unknown0", value, 4, lambda name, value_inner: validate_integer(name, value_inner, 0, 4294967295))
+
+    def __len__(self):
+        return \
+            16
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write_farray(self._unknown0, "L", 4)
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read_farray("L", 4)
+        return cls(
+            unknown0=unknown0)
+
+
+class TestState(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint32[4]
+        "_unknown1",  # uint32[4]
+        "_unknown2",  # int16
+        "_unknown3",  # uint16[3]
+        "_unknown4",  # uint16[3]
+        "_unknown5",  # uint8
+        "_unknown6",  # uint8
+        "_unknown7",  # uint8
+    )
+
+    def __init__(self,
+                 unknown0=(),
+                 unknown1=(),
+                 unknown2=0,
+                 unknown3=(),
+                 unknown4=(),
+                 unknown5=0,
+                 unknown6=0,
+                 unknown7=0):
+        super().__init__(PacketType.COMMAND, packet_id=0xa1)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+        self.unknown2 = unknown2
+        self.unknown3 = unknown3
+        self.unknown4 = unknown4
+        self.unknown5 = unknown5
+        self.unknown6 = unknown6
+        self.unknown7 = unknown7
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_farray(
+            "unknown0", value, 4, lambda name, value_inner: validate_integer(name, value_inner, 0, 4294967295))
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_farray(
+            "unknown1", value, 4, lambda name, value_inner: validate_integer(name, value_inner, 0, 4294967295))
+
+    @property
+    def unknown2(self):
+        return self._unknown2
+
+    @unknown2.setter
+    def unknown2(self, value):
+        self._unknown2 = validate_integer("unknown2", value, -32768, 32767)
+
+    @property
+    def unknown3(self):
+        return self._unknown3
+
+    @unknown3.setter
+    def unknown3(self, value):
+        self._unknown3 = validate_farray(
+            "unknown3", value, 3, lambda name, value_inner: validate_integer(name, value_inner, 0, 65535))
+
+    @property
+    def unknown4(self):
+        return self._unknown4
+
+    @unknown4.setter
+    def unknown4(self, value):
+        self._unknown4 = validate_farray(
+            "unknown4", value, 3, lambda name, value_inner: validate_integer(name, value_inner, 0, 65535))
+
+    @property
+    def unknown5(self):
+        return self._unknown5
+
+    @unknown5.setter
+    def unknown5(self, value):
+        self._unknown5 = validate_integer("unknown5", value, 0, 255)
+
+    @property
+    def unknown6(self):
+        return self._unknown6
+
+    @unknown6.setter
+    def unknown6(self, value):
+        self._unknown6 = validate_integer("unknown6", value, 0, 255)
+
+    @property
+    def unknown7(self):
+        return self._unknown7
+
+    @unknown7.setter
+    def unknown7(self, value):
+        self._unknown7 = validate_integer("unknown7", value, 0, 255)
+
+    def __len__(self):
+        return \
+            16 + \
+            16 + \
+            2 + \
+            6 + \
+            6 + \
+            1 + \
+            1 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1}, " \
+               "unknown2={unknown2}, " \
+               "unknown3={unknown3}, " \
+               "unknown4={unknown4}, " \
+               "unknown5={unknown5}, " \
+               "unknown6={unknown6}, " \
+               "unknown7={unknown7})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1,
+                unknown2=self._unknown2,
+                unknown3=self._unknown3,
+                unknown4=self._unknown4,
+                unknown5=self._unknown5,
+                unknown6=self._unknown6,
+                unknown7=self._unknown7)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write_farray(self._unknown0, "L", 4)
+        writer.write_farray(self._unknown1, "L", 4)
+        writer.write(self._unknown2, "h")
+        writer.write_farray(self._unknown3, "H", 3)
+        writer.write_farray(self._unknown4, "H", 3)
+        writer.write(self._unknown5, "B")
+        writer.write(self._unknown6, "B")
+        writer.write(self._unknown7, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read_farray("L", 4)
+        unknown1 = reader.read_farray("L", 4)
+        unknown2 = reader.read("h")
+        unknown3 = reader.read_farray("H", 3)
+        unknown4 = reader.read_farray("H", 3)
+        unknown5 = reader.read("B")
+        unknown6 = reader.read("B")
+        unknown7 = reader.read("B")
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1,
+            unknown2=unknown2,
+            unknown3=unknown3,
+            unknown4=unknown4,
+            unknown5=unknown5,
+            unknown6=unknown6,
+            unknown7=unknown7)
+
+
+class BodyStorageContents(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint8
+        "_unknown1",  # uint8
+        "_data",  # uint8[uint8]
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 unknown1=0,
+                 data=()):
+        super().__init__(PacketType.COMMAND, packet_id=0xa4)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+        self.data = data
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 255)
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_integer("unknown1", value, 0, 255)
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = validate_varray(
+            "data", value, 255, lambda name, value_inner: validate_integer(name, value_inner, 0, 255))
+
+    def __len__(self):
+        return \
+            1 + \
+            1 + \
+            get_varray_size(self._data, 'B', 'B')
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1}, " \
+               "data={data})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1,
+                data=self._data)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "B")
+        writer.write(self._unknown1, "B")
+        writer.write_varray(self._data, "B", "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("B")
+        unknown1 = reader.read("B")
+        data = reader.read_varray("B", "B")
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1,
+            data=data)
+
+
+class AppConnectConfigString(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint8
+        "_unknown1",  # uint8[16]
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 unknown1=()):
+        super().__init__(PacketType.COMMAND, packet_id=0xaa)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 255)
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_farray(
+            "unknown1", value, 16, lambda name, value_inner: validate_integer(name, value_inner, 0, 255))
+
+    def __len__(self):
+        return \
+            1 + \
+            16
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "B")
+        writer.write_farray(self._unknown1, "B", 16)
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("B")
+        unknown1 = reader.read_farray("B", 16)
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1)
+
+
+class PrintText(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint8
+        "_text",  # str
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 text=''):
+        super().__init__(PacketType.COMMAND, packet_id=0xb1)
+        self.unknown0 = unknown0
+        self.text = text
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 255)
+
+    @property
+    def text(self):
+        return self._text
+
+    @text.setter
+    def text(self, value):
+        self._text = validate_string("text", value, 255)
+
+    def __len__(self):
+        return \
+            1 + \
+            get_string_size(self._text, 'B')
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "text={text})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                text=self._text)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "B")
+        writer.write_string(self._text, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("B")
+        text = reader.read_string("B")
+        return cls(
+            unknown0=unknown0,
+            text=text)
+
+
+class GoalPose(Packet):
+
+    __slots__ = (
+        "_unknown0",  # float
+        "_unknown1",  # float
+        "_unknown2",  # float
+        "_unknown3",  # float
+        "_unknown4",  # uint32
+        "_unknown5",  # bool
+    )
+
+    def __init__(self,
+                 unknown0=0.0,
+                 unknown1=0.0,
+                 unknown2=0.0,
+                 unknown3=0.0,
+                 unknown4=0,
+                 unknown5=False):
+        super().__init__(PacketType.COMMAND, packet_id=0xb3)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+        self.unknown2 = unknown2
+        self.unknown3 = unknown3
+        self.unknown4 = unknown4
+        self.unknown5 = unknown5
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_float("unknown0", value)
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_float("unknown1", value)
+
+    @property
+    def unknown2(self):
+        return self._unknown2
+
+    @unknown2.setter
+    def unknown2(self, value):
+        self._unknown2 = validate_float("unknown2", value)
+
+    @property
+    def unknown3(self):
+        return self._unknown3
+
+    @unknown3.setter
+    def unknown3(self, value):
+        self._unknown3 = validate_float("unknown3", value)
+
+    @property
+    def unknown4(self):
+        return self._unknown4
+
+    @unknown4.setter
+    def unknown4(self, value):
+        self._unknown4 = validate_integer("unknown4", value, 0, 4294967295)
+
+    @property
+    def unknown5(self):
+        return self._unknown5
+
+    @unknown5.setter
+    def unknown5(self, value):
+        self._unknown5 = validate_bool("unknown5", value)
+
+    def __len__(self):
+        return \
+            4 + \
+            4 + \
+            4 + \
+            4 + \
+            4 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1}, " \
+               "unknown2={unknown2}, " \
+               "unknown3={unknown3}, " \
+               "unknown4={unknown4}, " \
+               "unknown5={unknown5})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1,
+                unknown2=self._unknown2,
+                unknown3=self._unknown3,
+                unknown4=self._unknown4,
+                unknown5=self._unknown5)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "f")
+        writer.write(self._unknown1, "f")
+        writer.write(self._unknown2, "f")
+        writer.write(self._unknown3, "f")
+        writer.write(self._unknown4, "L")
+        writer.write(int(self._unknown5), "b")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("f")
+        unknown1 = reader.read("f")
+        unknown2 = reader.read("f")
+        unknown3 = reader.read("f")
+        unknown4 = reader.read("L")
+        unknown5 = bool(reader.read("b"))
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1,
+            unknown2=unknown2,
+            unknown3=unknown3,
+            unknown4=unknown4,
+            unknown5=unknown5)
+
+
+class DataDump(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint32
+        "_data",  # uint8[uint8]
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 data=()):
+        super().__init__(PacketType.COMMAND, packet_id=0xb7)
+        self.unknown0 = unknown0
+        self.data = data
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 4294967295)
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = validate_varray(
+            "data", value, 255, lambda name, value_inner: validate_integer(name, value_inner, 0, 255))
+
+    def __len__(self):
+        return \
+            4 + \
+            get_varray_size(self._data, 'B', 'B')
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "data={data})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                data=self._data)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "L")
+        writer.write_varray(self._data, "B", "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("L")
+        data = reader.read_varray("B", "B")
+        return cls(
+            unknown0=unknown0,
+            data=data)
+
+
+class TimeProfileStat(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint32
+        "_unknown1",  # int32
+        "_unknown2",  # bool
+        "_name",  # str
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 unknown1=0,
+                 unknown2=False,
+                 name=''):
+        super().__init__(PacketType.COMMAND, packet_id=0xbe)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+        self.unknown2 = unknown2
+        self.name = name
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 4294967295)
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_integer("unknown1", value, -2147483648, 2147483647)
+
+    @property
+    def unknown2(self):
+        return self._unknown2
+
+    @unknown2.setter
+    def unknown2(self, value):
+        self._unknown2 = validate_bool("unknown2", value)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = validate_string("name", value, 255)
+
+    def __len__(self):
+        return \
+            4 + \
+            4 + \
+            1 + \
+            get_string_size(self._name, 'B')
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1}, " \
+               "unknown2={unknown2}, " \
+               "name={name})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1,
+                unknown2=self._unknown2,
+                name=self._name)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "L")
+        writer.write(self._unknown1, "l")
+        writer.write(int(self._unknown2), "b")
+        writer.write_string(self._name, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("L")
+        unknown1 = reader.read("l")
+        unknown2 = bool(reader.read("b"))
+        name = reader.read_string("B")
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1,
+            unknown2=unknown2,
+            name=name)
+
+
+class IMUDataChunk(Packet):
+
+    __slots__ = (
+        "_data0",  # int32[8]
+        "_data1",  # int32[8]
+        "_data2",  # int32[8]
+        "_data3",  # int32[8]
+        "_data4",  # int32[8]
+        "_data5",  # int32[8]
+        "_unknown6",  # uint8
+        "_unknown7",  # uint8
+        "_unknown8",  # uint8
+    )
+
+    def __init__(self,
+                 data0=(),
+                 data1=(),
+                 data2=(),
+                 data3=(),
+                 data4=(),
+                 data5=(),
+                 unknown6=0,
+                 unknown7=0,
+                 unknown8=0):
+        super().__init__(PacketType.COMMAND, packet_id=0xbf)
+        self.data0 = data0
+        self.data1 = data1
+        self.data2 = data2
+        self.data3 = data3
+        self.data4 = data4
+        self.data5 = data5
+        self.unknown6 = unknown6
+        self.unknown7 = unknown7
+        self.unknown8 = unknown8
+
+    @property
+    def data0(self):
+        return self._data0
+
+    @data0.setter
+    def data0(self, value):
+        self._data0 = validate_farray(
+            "data0", value, 8, lambda name, value_inner: validate_integer(name, value_inner, -2147483648, 2147483647))
+
+    @property
+    def data1(self):
+        return self._data1
+
+    @data1.setter
+    def data1(self, value):
+        self._data1 = validate_farray(
+            "data1", value, 8, lambda name, value_inner: validate_integer(name, value_inner, -2147483648, 2147483647))
+
+    @property
+    def data2(self):
+        return self._data2
+
+    @data2.setter
+    def data2(self, value):
+        self._data2 = validate_farray(
+            "data2", value, 8, lambda name, value_inner: validate_integer(name, value_inner, -2147483648, 2147483647))
+
+    @property
+    def data3(self):
+        return self._data3
+
+    @data3.setter
+    def data3(self, value):
+        self._data3 = validate_farray(
+            "data3", value, 8, lambda name, value_inner: validate_integer(name, value_inner, -2147483648, 2147483647))
+
+    @property
+    def data4(self):
+        return self._data4
+
+    @data4.setter
+    def data4(self, value):
+        self._data4 = validate_farray(
+            "data4", value, 8, lambda name, value_inner: validate_integer(name, value_inner, -2147483648, 2147483647))
+
+    @property
+    def data5(self):
+        return self._data5
+
+    @data5.setter
+    def data5(self, value):
+        self._data5 = validate_farray(
+            "data5", value, 8, lambda name, value_inner: validate_integer(name, value_inner, -2147483648, 2147483647))
+
+    @property
+    def unknown6(self):
+        return self._unknown6
+
+    @unknown6.setter
+    def unknown6(self, value):
+        self._unknown6 = validate_integer("unknown6", value, 0, 255)
+
+    @property
+    def unknown7(self):
+        return self._unknown7
+
+    @unknown7.setter
+    def unknown7(self, value):
+        self._unknown7 = validate_integer("unknown7", value, 0, 255)
+
+    @property
+    def unknown8(self):
+        return self._unknown8
+
+    @unknown8.setter
+    def unknown8(self, value):
+        self._unknown8 = validate_integer("unknown8", value, 0, 255)
+
+    def __len__(self):
+        return \
+            32 + \
+            32 + \
+            32 + \
+            32 + \
+            32 + \
+            32 + \
+            1 + \
+            1 + \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "data0={data0}, " \
+               "data1={data1}, " \
+               "data2={data2}, " \
+               "data3={data3}, " \
+               "data4={data4}, " \
+               "data5={data5}, " \
+               "unknown6={unknown6}, " \
+               "unknown7={unknown7}, " \
+               "unknown8={unknown8})".format(
+                type=type(self).__name__,
+                data0=self._data0,
+                data1=self._data1,
+                data2=self._data2,
+                data3=self._data3,
+                data4=self._data4,
+                data5=self._data5,
+                unknown6=self._unknown6,
+                unknown7=self._unknown7,
+                unknown8=self._unknown8)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write_farray(self._data0, "l", 8)
+        writer.write_farray(self._data1, "l", 8)
+        writer.write_farray(self._data2, "l", 8)
+        writer.write_farray(self._data3, "l", 8)
+        writer.write_farray(self._data4, "l", 8)
+        writer.write_farray(self._data5, "l", 8)
+        writer.write(self._unknown6, "B")
+        writer.write(self._unknown7, "B")
+        writer.write(self._unknown8, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        data0 = reader.read_farray("l", 8)
+        data1 = reader.read_farray("l", 8)
+        data2 = reader.read_farray("l", 8)
+        data3 = reader.read_farray("l", 8)
+        data4 = reader.read_farray("l", 8)
+        data5 = reader.read_farray("l", 8)
+        unknown6 = reader.read("B")
+        unknown7 = reader.read("B")
+        unknown8 = reader.read("B")
+        return cls(
+            data0=data0,
+            data1=data1,
+            data2=data2,
+            data3=data3,
+            data4=data4,
+            data5=data5,
+            unknown6=unknown6,
+            unknown7=unknown7,
+            unknown8=unknown8)
+
+
+class DefaultCameraParams(Packet):
+
+    __slots__ = (
+        "_unknown0",  # float
+        "_unknown1",  # float
+        "_unknown2",  # uint16
+        "_unknown3",  # int16
+        "_unknown4",  # uint8[17]
+    )
+
+    def __init__(self,
+                 unknown0=0.0,
+                 unknown1=0.0,
+                 unknown2=0,
+                 unknown3=0,
+                 unknown4=()):
+        super().__init__(PacketType.COMMAND, packet_id=0xc8)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+        self.unknown2 = unknown2
+        self.unknown3 = unknown3
+        self.unknown4 = unknown4
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_float("unknown0", value)
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_float("unknown1", value)
+
+    @property
+    def unknown2(self):
+        return self._unknown2
+
+    @unknown2.setter
+    def unknown2(self, value):
+        self._unknown2 = validate_integer("unknown2", value, 0, 65535)
+
+    @property
+    def unknown3(self):
+        return self._unknown3
+
+    @unknown3.setter
+    def unknown3(self, value):
+        self._unknown3 = validate_integer("unknown3", value, -32768, 32767)
+
+    @property
+    def unknown4(self):
+        return self._unknown4
+
+    @unknown4.setter
+    def unknown4(self, value):
+        self._unknown4 = validate_farray(
+            "unknown4", value, 17, lambda name, value_inner: validate_integer(name, value_inner, 0, 255))
+
+    def __len__(self):
+        return \
+            4 + \
+            4 + \
+            2 + \
+            2 + \
+            17
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1}, " \
+               "unknown2={unknown2}, " \
+               "unknown3={unknown3}, " \
+               "unknown4={unknown4})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1,
+                unknown2=self._unknown2,
+                unknown3=self._unknown3,
+                unknown4=self._unknown4)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "f")
+        writer.write(self._unknown1, "f")
+        writer.write(self._unknown2, "H")
+        writer.write(self._unknown3, "h")
+        writer.write_farray(self._unknown4, "B", 17)
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("f")
+        unknown1 = reader.read("f")
+        unknown2 = reader.read("H")
+        unknown3 = reader.read("h")
+        unknown4 = reader.read_farray("B", 17)
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1,
+            unknown2=unknown2,
+            unknown3=unknown3,
+            unknown4=unknown4)
+
+
+class CrashReport(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint32
+        "_unknown1",  # int16
+        "_unknown2",  # uint8
+        "_dump",  # uint32[uint8]
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 unknown1=0,
+                 unknown2=0,
+                 dump=()):
+        super().__init__(PacketType.COMMAND, packet_id=0xcf)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+        self.unknown2 = unknown2
+        self.dump = dump
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 4294967295)
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_integer("unknown1", value, -32768, 32767)
+
+    @property
+    def unknown2(self):
+        return self._unknown2
+
+    @unknown2.setter
+    def unknown2(self, value):
+        self._unknown2 = validate_integer("unknown2", value, 0, 255)
+
+    @property
+    def dump(self):
+        return self._dump
+
+    @dump.setter
+    def dump(self, value):
+        self._dump = validate_varray(
+            "dump", value, 255, lambda name, value_inner: validate_integer(name, value_inner, 0, 4294967295))
+
+    def __len__(self):
+        return \
+            4 + \
+            2 + \
+            1 + \
+            get_varray_size(self._dump, 'B', 'L')
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1}, " \
+               "unknown2={unknown2}, " \
+               "dump={dump})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1,
+                unknown2=self._unknown2,
+                dump=self._dump)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "L")
+        writer.write(self._unknown1, "h")
+        writer.write(self._unknown2, "B")
+        writer.write_varray(self._dump, "L", "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("L")
+        unknown1 = reader.read("h")
+        unknown2 = reader.read("B")
+        dump = reader.read_varray("L", "B")
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1,
+            unknown2=unknown2,
+            dump=dump)
+
+
+class FWVersionInfo(Packet):
+
+    __slots__ = (
+        "_unknown0",  # uint32
+        "_unknown1",  # int32
+        "_unknown2",  # int32
+        "_unknown3",  # uint8[16]
+        "_unknown4",  # uint8[16]
+    )
+
+    def __init__(self,
+                 unknown0=0,
+                 unknown1=0,
+                 unknown2=0,
+                 unknown3=(),
+                 unknown4=()):
+        super().__init__(PacketType.COMMAND, packet_id=0xd2)
+        self.unknown0 = unknown0
+        self.unknown1 = unknown1
+        self.unknown2 = unknown2
+        self.unknown3 = unknown3
+        self.unknown4 = unknown4
+
+    @property
+    def unknown0(self):
+        return self._unknown0
+
+    @unknown0.setter
+    def unknown0(self, value):
+        self._unknown0 = validate_integer("unknown0", value, 0, 4294967295)
+
+    @property
+    def unknown1(self):
+        return self._unknown1
+
+    @unknown1.setter
+    def unknown1(self, value):
+        self._unknown1 = validate_integer("unknown1", value, -2147483648, 2147483647)
+
+    @property
+    def unknown2(self):
+        return self._unknown2
+
+    @unknown2.setter
+    def unknown2(self, value):
+        self._unknown2 = validate_integer("unknown2", value, -2147483648, 2147483647)
+
+    @property
+    def unknown3(self):
+        return self._unknown3
+
+    @unknown3.setter
+    def unknown3(self, value):
+        self._unknown3 = validate_farray(
+            "unknown3", value, 16, lambda name, value_inner: validate_integer(name, value_inner, 0, 255))
+
+    @property
+    def unknown4(self):
+        return self._unknown4
+
+    @unknown4.setter
+    def unknown4(self, value):
+        self._unknown4 = validate_farray(
+            "unknown4", value, 16, lambda name, value_inner: validate_integer(name, value_inner, 0, 255))
+
+    def __len__(self):
+        return \
+            4 + \
+            4 + \
+            4 + \
+            16 + \
+            16
+
+    def __repr__(self):
+        return "{type}(" \
+               "unknown0={unknown0}, " \
+               "unknown1={unknown1}, " \
+               "unknown2={unknown2}, " \
+               "unknown3={unknown3}, " \
+               "unknown4={unknown4})".format(
+                type=type(self).__name__,
+                unknown0=self._unknown0,
+                unknown1=self._unknown1,
+                unknown2=self._unknown2,
+                unknown3=self._unknown3,
+                unknown4=self._unknown4)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._unknown0, "L")
+        writer.write(self._unknown1, "l")
+        writer.write(self._unknown2, "l")
+        writer.write_farray(self._unknown3, "B", 16)
+        writer.write_farray(self._unknown4, "B", 16)
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        unknown0 = reader.read("L")
+        unknown1 = reader.read("l")
+        unknown2 = reader.read("l")
+        unknown3 = reader.read_farray("B", 16)
+        unknown4 = reader.read_farray("B", 16)
+        return cls(
+            unknown0=unknown0,
+            unknown1=unknown1,
+            unknown2=unknown2,
+            unknown3=unknown3,
+            unknown4=unknown4)
+
+
 PACKETS_BY_ID = {
     0x01: AdjustTimestamp,  # 1
     0x02: BackpackSetLayer,  # 2
@@ -11619,6 +12968,7 @@ PACKETS_BY_ID = {
     0x0b: SetHeadLight,  # 11
     0x0c: SetCubeGamma,  # 12
     0x0e: ReadBodyStorage,  # 14
+    0x0f: WriteBodyStorage,  # 15
     0x10: CubeId,  # 16
     0x11: LightStateSide,  # 17
     0x12: SendDTMCommand,  # 18
@@ -11690,26 +13040,35 @@ PACKETS_BY_ID = {
     0x9a: EndAnimation,  # 154
     0x9b: StartAnimation,  # 155
     0x9f: EnableAnimationState,  # 159
+    0xa0: SetAppRunID,  # 160
+    0xa1: TestState,  # 161
     0xa2: EnterFactoryTestMode,  # 162
     0xa3: DisplayNumber,  # 163
+    0xa4: BodyStorageContents,  # 164
     0xa5: BodySerialNumber,  # 165
     0xa9: ShutdownRobot,  # 169
+    0xaa: AppConnectConfigString,  # 170
     0xab: AppConnectConfigFlags,  # 171
     0xac: AppConnectConfigIPInfo,  # 172
     0xad: AppConnectGetRobotIP,  # 173
     0xae: WifiOff,  # 174
     0xaf: FirmwareUpdate,  # 175
     0xb0: DebugData,  # 176
+    0xb1: PrintText,  # 177
     0xb2: MainCycleTimeError,  # 178
+    0xb3: GoalPose,  # 179
     0xb4: ObjectMoved,  # 180
     0xb5: ObjectStoppedMoving,  # 181
     0xb6: ObjectTapped,  # 182
+    0xb7: DataDump,  # 183
     0xb8: PickAndPlaceResult,  # 184
     0xb9: ObjectTapFiltered,  # 185
     0xba: RampTraverseStart,  # 186
     0xbb: RampTraverseComplete,  # 187
     0xbc: BridgeTraverseStart,  # 188
     0xbd: BridgeTraverseComplete,  # 189
+    0xbe: TimeProfileStat,  # 190
+    0xbf: IMUDataChunk,  # 191
     0xc0: CliffEvent,  # 192
     0xc1: PotentialCliff,  # 193
     0xc2: RobotDelocalized,  # 194
@@ -11718,13 +13077,16 @@ PACKETS_BY_ID = {
     0xc5: MovingLiftPostDock,  # 197
     0xc6: PathFollowingEvent,  # 198
     0xc7: IMURawDataChunk,  # 199
+    0xc8: DefaultCameraParams,  # 200
     0xc9: HardwareInfo,  # 201
     0xca: AnimationStarted,  # 202
     0xcb: AnimationEnded,  # 203
     0xcd: NvStorageOpResult,  # 205
     0xce: ObjectPowerLevel,  # 206
+    0xcf: CrashReport,  # 207
     0xd0: ObjectConnectionState,  # 208
     0xd1: MotorCalibration,  # 209
+    0xd2: FWVersionInfo,  # 210
     0xd3: DockingStatus,  # 211
     0xd4: RobotStopped,  # 212
     0xd5: AnimationEvent,  # 213
@@ -11778,10 +13140,14 @@ PACKETS_BY_GROUP = {
         0x57,  # SetCameraParams
         0x5a,  # CameraFOVInfo
         0x66,  # EnableColorImages
+        0xc8,  # DefaultCameraParams
     },
     "debug": {
         0xb0,  # DebugData
+        0xb1,  # PrintText
         0xb2,  # MainCycleTimeError
+        0xb7,  # DataDump
+        0xbe,  # TimeProfileStat
     },
     "display": {
         0x97,  # DisplayImage
@@ -11808,13 +13174,17 @@ PACKETS_BY_GROUP = {
         0x06,  # KillBodyCode
         0x07,  # SetBodyRadioMode
         0x0e,  # ReadBodyStorage
+        0x0f,  # WriteBodyStorage
         0x12,  # SendDTMCommand
         0x24,  # GetBodySerialNumber
         0x46,  # StartControllerTestMode
         0x47,  # ControllerGains
+        0xa1,  # TestState
         0xa2,  # EnterFactoryTestMode
         0xa3,  # DisplayNumber
+        0xa4,  # BodyStorageContents
         0xa5,  # BodySerialNumber
+        0xaa,  # AppConnectConfigString
         0xab,  # AppConnectConfigFlags
         0xac,  # AppConnectConfigIPInfo
         0xad,  # AppConnectGetRobotIP
@@ -11887,6 +13257,8 @@ PACKETS_BY_GROUP = {
         0xd7,  # ObjectUpAxisChanged
     },
     "state": {
+        0xb3,  # GoalPose
+        0xbf,  # IMUDataChunk
         0xc0,  # CliffEvent
         0xc1,  # PotentialCliff
         0xc7,  # IMURawDataChunk
@@ -11914,9 +13286,12 @@ PACKETS_BY_GROUP = {
         0x82,  # EnableWiFiTelemetry
         0x89,  # DebugSetRTTO
         0x9f,  # EnableAnimationState
+        0xa0,  # SetAppRunID
         0xa9,  # ShutdownRobot
         0xae,  # WifiOff
         0xc9,  # HardwareInfo
+        0xcf,  # CrashReport
+        0xd2,  # FWVersionInfo
         0xdb,  # ButtonPressed
         0xed,  # BodyInfo
         0xee,  # FirmwareSignature

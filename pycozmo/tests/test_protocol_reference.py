@@ -8,7 +8,7 @@ import json
 import os
 import unittest
 
-from pycozmo import protocol_declaration as declaration
+from pycozmo import protocol_declaration as declaration, protocol_encoder as pe
 
 
 SIZES = {
@@ -100,3 +100,27 @@ class TestProtocolReference(unittest.TestCase):
             text = f.read()
         for number in sorted(different):
             self.assertIn("0x{:02x}".format(number), text, "0x{:02x} is not in the specification".format(number))
+
+    def test_all_messages_are_declared(self):
+        reference = load_reference()
+        packets = declared()
+        self.assertEqual(sorted(set(reference) - set(packets)), [])
+
+    def test_arrays_and_strings(self):
+        """ The arrays and strings of the messages added from the original application have a length on 1 byte. """
+        text = pe.PrintText(unknown0=3, text="hello")
+        self.assertEqual(text.to_bytes(), b"\x03\x05hello")
+        self.assertEqual(pe.PrintText.from_bytes(text.to_bytes()).text, "hello")
+        crash = pe.CrashReport(unknown0=1, unknown1=-2, unknown2=3, dump=(1, 2, 3))
+        self.assertEqual(len(crash.to_bytes()), 4 + 2 + 1 + 1 + 12)
+        self.assertEqual(list(pe.CrashReport.from_bytes(crash.to_bytes()).dump), [1, 2, 3])
+        dump = pe.DataDump(unknown0=7, data=(9, 8))
+        self.assertEqual(dump.to_bytes(), b"\x07\x00\x00\x00\x02\x09\x08")
+        stat = pe.TimeProfileStat(unknown0=1, unknown1=-1, unknown2=True, name="x")
+        self.assertEqual(pe.TimeProfileStat.from_bytes(stat.to_bytes()).name, "x")
+        version = pe.FWVersionInfo(unknown0=1, unknown1=2, unknown2=3, unknown3=tuple(range(16)),
+                                   unknown4=tuple(range(16, 32)))
+        self.assertEqual(len(version.to_bytes()), 44)
+        self.assertEqual(len(pe.IMUDataChunk(data0=(0,) * 8, data1=(0,) * 8, data2=(0,) * 8,
+                                             data3=(0,) * 8, data4=(0,) * 8, data5=(0,) * 8,
+                                             unknown6=0, unknown7=0, unknown8=0).to_bytes()), 195)
