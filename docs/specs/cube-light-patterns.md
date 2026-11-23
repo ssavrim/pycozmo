@@ -40,8 +40,9 @@ transition of `transition on` / `transition off` between the two, shifted by `of
    -1 gives 255. The offset follows the same rule on signed values, kept on 16 bits.
 5. **Rotation** (Specified). `rotationPeriod_ms` goes through the same conversion, to the `rotation_period_frames` of the
    cube selection packet that precedes the lights packet.
-6. **Gamma** (Not modeled). The original sets a gamma value on the cube when it changes; the value is a constant
-   (0x80) in all cases found, and pycozmo does not send it.
+6. **Gamma** (Specified). Before the lights of a cube, the original sets the gamma of its LEDs (`SetCubeGamma`,
+   0x80) when the value changes. Without it, white shows as yellow and red on the cubes tested. `Client.set_cube_lights`
+   sends it before the first lights of a cube and again after the cube connects again.
 
 ## Playback
 
@@ -73,4 +74,5 @@ A cube plays one animation at a time; this is what is modeled for one layer (`Cu
 | Bytes of the colors (red in the lowest byte) deduced from the encoding code | Specified |
 | Playback of one layer, stack, override flag | Specified |
 | Stop behavior and lights after the last pattern | Assumed |
-| Layers, blending, default animation, gamma | Not modeled |
+| Gamma sent before the lights | Specified (validated on three cubes) |
+| Layers, blending, default animation | Not modeled |

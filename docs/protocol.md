@@ -108,7 +108,7 @@ ID                 Min     Max      Name
 0x04	     	    40	    40		CubeLights                    
 0x05	     	     5	     5		ObjectConnect                 
 0x0b	     	     1	     1		SetHeadLight                  
-0x0c	     	     1	     1		                              
+0x0c	     	     1	     1		SetCubeGamma                
 0x10	     	     5	     5		CubeId                        
 0x11	     	    21	    21		LightStateSide                
 0x25	     	     0	     0		Enable                        

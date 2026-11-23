@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Add the SetCubeGamma command (0x0c) and send it from Client.set_cube_lights before the first lights of a cube, and
+    again after the cube connects again, as the original application does (without it white shows as yellow and
+    red). New parameter gamma (default CUBE_GAMMA, None to not send it).
 - Client.set_all_backpack_lights turns the left and right backpack LEDs off for white and grey: they are red only and
     showed red next to a white line. Add lights.is_white_shade and lights.side_light. Other colors are unchanged.
 - Use the needs, the mood, the reaction triggers and the behavior selection in Brain: it updates the needs, runs the
