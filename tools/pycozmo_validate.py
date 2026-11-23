@@ -561,7 +561,7 @@ def test_wheels(cli, state, report, ctx):
     first = state.last()
     try:
         while time.monotonic() - t0 < 3.0:
-            cli.conn.send(pe.TurnInPlaceAtAngularSpeed(speed_rad_per_sec=0.5, unknown1=0.0))
+            cli.conn.send(pe.TurnInPlaceAtAngularSpeed(speed_rad_per_sec=0.5, accel_rad_per_sec2=0.0))
             time.sleep(0.1)
     finally:
         cli.stop_all_motors()
