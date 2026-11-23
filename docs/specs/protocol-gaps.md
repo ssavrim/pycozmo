@@ -142,6 +142,8 @@ and **must not be sent to a robot**.
   seen on the cube** (watched by the operator). Tried again with the factory identifier of the cube (0xb85e9ee4) in the
   field, 3 messages 3 s apart after 3 with the object identifier: nothing was seen either. The message is not known to do
   anything on this robot; maybe the cube lights have to be in a given state, or the message is not handled by this firmware.
+  A third attempt, on another cube (factory identifier 0xc6e6ecb8, again with both identifiers), after the cube lights were
+  shown to work (`--tests cubelights`): nothing was seen either.
 - `TurnInPlace` (0x39), relative turn of 90 degrees (`angle_rad` pi/2, 1 rad/s, `accel_rad_per_sec2` 3, tolerance 0.05, not
   absolute): with `num_half_revolutions` 0 the robot turned a quarter of a turn counterclockwise (odometry 89 degrees); with
   `num_half_revolutions` 1 it turned almost a full turn counterclockwise (odometry -21 degrees, that is 339 modulo 360, seen
