@@ -4,6 +4,7 @@ Brain class - high level behavior and emotion engine.
 
 """
 
+import dataclasses
 from threading import RLock, Thread
 from queue import Queue, Empty
 import time
@@ -203,20 +204,26 @@ class Brain:
         return self.behavior is not None and self.behavior.get_id() == behavior_id
 
     def is_behavior_runnable(self, behavior_id: str) -> bool:
-        """ Whether a behavior can be chosen: it is implemented and, to drive off the charger, the robot is on it. """
-        candidate = self.behaviors.get(behavior_id)
-        if candidate is None or type(candidate) is behavior.Behavior:
+        """ Whether a behavior can run: it exists and, to drive off the charger, the robot is on it. """
+        if behavior_id not in self.behaviors:
             return False
         if behavior_id == "DriveOffCharger":
             return bool(self.cli.robot_status & robot.RobotStatusFlag.IS_ON_CHARGER)
         return True
+
+    def is_behavior_implemented(self, behavior_id: str) -> bool:
+        """ Whether a behavior does something: the freeplay only chooses these, reactions run anyway. """
+        candidate = self.behaviors.get(behavior_id)
+        return candidate is not None and type(candidate) is not behavior.Behavior
 
     def choose_behavior(self) -> str | None:
         """ Choose and run the next behavior of the freeplay, when nothing runs. Returns its identifier. """
         with self._lock:
             if self.behavior is not None or self.freeplay_activity is None:
                 return None
-            behavior_id = self.freeplay_activity.choose(self.context, self.activities)
+            context = dataclasses.replace(
+                self.context, runnable=lambda b: self.is_behavior_implemented(b) and self.is_behavior_runnable(b))
+            behavior_id = self.freeplay_activity.choose(context, self.activities)
             if behavior_id is None:
                 return None
             sub_activity = self.activities.get(getattr(self.freeplay_activity, "current", None) or "")
