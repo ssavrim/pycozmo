@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold")
+    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold", "flash", "turn")
 
 
 class State:
@@ -642,6 +642,69 @@ def test_cliffthreshold(cli, state, report, ctx):
     finally:
         cli.del_handler(pe.RobotState, on_state)
     report.add("cliffthreshold", "MEASURED", results={str(k): v for k, v in results.items()})
+
+
+def test_flash(cli, state, report, ctx):
+    """ FlashObjectIDs (0x4d): ask a cube to flash its lights. """
+    from pycozmo import protocol_encoder as pe
+    print("\nflash: FlashObjectIDs on a cube (wake the cube by moving or tapping it; no movement of the robot)")
+    cube_types = {pe.ObjectType.Block_LIGHTCUBE1, pe.ObjectType.Block_LIGHTCUBE2, pe.ObjectType.Block_LIGHTCUBE3}
+    deadline = time.monotonic() + 30.0
+    factory_id = None
+    while factory_id is None and time.monotonic() < deadline:
+        factory_id = next((i for i, o in list(cli.available_objects.items()) if o.object_type in cube_types), None)
+        time.sleep(0.1)
+    if factory_id is None:
+        report.add("flash", "FAIL", detail="no cube found within 30 s")
+        return
+    connected = threading.Event()
+    found = {}
+
+    def on_connection(_cli, pkt):
+        if pkt.factory_id == factory_id and pkt.connected:
+            found["object_id"] = pkt.object_id
+            connected.set()
+
+    handler = cli.add_handler(pe.ObjectConnectionState, on_connection)
+    try:
+        cli.set_object_connection(factory_id)
+        if not connected.wait(10.0):
+            report.add("flash", "FAIL", detail="the cube did not connect")
+            return
+        object_id = found["object_id"]
+        print("   cube {} connected: watch it, 5 messages follow, 3 s apart".format(object_id))
+        for i in range(5):
+            cli.conn.send(pe.FlashObjectIDs(object_id=object_id))
+            print("   sent {}".format(i + 1))
+            time.sleep(3.0)
+        # What the cube did is seen by the operator, not by this tool.
+        report.add("flash", "MEASURED", object_id=object_id, sent=5)
+    finally:
+        cli.del_handler(pe.ObjectConnectionState, handler)
+
+
+def test_turn(cli, state, report, ctx):
+    """ TurnInPlace (0x39): relative turn of 90 degrees, then with one half revolution more. """
+    from pycozmo import protocol_encoder as pe
+    print("\nturn: TurnInPlace 90 degrees, with num_half_revolutions 0 then 1 (30 cm free around Cozmo)")
+    if not wheels_allowed(report, "turn"):
+        return
+    results = {}
+    for halves in (0, 1):
+        input("  Press Enter for the turn with num_half_revolutions={}.".format(halves))
+        first = state.last()
+        cli.conn.send(pe.TurnInPlace(angle_rad=math.pi / 2, speed_rad_per_sec=1.0, accel_rad_per_sec2=3.0,
+                                     angle_tolerance_rad=0.05, num_half_revolutions=halves, is_absolute=False,
+                                     action_id=1))
+        time.sleep(6.0)
+        cli.stop_all_motors()
+        time.sleep(0.5)
+        last = state.last()
+        turned = math.degrees(last[3] - first[3]) if first and last else None
+        floor = ask_number("  Turn seen on the floor, in degrees?")
+        print("   odometry {} deg".format(None if turned is None else round(turned)))
+        results[halves] = dict(odometry_deg=None if turned is None else round(turned), floor_deg=floor)
+    report.add("turn", "MEASURED", results={str(k): v for k, v in results.items()})
 
 
 def test_brain(cli, state, report, ctx):
