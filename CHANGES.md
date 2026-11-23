@@ -5,7 +5,8 @@ Unreleased
 ----------
 - Declare the 13 remaining messages of the original application, which have arrays or strings (WriteBodyStorage,
     PrintText, DataDump, TimeProfileStat, IMUDataChunk, DefaultCameraParams, CrashReport, FWVersionInfo...), read from the
-    unpacking functions of the original: a length on 1 byte for arrays and strings. All 136 messages are now declared.
+    unpacking functions of the original: a length on 1 byte for arrays and strings. All the messages of the original are now declared except FlashObjectIDs, which
+    had no visible effect on a cube.
 - Name the fields of the messages from the C# code of the application (CliffEvent, PowerState, IMURawDataChunk...), and
     of TurnInPlace (num_half_revolutions), AppendPathSegPointTurn (use_shortest_direction), SetOrigin (timestamp,
     pose_angle_rad), HardwareInfo (hw_version, one uint16 instead of two uint8) and FirmwareSignature (robot_id). The
