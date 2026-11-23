@@ -3,6 +3,12 @@ Revision History
 
 Unreleased
 ----------
+- Declare 51 messages of the original application that PyCozmo did not (docs/specs/protocol-gaps.md): commands of the
+    robot (TurnInPlaceAtAngularSpeed, IMURequest, SetCliffDetectThreshold, EnableMotorPower, EnableBraceWhenFalling,
+    the factory and test ones...) and messages from the robot (IMURawDataChunk, CliffEvent, MotorAutoEnabled,
+    RobotStopped...), with the layout of the original; the fields are named only where the name of the message says
+    what they are. A packet with one of these numbers is now decoded instead of being an UnknownCommand. The messages
+    of the group factory must not be sent. Add a reference of the numbers, names and sizes with a test.
 - Add pycozmo.markers (docs/specs/markers.md): recognize the markers of Cozmo (faces of the cubes, charger, custom
     object markers) in an image, with MarkerDetector, and estimate_marker_pose (sizes of the cube and charger markers
     included); tools/pycozmo_markers_eval.py measures it on synthetic images. The library of symbols is read from the

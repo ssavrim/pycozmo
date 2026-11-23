@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights", "markers")
+    "brainreact", "cubelights", "markers", "protocol")
 
 
 class State:
@@ -500,6 +500,53 @@ def test_markers(cli, state, report, ctx):
         print("   {} in {} of {} images".format(name, count, len(frames)))
     report.add("markers", "PASS" if with_marker * 2 >= len(frames) else "FAIL", images=len(frames),
                with_marker=with_marker, seconds_per_image=round(per_frame, 2), markers=dict(counts))
+
+
+def test_protocol(cli, state, report, ctx):
+    """ Listen for the messages of the original application that PyCozmo now declares, and ask for IMU data. """
+    import collections
+    from pycozmo import protocol_base
+    from pycozmo import protocol_encoder as pe
+    print("\nprotocol: messages of the original application (lift the robot and put it back within 20 s)")
+    names = ("IMURawDataChunk", "CliffEvent", "PotentialCliff", "MotorAutoEnabled", "RobotStopped", "RobotErrorReport",
+             "IMUTemperature",
+             "MainCycleTimeError", "FactoryTestParameter", "WiFiFlashID", "RampTraverseStart", "RampTraverseComplete",
+             "BridgeTraverseStart", "BridgeTraverseComplete")
+    seen: collections.Counter = collections.Counter()
+    examples: dict[str, str] = {}
+    unknown: collections.Counter = collections.Counter()
+    unknown_sizes: dict[int, set] = collections.defaultdict(set)
+
+    def make(name):
+        def handler(_cli, pkt):
+            seen[name] += 1
+            examples.setdefault(name, repr(pkt))
+        return handler
+
+    def on_unknown(_cli, pkt):
+        unknown[pkt.id] += 1
+        unknown_sizes[pkt.id].add(len(pkt.data))
+
+    handlers = [(getattr(pe, n), make(n)) for n in names]
+    handlers += [(protocol_base.UnknownCommand, on_unknown), (protocol_base.UnknownEvent, on_unknown)]
+    for cls, handler in handlers:
+        cli.add_handler(cls, handler)
+    try:
+        cli.conn.send(pe.IMURequest(length_ms=500))
+        time.sleep(1.5)
+        deadline = time.monotonic() + 20.0
+        while time.monotonic() < deadline:
+            time.sleep(0.2)
+    finally:
+        for cls, handler in handlers:
+            cli.del_handler(cls, handler)
+    for name, count in sorted(seen.items()):
+        print("   {} x{}: {}".format(name, count, examples[name]))
+    for number, count in sorted(unknown.items()):
+        print("   not declared 0x{:02x} x{} sizes {}".format(number, count, sorted(unknown_sizes[number])))
+    # IMURequest must give a stream of IMURawDataChunk: 500 ms at about 180 per second.
+    report.add("protocol", "PASS" if seen["IMURawDataChunk"] >= 50 else "FAIL", declared_seen=dict(seen),
+               not_declared={hex(k): v for k, v in unknown.items()})
 
 
 def test_brain(cli, state, report, ctx):
