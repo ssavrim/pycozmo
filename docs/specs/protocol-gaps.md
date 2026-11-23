@@ -130,7 +130,10 @@ and **must not be sent to a robot**.
   on the spot (about a quarter of a turn seen on the floor) and stopped after `stop_all_motors`. The odometry gave 70 degrees
   for 86 expected: the start-up ramp is not accounted for. The role of `unknown1` is not known (perhaps an acceleration).
 - `MotorAutoEnabled` (0xd8): received twice while the robot was lifted, `motor_id` `MOTOR_LIFT`, `enabled` False. The
-  motor identifier is decoded. `CliffEvent`, `PotentialCliff` and `RobotStopped` were not received (two lifts).
+  motor identifier is decoded.
+- `CliffEvent` (0xc0) and `RobotStopped` (0xd4): received while the robot drove at 20 mm/s and was lifted from
+  the floor (not by lifting it at rest): `CliffEvent` x5 (`unknown0` 1650, `unknown1` 3, `unknown2` True) and `RobotStopped`
+  x3 (`unknown0` 1). The meaning of the fields is not known (1650 looks like a sensor value). `PotentialCliff` was not received.
 
 ## Messages not declared
 
