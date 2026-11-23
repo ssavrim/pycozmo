@@ -105,6 +105,44 @@ def ask_number(question):
         return None
 
 
+#: Whether the head was raised for the screen (it is lowered again when the screen is cleared).
+SCREEN = {"head_up": False}
+
+
+def announce(cli, *lines, head=True):
+    """
+    Write short lines on the screen of the robot (up to 3, about 14 characters each): what the operator has to do
+    or to watch. The head is raised once so that the screen can be read. It never fails a test.
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        if head and not SCREEN["head_up"]:
+            cli.set_head_angle(math.radians(35.0))
+            time.sleep(1.5)
+            SCREEN["head_up"] = True
+        lines = lines[:3]
+        size = 14 if len(lines) == 1 else (11 if len(lines) == 2 else 9)
+        try:
+            font = ImageFont.load_default(size=size)
+        except TypeError:                      # Pillow before 10.1 has a single size
+            font = ImageFont.load_default()
+        image = Image.new("1", (128, 32), 0)
+        draw = ImageDraw.Draw(image)
+        for n, line in enumerate(lines):
+            draw.text((2, n * (32 // len(lines))), str(line), fill=1, font=font)
+        cli.display_image(image)
+    except Exception as e:
+        print("   (screen: {})".format(e))
+
+
+def announce_clear(cli):
+    SCREEN["head_up"] = False
+    try:
+        cli.clear_screen()
+    except Exception:
+        pass
+
+
 def play(cli, clip=None, name="validation", ppclip=None, timeout=15.0):
     if ppclip is None:
         ppclip = anim.PreprocessedClip.from_anim_clip(ae.AnimClip(name, clip))
@@ -351,6 +389,7 @@ def test_react(cli, state, report, ctx):
 
     cli.add_handler(event.EvtRobotPickedUpChange, on_picked_up)
     print("Lift the robot (and put it down) within 20 s.")
+    announce(cli, "LIFT ME", "within 20 s")
     deadline = time.monotonic() + 20.0
     while not seen and time.monotonic() < deadline:
         time.sleep(0.1)
@@ -367,6 +406,7 @@ def test_cubelights(cli, state, report, ctx):
     """ Play animations of the cube lights on a cube; the packets are checked here, the look by the operator. """
     from pycozmo import cube_lights
     print("\ncubelights: animations on a cube (wake the cube by moving or tapping it; no movement of the robot)")
+    announce(cli, "WAKE A CUBE", "move or tap it")
     animations = cube_lights.load_cube_light_animations(str(ctx["root"]))
     cube_types = {pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE1,
                   pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE2,
@@ -404,6 +444,7 @@ def test_cubelights(cli, state, report, ctx):
         order = ("flash", "speedTapWin", "dancing_01", "pyramidFlourish", "wakeUp")
         for name in order:
             print("   playing {}".format(name))
+            announce(cli, "WATCH THE CUBE", name)
             finished = threading.Event()
             player.play(animations[name], on_finished=finished.set)
             end = time.monotonic() + 8.0
@@ -451,6 +492,7 @@ def test_brainreact(cli, state, report, ctx):
     brain.start()
     try:
         print("Lift the robot (and put it down) within 20 s.")
+        announce(cli, "LIFT ME", "within 20 s")
         deadline = time.monotonic() + 20.0
         while "ReactToPickup" not in seen and time.monotonic() < deadline:
             time.sleep(0.1)
@@ -465,6 +507,7 @@ def test_markers(cli, state, report, ctx):
     import numpy as np
     from pycozmo import markers
     print("\nmarkers: recognition of the markers in the camera images (put a cube in front of the robot)")
+    announce(cli, "SHOW ME A CUBE", "15 cm in front")
     try:
         library = markers.load_marker_library(str(ctx["root"]))
     except FileNotFoundError:
@@ -509,6 +552,7 @@ def test_protocol(cli, state, report, ctx):
     from pycozmo import protocol_base
     from pycozmo import protocol_encoder as pe
     print("\nprotocol: messages of the original application (lift the robot and put it back within 20 s)")
+    announce(cli, "LIFT ME", "then put me back")
     names = ("IMURawDataChunk", "CliffEvent", "PotentialCliff", "MotorAutoEnabled", "RobotStopped", "RobotErrorReport",
              "IMUTemperature",
              "MainCycleTimeError", "FactoryTestParameter", "WiFiFlashID", "RampTraverseStart", "RampTraverseComplete",
@@ -555,6 +599,7 @@ def test_wheels(cli, state, report, ctx):
     """ TurnInPlaceAtAngularSpeed (0x3a): turn on the spot at a given angular speed, 3 s at 0.5 rad/s. """
     from pycozmo import protocol_encoder as pe
     print("\nwheels: TurnInPlaceAtAngularSpeed, 0.5 rad/s for 3 s (put Cozmo on the floor with 30 cm free around it)")
+    announce(cli, "ON THE FLOOR", "30 cm free", "I will turn")
     if not wheels_allowed(report, "wheels"):
         return
     input("  Press Enter to start.")
@@ -584,6 +629,7 @@ def test_cliff(cli, state, report, ctx):
     import collections
     from pycozmo import protocol_encoder as pe
     print("\ncliff: Cozmo drives at 20 mm/s for 15 s. HOLD IT in your hand, wheels free, then lift it from the floor")
+    announce(cli, "HOLD ME", "in your hand", "I will roll")
     print("  and put it back (or hold it over a table edge). Keep your hand under it.")
     if not ask("Ready, holding the robot above the floor?", False):
         report.add("cliff", "SKIP", detail="not confirmed")
@@ -618,6 +664,7 @@ def test_cliff(cli, state, report, ctx):
 def test_cliffthreshold(cli, state, report, ctx):
     """ SetCliffDetectThreshold (0x54): change the threshold and watch the cliff flag and the raw cliff values. """
     from pycozmo import protocol_encoder as pe, robot as rb
+    announce(cli, "ON THE FLOOR", "at rest")
     print("\ncliffthreshold: robot at rest on the floor, not moving. The threshold stays set until the robot is")
     print("  restarted (take it off the charger or switch it off and on afterwards).")
     if not ask("Is Cozmo resting on the floor, on a light surface, not on the charger?", False):
@@ -649,6 +696,7 @@ def test_turn(cli, state, report, ctx):
     """ TurnInPlace (0x39): relative turn of 90 degrees, then with one half revolution more. """
     from pycozmo import protocol_encoder as pe
     print("\nturn: TurnInPlace 90 degrees, with num_half_revolutions 0 then 1 (30 cm free around Cozmo)")
+    announce(cli, "ON THE FLOOR", "30 cm free", "I will turn")
     if not wheels_allowed(report, "turn"):
         return
     results = {}
@@ -688,6 +736,7 @@ def test_braincubes(cli, state, report, ctx):
     markers_seen: set[str] = set()
     try:
         print("  Wake a cube (move or tap it); it connects by itself.")
+        announce(cli, "WAKE A CUBE", "move or tap it")
         deadline = time.monotonic() + 30.0
         factory_id = None
         while factory_id is None and time.monotonic() < deadline:
@@ -704,11 +753,13 @@ def test_braincubes(cli, state, report, ctx):
             report.add("braincubes", "FAIL", detail="the cube did not connect")
             return
         print("  Cube connected: the 'Connected' animation plays (watch the cube).")
+        announce(cli, "WATCH THE CUBE", "animations play")
         time.sleep(4.0)
         for name in ("Flash", "Dance_01"):
             print("  play_cube_animation({!r}): {} cube(s)".format(name, brain.play_cube_animation(name)))
             time.sleep(4.0)
         print("  Now MOVE the cube, then hold it 15 cm in front of the camera, for 25 s.")
+        announce(cli, "MOVE THE CUBE", "then show it to me", "15 cm, 25 s")
         deadline = time.monotonic() + 25.0
         while time.monotonic() < deadline:
             markers_seen.update(m.name for m in list(brain.visible_markers))
@@ -728,6 +779,7 @@ def test_edges(cli, state, report, ctx):
     """ The table edge: drive slowly at it, note the drop, then retreat with CliffRetreat (a hand under the robot). """
     from pycozmo import edges
     print("\nedges: the robot drives at 15 mm/s toward the edge of the table, stops at the drop and backs away")
+    announce(cli, "TABLE EDGE 15 cm", "HAND UNDER ME")
     print("  Put Cozmo on a table, about 15 cm from the edge, facing it, with the edge clear in front.")
     print("  Keep a hand ready under the robot. The test stops at the first drop and moves only a few centimeters.")
     if not ask("Is Cozmo on the table facing the edge, 15 cm away, with a hand ready?", False):
@@ -833,6 +885,7 @@ def test_mood(cli, state, report, ctx):
     cli.add_handler(event.EvtCliffDetectedChange, on_cliff)
     before = mood.values()
     print("Lift the robot (and put it down) within 20 s; lifting it is seen as a cliff.")
+    announce(cli, "LIFT ME", "within 20 s")
     deadline = time.monotonic() + 20.0
     while not seen and time.monotonic() < deadline:
         time.sleep(0.1)
@@ -911,6 +964,7 @@ def main():
         try:
             for test in tests:
                 test(cli, state, report, ctx)
+                announce_clear(cli)
         except KeyboardInterrupt:
             print("\nInterrupted.")
             report.data["interrupted"] = True
