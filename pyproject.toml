@@ -37,6 +37,9 @@ classifiers = [
     "Intended Audience :: Education",
 ]
 
+[project.optional-dependencies]
+mcp = ["mcp>=1.2"]
+
 [project.urls]
 Homepage = "https://github.com/zayfod/pycozmo/"
 Documentation = "https://pycozmo.readthedocs.io/"
@@ -61,6 +64,7 @@ script-files = [
     "tools/pycozmo_update.py",
     "tools/pycozmo_resources.py",
     "tools/pycozmo_app.py",
+    "tools/pycozmo_mcp.py",
 ]
 
 [tool.setuptools.dynamic]

@@ -141,6 +141,9 @@ Tools
 - [pycozmo_update.py](tools/pycozmo_update.py) - a tool for over-the-air (OTA) updates of Cozmo's firmware.
 - [pycozmo_protocol_generator.py](tools/pycozmo_protocol_generator.py) - a tool for generating Cozmo protocol encoder
     code.
+- [pycozmo_mcp.py](tools/pycozmo_mcp.py) - an [MCP](https://modelcontextprotocol.io/) server that lets an AI assistant look
+    through Cozmo's camera, move it in short bounded steps, light it and make it talk
+    ([specification](docs/specs/mcp-server.md); `pip install pycozmo[mcp]`).
 
 **Note**: PyCozmo and `pycozmo_protocol_generator.py` in particular could be used as a base for creating a Cozmo protocol
 encoder code generator for languages other than Python (C/C++, Java, etc.).
