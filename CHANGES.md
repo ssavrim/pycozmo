@@ -3,6 +3,10 @@ Revision History
 
 Unreleased
 ----------
+- Integrate the cube light animations and the markers in Brain: a cube that connects plays the animation `Connected`
+    (`CubeLightManager`, `Brain.play_cube_animation`); with `Brain(cli, markers=True)`, a thread (`MarkerWatcher`) looks for
+    markers in the camera images and a cube or the charger that appears posts `ObjectPositionUpdated`; a cube that moves
+    posts `CubeMoved`. The detector no longer emits warnings on a collapsed frame.
 - Declare the 13 remaining messages of the original application, which have arrays or strings (WriteBodyStorage,
     PrintText, DataDump, TimeProfileStat, IMUDataChunk, DefaultCameraParams, CrashReport, FWVersionInfo...), read from the
     unpacking functions of the original: a length on 1 byte for arrays and strings. All the messages of the original are now declared except FlashObjectIDs, which
