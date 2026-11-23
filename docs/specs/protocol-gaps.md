@@ -198,6 +198,31 @@ object identifier, then the factory identifier of the cube, on two different cub
 visible effect, and nothing says what it does. A packet with this number is received as an unknown command. The reference
 test lists it as the exception (`NOT_DECLARED`).
 
+## Which messages matter
+
+A judgment, not a measure of the original: of the 152 messages that PyCozmo declares, **53 are used by the library** (connection,
+animations, wheels, head and lift, camera, lights, state), 4 only by the examples (`RobotPoked`, `ButtonPressed`,
+`FallingStarted`, `FallingStopped`) and **95 are declared but neither sent nor listened to by the library**. Declaring a
+message documents it and decodes it; it does not make it a feature. Only `FlashObjectIDs` was removed, because it had no
+effect (see above): removing a declaration breaks the applications that import it.
+
+The 95, by what they are for (`>` to the robot, `<` from the robot):
+
+| Category | Messages |
+|---|---|
+| **Factory and test bench: never send** (19) | `>0x06` KillBodyCode, `>0x07` SetBodyRadioMode, `>0x0e` ReadBodyStorage, `>0x0f` WriteBodyStorage, `>0x12` SendDTMCommand, `>0x24` GetBodySerialNumber, `>0x46` StartControllerTestMode, `>0x47` ControllerGains, `>0xa1` TestState, `>0xa2` EnterFactoryTestMode, `>0xa3` DisplayNumber, `>0xa4` BodyStorageContents, `>0xa5` BodySerialNumber, `>0xaa` AppConnectConfigString, `>0xab` AppConnectConfigFlags, `>0xac` AppConnectConfigIPInfo, `>0xad` AppConnectGetRobotIP, `<0xd6` FactoryTestParameter, `<0xec` WiFiFlashID |
+| **Firmware update: never send** (2) | `<0xaf` FirmwareUpdate, `<0xef` FirmwareUpdateResult |
+| **Diagnostics and debugging** (13) | `<0xb1` PrintText, `<0xb2` MainCycleTimeError, `<0xb7` DataDump, `<0xbe` TimeProfileStat, `>0x80` RequestCrashReports, `<0xcf` CrashReport, `<0xd2` FWVersionInfo, `>0xa0` SetAppRunID, `>0x82` EnableWiFiTelemetry, `>0x89` DebugSetRTTO, `>0x65` GenerateTestTone, `<0xd9` RobotErrorReport, `<0xc8` DefaultCameraParams |
+| **Raw inertial data** (5): `RobotState` already has the acceleration and the gyroscope | `>0x4a` IMURequest, `<0xc7` IMURawDataChunk, `<0xbf` IMUDataChunk, `<0xdc` IMUTemperature, `<0xf4` ImageImuData |
+| **Picking up and stacking cubes, ramps and bridges** (16): features of the original games | `>0x42` DockWithObject, `>0x43` AbortDocking, `>0x44` PlaceObjectOnGround, `>0x48` DockingErrorSignal, `>0x49` SetCarryState, `>0x4f` CheckLiftLoad, `>0x55` EnableReadToolCodeMode, `>0x59` RollActionParams, `<0xb8` PickAndPlaceResult, `<0xba` RampTraverseStart, `<0xbb` RampTraverseComplete, `<0xbc` BridgeTraverseStart, `<0xbd` BridgeTraverseComplete, `<0xc5` MovingLiftPostDock, `<0xd3` DockingStatus, `<0xda` LiftLoad |
+| **Paths and actions** (5): driving with `DriveWheels` is enough | `>0x3c` ClearPath, `>0x3e` AppendPathSegArc, `>0x40` TrimPath, `<0xc4` AcknowledgeAction, `>0x58` StartMotorCalibration |
+| **Settings and safety**: useful, not needed to drive; `RobotState` carries the cliff flag | `>0x54` SetCliffDetectThreshold, `>0x60` EnableStopOnCliff, `>0x63` EnableBraceWhenFalling, `>0x50` EnableMotorPower, `>0x51` SetMotionModelParams, `>0x53` PowerState, `<0xc0` CliffEvent, `<0xc1` PotentialCliff, `<0xd4` RobotStopped, `<0xd8` MotorAutoEnabled, `<0xc2` RobotDelocalized, `<0xb3` GoalPose |
+| **Cubes and accessories**: needed as soon as an application reacts to the cubes | `<0xb4` ObjectMoved, `<0xb5` ObjectStoppedMoving, `<0xb6` ObjectTapped, `<0xb9` ObjectTapFiltered, `<0xce` ObjectPowerLevel, `<0xd7` ObjectUpAxisChanged, `>0x0a` SetAccessoryDiscovery, `>0x4e` ObjectBeingCarried, `>0x62` ObjectConnectionStateToRobot, `>0x61` ForceDelocalizeSimulatedRobot (simulator) |
+| **Simple commands left to the user**: not sent by the library, but nothing prevents sending them | `>0xa9` ShutdownRobot, `>0x52` EnterSleepMode, `>0xae` WifiOff, `>0x8d` AbortAnimation, `>0x96` AnimEventToRTIP, `>0x02` BackpackSetLayer, `>0x01` AdjustTimestamp, `>0x33` TurnInPlaceAtSpeed, `>0x39` TurnInPlace, `>0x3a` TurnInPlaceAtAngularSpeed, `>0x38` HeadAngleUpdate, `>0x57` SetCameraParams, `>0x5a` CameraFOVInfo |
+
+Where the library should not be extended: the first two categories (nothing above the declaration) and the debugging and
+inertial ones. Where it may be: the cubes, the settings and safety, and the simple commands, as an application needs them.
+
 ## Messages with arrays and strings
 
 The 13 messages that were left out of the first declaration (the automatic extraction of the layouts did not follow
