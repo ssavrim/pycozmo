@@ -134,6 +134,10 @@ and **must not be sent to a robot**.
 - `CliffEvent` (0xc0) and `RobotStopped` (0xd4): received while the robot drove at 20 mm/s and was lifted from
   the floor (not by lifting it at rest): `CliffEvent` x5 (`unknown0` 1650, `unknown1` 3, `unknown2` True) and `RobotStopped`
   x3 (`unknown0` 1). The meaning of the fields is not known (1650 looks like a sensor value). `PotentialCliff` was not received.
+- `SetCliffDetectThreshold` (0x54): sent with 0, 100, 300, 600, 1000, 1500, 2500, 4000 and 0 to a robot at rest on the floor.
+  The robot kept answering (no error), but neither the cliff flag of `RobotState` (always off) nor the raw cliff values
+  (`cliff_data_raw` about 922, 0, 0, 0) changed: the effect of the threshold could not be observed at rest, and the default
+  value is still not known. The robot has to be restarted afterwards.
 
 ## Messages not declared
 
