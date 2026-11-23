@@ -25,6 +25,21 @@ class TestTableMemory(unittest.TestCase):
         self.assertLessEqual(t.backup_room(0, 0, math.pi, 1), 5.0)   # turned around: nothing known that way
         self.assertEqual(t.backup_room(0, 0, 0, 2), 0.0)            # another origin: nothing known
 
+    def test_a_drifting_heading_needs_a_wider_tolerance_to_back_up(self):
+        """ The rear corners move sideways by a few millimeters when the heading drifts while backing up. """
+        t = TableMemory()
+        for x in range(0, 201, 10):
+            t.note_pose(x, 0, 0, 1)
+        heading, y = math.radians(6.0), 3.0                        # 6 degrees of drift and 3 mm to the side
+        strict = t.backup_room(143, y, heading, 1)
+        wide = t.backup_room(143, y, heading, 1, lateral_tolerance_mm=10.0)
+        self.assertLess(strict, 60.0)
+        self.assertGreater(wide, strict)
+        self.assertGreaterEqual(wide, 60.0)                         # 65 mm: the corners are 12 mm to the side at 120 mm
+        self.assertFalse(t.on_floor(0.0, 33.0))                    # 5.9 mm outside the strip
+        self.assertTrue(t.on_floor(0.0, 33.0, lateral_tolerance_mm=10.0))
+        self.assertFalse(t.on_floor(-70.0, 0.0, lateral_tolerance_mm=10.0))      # along the robot, nothing changes
+
     def test_a_new_origin_forgets_floor_and_edges(self):
         t = TableMemory()
         t.note_pose(0, 0, 0, 1)

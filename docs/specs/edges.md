@@ -37,6 +37,10 @@ origin and both memories are forgotten (Specified).
 
 - `backup_room(x, y, heading, origin, limit_mm)`: how far the robot can back up with its rear, center and corners, on
   floor that it has stood on (0 when nothing is known, so a robot just put down cannot back up before it has moved).
+  The rear corners lie on the edge of the strip of known floor, and the heading of the robot drifts by a few degrees while
+  it backs up (up to 6 degrees were seen on a table), which moves them sideways by several millimeters. `backup_room` takes a
+  `lateral_tolerance_mm` (5 mm by default, as for the other checks); the MCP server uses 10 mm, an assumed value,
+  validated on a robot, on the floor and at a table edge (see docs/specs/mcp-server.md): with 5 mm a backward move stopped after 31 mm on a floor of 205 mm.
 - `can_turn(x, y, origin, now)`: whether the body can turn on the spot without swinging over a known edge, that is whether
   the nearest known edge is farther than the corner of the body that is the farthest from the center of the turn
   (`SWEEP_MM` = 60.4 mm) plus 15 mm.
@@ -66,7 +70,7 @@ The commands are `('wheels', left, right)` in mm/s, `('stop',)`, `('react', situ
 | Rules of the memories, the checks and the reflex | Specified (tested offline, 16 tests) |
 | Footprint, sensor position, speeds, margins and times | Assumed: measured on one robot (firmware 2381) in Cozmonaute, not derived from the original |
 | Edges seen by the sides or the back | Not done: only the front sensor exists |
-| Use in the MCP server (`drive`, `turn`) | Not done in this change |
+| Use in the MCP server (`drive`, `turn`) | Done and validated on a robot at a table edge (docs/specs/mcp-server.md) |
 | On a robot (`--tests edges`, 2026-11-23, firmware 2381) | Validated once, see below |
 
 ## Validation on a robot

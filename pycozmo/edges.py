@@ -152,20 +152,30 @@ class TableMemory:
         """ Whether the body can turn on the spot at this position without swinging over a known edge. """
         return self.edge_distance(x, y, origin, now) >= SWEEP_MM + TURN_MARGIN_MM
 
-    def on_floor(self, px: float, py: float) -> bool:
-        """ Whether a point is within the footprint of a recorded pose. """
+    def on_floor(self, px: float, py: float, lateral_tolerance_mm: float = FLOOR_TOLERANCE_MM) -> bool:
+        """
+        Whether a point is within the footprint of a recorded pose, with a tolerance around it (FLOOR_TOLERANCE_MM along
+        the robot, and ``lateral_tolerance_mm`` across it).
+        """
         for x, y, heading in self.poses:
             c, s = math.cos(heading), math.sin(heading)
             dx, dy = px - x, py - y
             along, across = dx * c + dy * s, -dx * s + dy * c
             if (-REAR_MM - FLOOR_TOLERANCE_MM <= along <= FRONT_MM + FLOOR_TOLERANCE_MM
-                    and abs(across) <= HALF_WIDTH_MM + FLOOR_TOLERANCE_MM):
+                    and abs(across) <= HALF_WIDTH_MM + lateral_tolerance_mm):
                 return True
         return False
 
     def backup_room(self, x: float, y: float, heading: float, origin: int,
-                    limit_mm: float = 100.0, step_mm: float = 5.0) -> float:
-        """ How far the robot can back up with its rear on floor that it has stood on (0 if none is known). """
+                    limit_mm: float = 100.0, step_mm: float = 5.0,
+                    lateral_tolerance_mm: float = FLOOR_TOLERANCE_MM) -> float:
+        """
+        How far the robot can back up with its rear on floor that it has stood on (0 if none is known).
+
+        The rear corners are on the edge of the known strip, so the heading of the robot, which drifts by a few degrees
+        while it backs up, moves them sideways by several millimeters: ``lateral_tolerance_mm`` is how far to the side
+        of the strip they may be.
+        """
         if origin != self.origin or not self.poses:
             return 0.0
         c, s = math.cos(heading), math.sin(heading)
@@ -175,7 +185,7 @@ class TableMemory:
             # The rear center and the rear corners: local (-back, across) in the world frame.
             points = [(x - back * c - across * s, y - back * s + across * c)
                       for across in (-HALF_WIDTH_MM, 0.0, HALF_WIDTH_MM)]
-            if not all(self.on_floor(px, py) for px, py in points):
+            if not all(self.on_floor(px, py, lateral_tolerance_mm) for px, py in points):
                 break
             room, d = d, d + step_mm
         return room
