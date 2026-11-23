@@ -4,7 +4,7 @@ Brain class - high level behavior and emotion engine.
 
 """
 
-from threading import Thread
+from threading import RLock, Thread
 from queue import Queue, Empty
 import time
 
@@ -14,6 +14,7 @@ from .logger import logger, logger_reaction, logger_behavior
 from . import client
 from . import event
 from . import emotions
+from . import needs
 from . import behavior
 from . import activity
 from . import util
@@ -28,10 +29,16 @@ __all__ = [
 class Brain:
     """ Cozmo robot brain class. """
 
-    def __init__(self, cli: client.Client):
+    def __init__(self, cli: client.Client, freeplay: bool = False):
+        """
+        ``freeplay`` lets the brain choose and run behaviors by itself, from the freeplay activities, when no reaction
+        is running. It is off by default: the brain then only reacts.
+        """
         super().__init__()
 
         self.cli = cli
+        self.freeplay = freeplay
+        self._lock = RLock()
 
         # TODO: Load configuration. See cozmo_resources/config/features.json
 
@@ -41,12 +48,15 @@ class Brain:
         resource_dir = str(util.get_cozmo_asset_dir())
         self.activities = activity.load_activities(resource_dir)
         self.behaviors = behavior.load_behaviors(resource_dir, self.cli)
-        self.reaction_triggers: dict[str, list[behavior.ReactionTrigger]] = {}
-        for trigger in behavior.load_reaction_triggers(resource_dir):
-            self.reaction_triggers.setdefault(trigger.name, []).append(trigger)
         self.emotion_types = emotions.load_emotion_types(resource_dir)
         self.emotion_events = emotions.load_emotion_events(resource_dir)
         self.mood = emotions.Mood(self.emotion_types, self.emotion_events)
+        self.needs = needs.NeedsModel(needs.load_needs_config(resource_dir))
+        self.context = activity.SelectionContext(
+            needs=self.needs, mood=self.mood, runnable=self.is_behavior_runnable,
+            running=self.is_behavior_running, running_reaction=lambda: self.running_reaction)
+        self.reaction_manager = behavior.ReactionTriggerManager(
+            behavior.load_reaction_triggers(resource_dir), self.context)
         self.cli.load_anims()
         logger.info("Loaded resources in {:.02f} s.".format(time.perf_counter() - start_time))
 
@@ -67,8 +77,12 @@ class Brain:
 
         # Current activity
         self.activity = self.activities["Freeplay"]
-        # Current behavior
+        # Container of the freeplay activities, that chooses the behaviors.
+        self.freeplay_activity = self.activities.get("StrictPriorityFreeplay")
+        # Current behavior, the reaction trigger that runs it (if any) and the chooser that chose it (if any)
         self.behavior: behavior.Behavior | None = None
+        self.running_reaction: str | None = None
+        self.behavior_chooser: activity.BehaviorChooser | None = None
 
     def start(self) -> None:
         # Connect to robot
@@ -169,30 +183,76 @@ class Brain:
             logger_reaction.warning("Failed to find emotion event for {}.".format(reaction_trigger))
 
     def process_reaction(self, reaction_trigger: str) -> None:
-        entries = self.reaction_triggers.get(reaction_trigger, [])
-        reaction = behavior.select_reaction_trigger(entries, self.mood.values())
-        if reaction:
-            # TODO: Handle should_resume_last.
-            self.activate_behavior(reaction.behavior_id)
-        else:
-            logger_reaction.error("Failed to find reaction for {}.".format(reaction_trigger))
+        """ Tell the reaction trigger manager about a trigger and run the reaction that fires. """
+        self.reaction_manager.notify(reaction_trigger)
+        self.check_reactions()
 
-    def activate_behavior(self, behavior_id: str) -> None:
-        behavior = self.behaviors.get(behavior_id)
-        if behavior:
-            self.deactivate_behavior()
-            logger_behavior.info("Activating {}".format(behavior_id))
-            self.behavior = behavior
-            self.cli.activate_behavior(self.behavior)
-        else:
-            logger_reaction.error("Failed to find behavior {}.".format(behavior_id))
+    def check_reactions(self) -> str | None:
+        """ Run the reaction that fires now (the last one, when several do). Returns its behavior identifier. """
+        with self._lock:
+            fired = self.reaction_manager.check(self.context)
+            if not fired:
+                return None
+            # TODO: Handle should_resume_last.
+            entry = fired[-1]
+            logger_reaction.info("Reaction {} -> {}".format(entry.name, entry.behavior_id))
+            self.activate_behavior(entry.behavior_id, reaction_trigger=entry.name)
+            return entry.behavior_id
+
+    def is_behavior_running(self, behavior_id: str) -> bool:
+        return self.behavior is not None and self.behavior.get_id() == behavior_id
+
+    def is_behavior_runnable(self, behavior_id: str) -> bool:
+        """ Whether a behavior can be chosen: it is implemented and, to drive off the charger, the robot is on it. """
+        candidate = self.behaviors.get(behavior_id)
+        if candidate is None or type(candidate) is behavior.Behavior:
+            return False
+        if behavior_id == "DriveOffCharger":
+            return bool(self.cli.robot_status & robot.RobotStatusFlag.IS_ON_CHARGER)
+        return True
+
+    def choose_behavior(self) -> str | None:
+        """ Choose and run the next behavior of the freeplay, when nothing runs. Returns its identifier. """
+        with self._lock:
+            if self.behavior is not None or self.freeplay_activity is None:
+                return None
+            behavior_id = self.freeplay_activity.choose(self.context, self.activities)
+            if behavior_id is None:
+                return None
+            sub_activity = self.activities.get(getattr(self.freeplay_activity, "current", None) or "")
+            chooser = sub_activity.get_chooser() if sub_activity is not None else None
+            logger_behavior.info("Freeplay chose {}".format(behavior_id))
+            self.activate_behavior(behavior_id, chooser=chooser)
+            return behavior_id
+
+    def activate_behavior(
+            self, behavior_id: str, reaction_trigger: str | None = None,
+            chooser: activity.BehaviorChooser | None = None) -> None:
+        with self._lock:
+            new_behavior = self.behaviors.get(behavior_id)
+            if new_behavior:
+                self.deactivate_behavior()
+                logger_behavior.info("Activating {}".format(behavior_id))
+                self.behavior = new_behavior
+                self.running_reaction = reaction_trigger
+                self.behavior_chooser = chooser
+                if chooser is not None:
+                    chooser.started(behavior_id)
+                self.cli.activate_behavior(self.behavior)
+            else:
+                logger_reaction.error("Failed to find behavior {}.".format(behavior_id))
 
     def deactivate_behavior(self) -> None:
-        if self.behavior:
-            logger_behavior.info("Deactivating {}".format(self.behavior.get_id()))
-            self.cli.deactivate_behavior(self.behavior)
-            self.behavior = None
-            # TODO: Choose behavior from activity?
+        with self._lock:
+            if self.behavior:
+                behavior_id = self.behavior.get_id()
+                logger_behavior.info("Deactivating {}".format(behavior_id))
+                self.cli.deactivate_behavior(self.behavior)
+                if self.behavior_chooser is not None:
+                    self.behavior_chooser.stopped(behavior_id)
+                self.behavior = None
+                self.running_reaction = None
+                self.behavior_chooser = None
 
     def heartbeat_thread_run(self) -> None:
         """ Heartbeat thread loop. """
@@ -208,11 +268,24 @@ class Brain:
             self.update_emotion_types()
             # TODO: Timers
 
+            if cnt % robot.FRAME_RATE == 0:
+                self.tick()
+
             if cnt % (30 * 60) == 0:
                 self.post_reaction("Hiccup")
 
             cnt += 1
             timer.sleep()
+
+    def tick(self) -> None:
+        """ Once per second: update the needs, check the reactions that depend on the state, and choose a behavior. """
+        try:
+            self.needs.update()
+            self.check_reactions()
+            if self.freeplay:
+                self.choose_behavior()
+        except Exception as e:
+            logger.error("Failed to tick the brain. {}".format(e))
 
     def update_emotion_types(self) -> None:
         """ Update emotion types from their decay functions. """

@@ -381,12 +381,19 @@ def test_brain(cli, state, report, ctx):
     for confidence in (0.0, -0.7, -0.95):
         brain.deactivate_behavior()
         brain.mood.emotion_types["Confident"].set(confidence)
-        brain.process_reaction("Frustration")
+        brain.check_reactions()
         got[confidence] = brain.behavior.get_id() if brain.behavior else None
         time.sleep(3.0)
     brain.deactivate_behavior()
     expected = {0.0: None, -0.7: "ReactToFrustrationMinor", -0.95: "ReactToFrustrationMajor"}
     report.add("brain", "PASS" if got == expected else "FAIL", reactions={str(k): v for k, v in got.items()})
+    # Freeplay: with nothing running and no frustration, the brain chooses an implemented behavior by itself.
+    brain.emotion_types["Confident"].set(0.0)
+    brain.freeplay = True
+    chosen = brain.choose_behavior()
+    time.sleep(3.0)
+    brain.deactivate_behavior()
+    report.add("brain:freeplay", "PASS" if chosen is not None else "FAIL", chosen=chosen)
 
 
 def test_mood(cli, state, report, ctx):

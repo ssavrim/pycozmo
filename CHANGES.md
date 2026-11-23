@@ -3,6 +3,11 @@ Revision History
 
 Unreleased
 ----------
+- Use the needs, the mood, the reaction triggers and the behavior selection in Brain: it updates the needs, runs the
+    reaction that ReactionTriggerManager fires (Frustration now picks the minor or the major reaction from the
+    Confident emotion), lets a reaction interrupt the running behavior, and, with Brain(cli, freeplay=True), chooses
+    the next behavior of the freeplay when nothing runs. Brain.reaction_trigger_beahvior_map is replaced by
+    Brain.reaction_manager. Add select_reaction_trigger.
 - Decide which reaction triggers fire (docs/specs/reaction-triggers.md): ReactionTriggerManager, with the
     parameters of FistBump and Frustration read by ReactionTrigger, and load_reaction_triggers, which keeps the
     entries that share a trigger (load_reaction_trigger_behavior_map keeps the last one). SelectionContext gains the
