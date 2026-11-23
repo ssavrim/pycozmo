@@ -1,10 +1,13 @@
 # Cube light patterns
 
 How the light patterns of the cubes (`config/engine/lights/cubeLights`) are read, turned into the packets of the
-cube, and played one after the other. Implemented in `pycozmo/cube_lights.py`.
+cube, and played one after the other. Implemented in `pycozmo/lights.py` (colors, frames, LED states) and
+`pycozmo/cube_lights.py` (files and playback).
 
 Confidence: **Specified** (precise rule, tested), **Assumed** (reasonable choice, may differ from the original),
 **Not modeled**.
+
+Implemented in `pycozmo/lights.py` (colors, frames, LED states) and `pycozmo/cube_lights.py` (files and playback).
 
 ## Files
 

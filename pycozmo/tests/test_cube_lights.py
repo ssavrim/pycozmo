@@ -5,12 +5,11 @@ import tempfile
 import unittest
 from typing import Any
 
-import numpy as np
-
-from pycozmo import cube_lights
 from pycozmo.cube_lights import (
-    CubeLightPlayer, LightAnimation, LightPattern, encode_color, load_cube_animation_triggers,
-    load_cube_light_animations, ms_to_frames, offset_to_frames, pattern_to_light_states, white_balance)
+    CubeLightPlayer, LightAnimation, LightPattern, load_cube_animation_triggers, load_cube_light_animations,
+    pattern_to_light_states)
+from pycozmo import lights
+from pycozmo.lights import encode_color, ms_to_frames
 from pycozmo.tests.test_mood_needs import Clock
 
 
@@ -34,30 +33,7 @@ def pattern(duration: int = 0, overridable: bool = True, **changes: Any) -> Ligh
     return LightPattern.from_json(entry(duration, overridable, **changes))
 
 
-class TestEncoding(unittest.TestCase):
-
-    def test_frames(self):
-        self.assertEqual([ms_to_frames(x) for x in (0, 1, 30, 31, 100, 5000)], [0, 1, 1, 2, 4, 167])
-        self.assertEqual(ms_to_frames(-1), 255)
-        self.assertEqual(ms_to_frames(cube_lights.SOLID_PERIOD), 69)       # 71582789, kept on 8 bits
-        self.assertEqual([offset_to_frames(x) for x in (0, 1, 30, 31, -30, -1)], [0, 1, 1, 2, 0, 255])
-
-    def test_white_balance(self):
-        self.assertEqual(white_balance((0, 255, 255, 255)), (0, 255, 255, 255))      # no red: unchanged
-        r, g, b, a = white_balance((255, 255, 255, 255))
-        scaled = int(np.float32(np.float32(np.float32(255) * np.float32(0.003921569)) * np.float32(0.6))
-                     * np.float32(255.0))
-        self.assertEqual((r, g, b, a), (255, scaled, scaled, 255))
-        self.assertIn(scaled, (152, 153))
-        self.assertEqual(white_balance((10, 0, 0, 255)), (10, 0, 0, 255))
-
-    def test_color(self):
-        self.assertEqual(encode_color((255, 0, 0, 0)), 31 << 10)
-        self.assertEqual(encode_color((0, 255, 0, 0)), 31 << 5)
-        self.assertEqual(encode_color((0, 0, 255, 0)), 31)
-        self.assertEqual(encode_color((0, 0, 0, 255)), 0x8000)
-        self.assertEqual(encode_color((8, 0, 0, 0)), 1 << 10)       # divided by 8, not scaled
-        self.assertEqual(encode_color((7, 0, 0, 0)), 0)
+class TestPatternToStates(unittest.TestCase):
 
     def test_pattern(self):
         states, rotation = pattern_to_light_states(pattern(rotationPeriod_ms=100, offset=[0, 30, 31, 0]))
@@ -73,7 +49,7 @@ class TestEncoding(unittest.TestCase):
             onColors=[[255, 0, 0, 255], [255, 0, 0, 255], [255, 0, 0, 255], [255, 0, 0, 255]],
             offColors=[[0, 0, 255, 255], [0, 0, 255, 255], [0, 0, 255, 255], [0, 0, 255, 255]],
             onPeriod_ms=[0, 0, 100, 100], offPeriod_ms=[0, 50, 0, 50]))
-        solid_frames = ms_to_frames(cube_lights.SOLID_PERIOD)
+        solid_frames = ms_to_frames(lights.SOLID_PERIOD)
         red, blue = encode_color((255, 0, 0, 255)), encode_color((0, 0, 255, 255))
         # Both periods 0: black. Only the on period 0: the off color. Only the off period 0: the on color.
         self.assertEqual((states[0].on_color, states[0].off_color), (0, 0))
