@@ -530,7 +530,9 @@ class Client(event.Dispatcher):
         self.set_backpack_lights(lights.off_light, light, light, light, lights.off_light)
 
     def set_all_backpack_lights(self, light: protocol_encoder.LightState) -> None:
-        self.set_backpack_lights(light, light, light, light, light)
+        """ Set the five backpack lights. The left and right LEDs are red only: they stay off for white and grey. """
+        side = lights.side_light(light)
+        self.set_backpack_lights(side, light, light, light, side)
 
     def set_backpack_lights_off(self) -> None:
         self.set_backpack_lights(lights.off_light, lights.off_light, lights.off_light,
