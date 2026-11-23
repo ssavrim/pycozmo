@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights")
+    "brainreact", "cubelights", "markers")
 
 
 class State:
@@ -458,6 +458,50 @@ def test_brainreact(cli, state, report, ctx):
     report.add("brainreact", "PASS" if "ReactToPickup" in seen else "FAIL", behaviors=seen)
 
 
+def test_markers(cli, state, report, ctx):
+    """ Recognize the markers of the cubes and of the charger in the images of the robot camera. """
+    import collections
+    import numpy as np
+    from pycozmo import markers
+    print("\nmarkers: recognition of the markers in the camera images (put a cube in front of the robot)")
+    try:
+        library = markers.load_marker_library(str(ctx["root"]))
+    except FileNotFoundError:
+        report.add("markers", "SKIP", detail="no marker library in the resources: prepare them from the APK")
+        return
+    detector = markers.MarkerDetector(library)
+    frames: list[tuple[float, Any]] = []
+
+    def on_image(_cli, image):
+        if len(frames) < 10 and (not frames or time.monotonic() - frames[-1][0] > 0.3):
+            frames.append((time.monotonic(), np.asarray(image.convert("L"))))
+
+    cli.set_head_angle(0.0)
+    time.sleep(1.0)
+    cli.add_handler(event.EvtNewRawCameraImage, on_image)
+    cli.enable_camera(True, color=False)
+    deadline = time.monotonic() + 15.0
+    while len(frames) < 10 and time.monotonic() < deadline:
+        time.sleep(0.1)
+    cli.del_handler(event.EvtNewRawCameraImage, on_image)
+    cli.enable_camera(False)
+    if not frames:
+        report.add("markers", "FAIL", detail="no image")
+        return
+    counts: collections.Counter = collections.Counter()
+    with_marker = 0
+    started = time.monotonic()
+    for _, gray in frames:
+        found = detector.detect(gray)
+        with_marker += bool(found)
+        counts.update(m.name for m in found)
+    per_frame = (time.monotonic() - started) / len(frames)
+    for name, count in counts.most_common():
+        print("   {} in {} of {} images".format(name, count, len(frames)))
+    report.add("markers", "PASS" if with_marker * 2 >= len(frames) else "FAIL", images=len(frames),
+               with_marker=with_marker, seconds_per_image=round(per_frame, 2), markers=dict(counts))
+
+
 def test_brain(cli, state, report, ctx):
     """ Make the brain react to a frustration with two levels of confidence and check the reaction it runs. """
     print("\nbrain: frustration reactions chosen from the confidence")
@@ -557,7 +601,8 @@ def main():
             report.add(name, "SKIP", detail="--no-motion")
         elif name in ("face", "sound", "clip") and ctx["lib"] is None:
             report.add(name, "SKIP", detail="needs --resources and pycozmo.anim_library")
-        elif name in ("needs", "mood", "select", "react", "brain", "brainreact", "cubelights") and ctx["root"] is None:
+        elif name in ("needs", "mood", "select", "react", "brain", "brainreact", "cubelights", "markers") and (
+                ctx["root"] is None):
             report.add(name, "SKIP", detail="needs --resources")
         elif name == "sound" and not args.vgmstream:
             report.add(name, "SKIP", detail="needs --vgmstream")

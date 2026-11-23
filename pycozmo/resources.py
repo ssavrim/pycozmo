@@ -448,6 +448,27 @@ def _tool_version() -> str:
     return __version__
 
 
+def _prepare_marker_library(src: "_Source", tmp: pathlib.Path, warnings: List[str]) -> None:
+    """ Read the library of marker symbols from the engine library of the APK, when there is one. """
+    from . import markers
+    if src.apk is None:
+        warnings.append("The marker library was not prepared: it needs the APK.")
+        return
+    try:
+        engine = src.apk.read(markers.ENGINE_LIBRARY)
+    except KeyError:
+        warnings.append("The marker library was not prepared: {} is not in the APK.".format(markers.ENGINE_LIBRARY))
+        return
+    try:
+        library = markers.extract_marker_library(engine)
+    except ValueError as e:
+        warnings.append("The marker library was not prepared: {}".format(e))
+        return
+    filename = tmp / markers.LIBRARY_FILENAME
+    filename.parent.mkdir(parents=True, exist_ok=True)
+    library.save(str(filename))
+
+
 def prepare(source: PathLike, *, obb: Optional[PathLike] = None, dest: Optional[PathLike] = None,
             force: bool = False, include_firmware: bool = False, allow_other_version: bool = False,
             allow_other_signer: bool = False, progress: Optional[ProgressCallback] = None) -> ResourceManifest:
@@ -516,6 +537,8 @@ def prepare(source: PathLike, *, obb: Optional[PathLike] = None, dest: Optional[
             with _open_zip(audio_zip) as az:
                 _extract(az, az.infolist(), tmp / _AUDIO_DIR, "", budget, progress, "extract sound")
             audio_zip.unlink()
+
+        _prepare_marker_library(src, tmp, warnings)
 
         missing = [r for r in _REQUIRED if not (tmp / r).exists()]
         if missing:
