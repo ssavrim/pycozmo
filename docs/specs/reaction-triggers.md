@@ -20,7 +20,7 @@ behaviors (`docs/specs/behavior-selection.md`): time, randomness and the state o
 | `hiccupParams` | parameters of the Hiccup reaction (loaded, not used) |
 
 A trigger can have several entries: `Frustration` has a minor and a major one. `load_reaction_triggers` returns all the
-entries in the order of the file; `load_reaction_trigger_behavior_map` keeps only the last entry of each trigger, so `Brain` uses `load_reaction_triggers` with `select_reaction_trigger`.
+entries in the order of the file; `load_reaction_trigger_behavior_map` keeps only the last entry of each trigger, so `Brain` uses `load_reaction_triggers`. `select_reaction_trigger` picks the entry that applies to the confidence for an application that does not use the manager.
 
 ## Order
 
@@ -68,5 +68,5 @@ objective. For an objective that has parameters: nothing happens when the last f
 | Interruption of a running reaction by another trigger | Left to the application (`can_interrupt`); the rules of the original are not specified. |
 | State conditions `PlacedOnCharger`, `RobotPlacedOnSlope`, `RobotShaken` | Left to the application (`wants_to_run`). |
 | `Hiccup`, `FacePositionUpdated`, `ObjectPositionUpdated`, `CubeMoved`, `PetInitialDetection`, `NoPreDockPoses` | Treated as any other entry; their own rules are not modeled. |
-| Which robot event notifies which trigger | Left to the application (`Brain` posts them). |
+| Which robot event notifies which trigger | Left to the application (`Brain` posts them from the robot events). |
 | Comparison on a robot | See the validation in the pull request. |
