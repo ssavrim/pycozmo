@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact")
+    "brainreact", "cubelights")
 
 
 class State:
@@ -362,6 +362,62 @@ def test_react(cli, state, report, ctx):
         report.add("react:used", "FAIL", detail="the notification was not used")
 
 
+def test_cubelights(cli, state, report, ctx):
+    """ Play animations of the cube lights on a cube; the packets are checked here, the look by the operator. """
+    from pycozmo import cube_lights
+    print("\ncubelights: animations on a cube (wake the cube by moving or tapping it; no movement of the robot)")
+    animations = cube_lights.load_cube_light_animations(str(ctx["root"]))
+    cube_types = {pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE1,
+                  pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE2,
+                  pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE3}
+    deadline = time.monotonic() + 30.0
+    factory_id = None
+    while factory_id is None and time.monotonic() < deadline:
+        factory_id = next((i for i, o in list(cli.available_objects.items()) if o.object_type in cube_types), None)
+        time.sleep(0.1)
+    if factory_id is None:
+        report.add("cubelights", "FAIL", detail="no cube found within 30 s")
+        return
+    connected = threading.Event()
+    found = {}
+
+    def on_connection(_cli, pkt):
+        if pkt.factory_id == factory_id and pkt.connected:
+            found["object_id"] = pkt.object_id
+            connected.set()
+
+    handler = cli.add_handler(pycozmo.protocol_encoder.ObjectConnectionState, on_connection)
+    try:
+        cli.set_object_connection(factory_id)
+        if not connected.wait(10.0):
+            report.add("cubelights", "FAIL", detail="the cube did not connect")
+            return
+        object_id = found["object_id"]
+        sent = []
+
+        def set_lights(states, rotation):
+            sent.append(len(states))
+            cli.set_cube_lights(object_id, states, rotation_period_frames=rotation)
+
+        player = cube_lights.CubeLightPlayer(set_lights)
+        order = ("flash", "speedTapWin", "dancing_01", "pyramidFlourish", "wakeUp")
+        for name in order:
+            print("   playing {}".format(name))
+            finished = threading.Event()
+            player.play(animations[name], on_finished=finished.set)
+            end = time.monotonic() + 8.0
+            while not finished.is_set() and time.monotonic() < end:
+                player.update()
+                time.sleep(0.02)
+            time.sleep(1.5)
+        player.stop_all()
+        cli.set_cube_lights(object_id, (pycozmo.lights.off_light,) * 4)
+    finally:
+        cli.del_handler(pycozmo.protocol_encoder.ObjectConnectionState, handler)
+    report.add("cubelights", "PASS" if len(sent) >= len(order) else "FAIL", packets=len(sent), order=",".join(order),
+               look="to confirm by the operator")
+
+
 def _make_brain(cli, ctx):
     """ Create a brain on the prepared resources. """
     import tempfile
@@ -501,7 +557,7 @@ def main():
             report.add(name, "SKIP", detail="--no-motion")
         elif name in ("face", "sound", "clip") and ctx["lib"] is None:
             report.add(name, "SKIP", detail="needs --resources and pycozmo.anim_library")
-        elif name in ("needs", "mood", "select", "react", "brain", "brainreact") and ctx["root"] is None:
+        elif name in ("needs", "mood", "select", "react", "brain", "brainreact", "cubelights") and ctx["root"] is None:
             report.add(name, "SKIP", detail="needs --resources")
         elif name == "sound" and not args.vgmstream:
             report.add(name, "SKIP", detail="needs --vgmstream")
