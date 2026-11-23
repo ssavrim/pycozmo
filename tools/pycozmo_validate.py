@@ -39,6 +39,7 @@ A JSON report is written (--report).
 import argparse
 import json
 import math
+import os
 import pathlib
 import platform
 import sys
@@ -50,7 +51,8 @@ import pycozmo
 from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, robot
 
 
-ALL_TESTS = ("event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react")
+ALL_TESTS = (
+    "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain")
 
 
 class State:
@@ -359,6 +361,34 @@ def test_react(cli, state, report, ctx):
         report.add("react:used", "FAIL", detail="the notification was not used")
 
 
+def test_brain(cli, state, report, ctx):
+    """ Make the brain react to a frustration with two levels of confidence and check the reaction it runs. """
+    import tempfile
+    from pycozmo import brain as brain_module
+    print("\nbrain: frustration reactions chosen from the confidence")
+    with tempfile.TemporaryDirectory() as tmp:
+        os.symlink(os.path.abspath(str(ctx["root"])), os.path.join(tmp, "assets"))
+        previous = os.environ.get("PYCOZMO_DIR")
+        os.environ["PYCOZMO_DIR"] = tmp
+        try:
+            brain = brain_module.Brain(cli)
+        finally:
+            if previous is None:
+                del os.environ["PYCOZMO_DIR"]
+            else:
+                os.environ["PYCOZMO_DIR"] = previous
+    got = {}
+    for confidence in (0.0, -0.7, -0.95):
+        brain.deactivate_behavior()
+        brain.mood.emotion_types["Confident"].set(confidence)
+        brain.process_reaction("Frustration")
+        got[confidence] = brain.behavior.get_id() if brain.behavior else None
+        time.sleep(3.0)
+    brain.deactivate_behavior()
+    expected = {0.0: None, -0.7: "ReactToFrustrationMinor", -0.95: "ReactToFrustrationMajor"}
+    report.add("brain", "PASS" if got == expected else "FAIL", reactions={str(k): v for k, v in got.items()})
+
+
 def test_mood(cli, state, report, ctx):
     """ Feed the mood with the cliff event of the robot and check the emotion values and the penalty. """
     from pycozmo import emotions
@@ -435,7 +465,7 @@ def main():
             report.add(name, "SKIP", detail="--no-motion")
         elif name in ("face", "sound", "clip") and ctx["lib"] is None:
             report.add(name, "SKIP", detail="needs --resources and pycozmo.anim_library")
-        elif name in ("needs", "mood", "select", "react") and ctx["root"] is None:
+        elif name in ("needs", "mood", "select", "react", "brain") and ctx["root"] is None:
             report.add(name, "SKIP", detail="needs --resources")
         elif name == "sound" and not args.vgmstream:
             report.add(name, "SKIP", detail="needs --vgmstream")
