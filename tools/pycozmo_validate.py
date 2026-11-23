@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff")
+    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold")
 
 
 class State:
@@ -611,6 +611,36 @@ def test_cliff(cli, state, report, ctx):
     for name, count in sorted(seen.items()):
         print("   {} x{}: {}".format(name, count, examples[name]))
     report.add("cliff", "MEASURED", seen=dict(seen))
+
+
+def test_cliffthreshold(cli, state, report, ctx):
+    """ SetCliffDetectThreshold (0x54): change the threshold and watch the cliff flag and the raw cliff values. """
+    from pycozmo import protocol_encoder as pe, robot as rb
+    print("\ncliffthreshold: robot at rest on the floor, not moving. The threshold stays set until the robot is")
+    print("  restarted (take it off the charger or switch it off and on afterwards).")
+    if not ask("Is Cozmo resting on the floor, on a light surface, not on the charger?", False):
+        report.add("cliffthreshold", "SKIP", detail="not confirmed")
+        return
+    latest: dict = {}
+
+    def on_state(_cli, pkt):
+        latest["flag"] = bool(pkt.status & rb.RobotStatusFlag.CLIFF_DETECTED)
+        latest["raw"] = list(pkt.cliff_data_raw)
+
+    cli.add_handler(pe.RobotState, on_state)
+    results: dict = {}
+    try:
+        time.sleep(1.0)
+        print("   at start: {}".format(latest))
+        results["start"] = dict(latest)
+        for threshold in (0, 100, 300, 600, 1000, 1500, 2500, 4000, 0):
+            cli.conn.send(pe.SetCliffDetectThreshold(threshold=threshold))
+            time.sleep(1.5)
+            print("   threshold {:5d}: {}".format(threshold, latest))
+            results[threshold] = dict(latest)
+    finally:
+        cli.del_handler(pe.RobotState, on_state)
+    report.add("cliffthreshold", "MEASURED", results={str(k): v for k, v in results.items()})
 
 
 def test_brain(cli, state, report, ctx):
