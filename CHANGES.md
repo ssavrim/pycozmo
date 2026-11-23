@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Add pycozmo.edges (docs/specs/edges.md), ported from Cozmonaute: TableMemory remembers the drops that the cliff sensor saw
+    and the floor that the robot stood on (observe, backup_room, can_turn, clear_ahead), and CliffRetreat is the reflex that
+    backs off and turns away from a drop.
 - Integrate the cube light animations and the markers in Brain: a cube that connects plays the animation `Connected`
     (`CubeLightManager`, `Brain.play_cube_animation`); with `Brain(cli, markers=True)`, a thread (`MarkerWatcher`) looks for
     markers in the camera images and a cube or the charger that appears posts `ObjectPositionUpdated`; a cube that moves
