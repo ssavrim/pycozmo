@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- The MCP server uses the memory of the table edges (pycozmo.edges): it backs up only onto floor that the robot has driven
+    over, drives forward only until a known edge, turns on the spot only clear of a known edge, and stops a backward move when
+    the floor runs out (`--no-edge-guard` turns it off). `status` reports `known_edges` and `backup_room_mm`.
 - The validation tool (tools/pycozmo_validate.py) writes on the screen of the robot what the operator has to do or to watch
     (lift me, wake a cube, table edge, hand under me...), with the head raised so that it can be read.
 - Add an MCP server (pycozmo.mcp_server, tools/pycozmo_mcp.py, docs/specs/mcp-server.md; `pip install pycozmo[mcp]`) that

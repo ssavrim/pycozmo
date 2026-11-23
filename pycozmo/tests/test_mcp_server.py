@@ -32,7 +32,7 @@ class FakeClient:
         self.battery_voltage = 4.0
         self.battery_percent = 80
         self.head_angle = SimpleNamespace(radians=0.0)
-        self.pose = SimpleNamespace(position=SimpleNamespace(x=1.0, y=2.0),
+        self.pose = SimpleNamespace(position=SimpleNamespace(x=1.0, y=2.0), origin_id=1,
                                     rotation=SimpleNamespace(angle_z=SimpleNamespace(radians=math.pi / 2)))
         self.available_objects: dict[int, Any] = {}
         self.calls: list[tuple[Any, ...]] = []
@@ -43,6 +43,16 @@ class FakeClient:
     def add_handler(self, cls: Any, handler: Any) -> Any:
         self.handlers.append((cls, handler))
         return handler
+
+    def fire_state(self) -> None:
+        """ A robot state: the handlers of the state event run, as the client does at each state. """
+        for cls, handler in list(self.handlers):
+            if cls is event.EvtRobotStateUpdated:
+                handler(self)
+
+    def user_handlers(self) -> list[Any]:
+        """ The handlers other than the one of the state, which the controller keeps while it is connected. """
+        return [h for h in self.handlers if h[0] is not event.EvtRobotStateUpdated]
 
     def del_handler(self, cls: Any, handler: Any) -> None:
         self.handlers.remove((cls, handler))
@@ -89,11 +99,13 @@ class FakeClient:
         self.calls.append(("close",))
 
 
-def make(allow_drive: bool = True, limits: Limits | None = None) -> tuple[RobotController, FakeClient, Clock]:
+def make(allow_drive: bool = True, limits: Limits | None = None,
+         edge_guard: bool = False) -> tuple[RobotController, FakeClient, Clock]:
+    """ A controller on a fake robot; the edge guard is off except in TestEdgeGuard (a fresh memory cannot back up). """
     clock = Clock()
     fake = FakeClient()
     controller = RobotController(connect_fn=lambda: fake, limits=limits, allow_drive=allow_drive,
-                                 sleep=clock.sleep, clock=clock)
+                                 sleep=clock.sleep, clock=clock, edge_guard=edge_guard)
     return controller, fake, clock
 
 
@@ -287,7 +299,7 @@ class TestExpression(unittest.TestCase):
         data = self.controller.capture_image()
         self.assertEqual(data[:2], b"\xff\xd8")
         self.assertEqual(Image.open(io.BytesIO(data)).size, (8, 6))
-        self.assertEqual(self.fake.handlers, [])
+        self.assertEqual(self.fake.user_handlers(), [])
 
     def test_cubes(self):
         types = protocol_encoder.ObjectType
@@ -303,11 +315,142 @@ class TestExpression(unittest.TestCase):
             self.controller.set_cube_color(4, "white")
         with self.assertRaises(ToolError):
             self.controller.set_cube_color(3, "purple")
-        self.assertEqual(self.fake.handlers, [])
+        self.assertEqual(self.fake.user_handlers(), [])
 
     def test_no_cube(self):
         with self.assertRaises(ToolError):
             self.controller.connect_cube(wait=1.0)
+
+
+class TestEdgeGuard(unittest.TestCase):
+    """ The memory of the table edges limits the moves: docs/specs/edges.md. """
+
+    def setUp(self):
+        self.controller, self.fake, self.clock = make(edge_guard=True)
+        self.controller.connect()
+        self.fake.pose.rotation.angle_z.radians = 0.0           # facing +x, at (0, 0)
+        self.fake.pose.position.x, self.fake.pose.position.y = 0.0, 0.0
+
+    def walk(self, start: float, stop: float, step: float = 10.0) -> None:
+        """ The robot has driven over the floor from x = start to x = stop. """
+        x = start
+        while x <= stop:
+            self.controller.memory.note_pose(x, 0.0, 0.0, 1)
+            x += step
+
+    def test_a_robot_that_has_not_moved_does_not_back_up(self):
+        self.controller.memory.note_pose(0.0, 0.0, 0.0, 1)
+        with self.assertRaises(ToolError):
+            self.controller.drive(-50)
+        self.assertEqual(self.fake.calls, [])
+
+    def test_backing_up_is_limited_to_the_floor_driven_over(self):
+        self.walk(-60.0, 0.0)                                       # 60 mm of floor behind
+        result = self.controller.drive(-100, 40)
+        self.assertEqual(result["limited_by"], "known floor")
+        self.assertLessEqual(-result["distance_mm"], 65.0)
+        self.assertGreaterEqual(-result["distance_mm"], 55.0)
+
+    def test_enough_floor_does_not_limit(self):
+        self.walk(-150.0, 0.0)
+        result = self.controller.drive(-50, 40)
+        self.assertEqual(result["distance_mm"], -50.0)
+        self.assertNotIn("limited_by", result)
+
+    def test_forward_stops_before_a_known_edge(self):
+        self.controller.memory.note_edge(150.0, 0.0, 0.0, 1, 0.0)     # the drop is at x = 170
+        result = self.controller.drive(200, 40)
+        self.assertEqual(result["limited_by"], "known edge")
+        self.assertLess(result["distance_mm"], 150.0)
+        self.assertGreater(result["distance_mm"], 60.0)
+
+    def test_an_edge_just_ahead_refuses_to_drive_forward(self):
+        self.controller.memory.note_edge(0.0, 0.0, 0.0, 1, 0.0)
+        with self.assertRaises(ToolError):
+            self.controller.drive(50)
+        self.assertEqual(self.fake.calls, [])
+
+    def test_no_edge_forward_is_not_limited(self):
+        result = self.controller.drive(100, 40)
+        self.assertEqual(result["distance_mm"], 100.0)
+        self.assertNotIn("limited_by", result)
+
+    def test_turning_needs_a_clear_distance_from_a_known_edge(self):
+        self.controller.memory.note_edge(0.0, 0.0, 0.0, 1, 0.0)
+        with self.assertRaises(ToolError):
+            self.controller.turn(90)
+        self.assertEqual(self.fake.calls, [])
+        self.fake.pose.position.x = -60.0                           # backed off
+        self.assertEqual(self.controller.turn(90)["angle_deg"], 90.0)
+
+    def test_backing_stops_when_the_floor_runs_out(self):
+        self.walk(-100.0, 0.0)
+        original_sleep = self.controller._sleep
+
+        def sleep(seconds: float) -> None:
+            original_sleep(seconds)
+            self.fake.pose.position.x = -100.0                      # the robot is at the farthest pose that it recorded
+
+        self.controller._sleep = sleep
+        result = self.controller.drive(-80, 20)
+        self.assertEqual(result["stopped_by"], "unknown floor")
+        self.assertEqual(self.fake.calls[-1], ("stop",))
+
+    def test_the_cliff_flag_of_a_state_records_an_edge(self):
+        self.fake.robot_status = robot.RobotStatusFlag.CLIFF_DETECTED
+        self.clock.now = 10.0
+        self.fake.fire_state()
+        self.assertEqual(len(self.controller.memory.edges), 1)
+        status = self.controller.status()
+        self.assertEqual(status["known_edges"], 1)
+        self.assertTrue(status["edge_guard"])
+
+    def test_states_record_the_floor(self):
+        for x in range(0, 120, 20):                                 # drives forward: the floor is behind it
+            self.fake.pose.position.x = float(x)
+            self.fake.fire_state()
+        self.assertGreater(self.controller.status()["backup_room_mm"], 0.0)
+
+    def test_a_robot_at_a_cliff_can_back_up_but_not_drive_or_turn(self):
+        self.walk(-100.0, 0.0)
+        self.fake.robot_status = robot.RobotStatusFlag.CLIFF_DETECTED
+        for call in (lambda: self.controller.drive(50), lambda: self.controller.turn(90)):
+            with self.assertRaises(ToolError):
+                call()
+        self.assertEqual(self.fake.calls, [])
+        result = self.controller.drive(-50, 40)             # the way out of the edge
+        self.assertEqual(result["distance_mm"], -50.0)
+        self.assertIsNone(result["stopped_by"])             # the sensor is over the drop while it backs: not a stop
+        self.assertEqual(self.fake.calls[0], ("drive", -40.0, -40.0))
+
+    def test_a_robot_at_a_cliff_without_known_floor_cannot_back_up(self):
+        self.fake.robot_status = robot.RobotStatusFlag.CLIFF_DETECTED
+        with self.assertRaises(ToolError):
+            self.controller.drive(-50)
+        self.assertEqual(self.fake.calls, [])
+
+    def test_without_the_guard_a_cliff_stops_everything(self):
+        controller, fake, _ = make(edge_guard=False)
+        controller.connect()
+        fake.robot_status = robot.RobotStatusFlag.CLIFF_DETECTED
+        with self.assertRaises(ToolError):
+            controller.drive(-50)
+
+    def test_the_guard_can_be_turned_off(self):
+        controller, fake, _ = make(edge_guard=False)
+        controller.connect()
+        self.assertEqual(controller.drive(-50, 25)["distance_mm"], -50.0)
+        self.assertFalse(controller.status()["edge_guard"])
+
+    def test_a_new_connection_forgets_the_edges(self):
+        self.controller.memory.note_edge(100.0, 0.0, 0.0, 1, 0.0)
+        self.controller.disconnect()
+        self.controller.connect()
+        self.assertEqual(len(self.controller.memory.edges), 0)
+
+    def test_disconnect_removes_the_state_handler(self):
+        self.controller.disconnect()
+        self.assertEqual(self.fake.handlers, [])
 
 
 @unittest.skipUnless(importlib.util.find_spec("mcp"), "the mcp package is not installed")

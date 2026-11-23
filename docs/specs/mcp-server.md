@@ -52,6 +52,14 @@ The robot is a physical object, so the movements are limited by the server, not 
   raise the first two, up to 220 mm/s and 1000 mm). The wheels stop by themselves at the end of the movement.
 - The wheels do not start when the robot is picked up or detects a cliff, and a movement in progress stops within 50 ms
   of a pick up or a cliff, and when anything fails (the stop is sent in all cases).
+- **Table edges** (`--no-edge-guard` turns it off; docs/specs/edges.md). The server keeps a `TableMemory` that the robot
+  state feeds: the floor that the robot has driven over, and the drops that its cliff sensor saw. Backing up is limited to
+  that floor (a robot that has not moved yet cannot back up: drive forward or turn first), forward driving stops before a
+  known edge (and is refused when the edge is just ahead), turning on the spot is refused when a known edge is within
+  reach of the body, and a backward move stops by itself when the floor behind it runs out (`stopped_by` "unknown floor").
+  A robot that stopped at a cliff may still back up, within that floor, which is how it leaves the edge; it cannot drive
+  forward or turn until the sensor no longer sees a drop. `status` gives `known_edges` and `backup_room_mm`; a `drive` that was shortened says why in `limited_by`. The memory is
+  forgotten when the robot is picked up or when the connection is made again.
 - There is no continuous driving, no path and no go-to-pose tool, and no tool that sends raw packets or changes a setting
   of the robot (cliff threshold, motor power, factory messages).
 - Numbers that are not finite and text that is too long are refused; an unknown color is refused with the list of colors.
@@ -61,6 +69,8 @@ A tool that fails returns an error with its reason (not connected, picked up, cl
 
 ## Not done
 
+- Only the front cliff sensor exists, so the sides and the back of the robot are watched only through the floor that it
+  has driven over.
 - The server does not follow the battery: the assistant can read it in `status`. It does not drive the robot back to the
   charger.
 - No streaming of images and no events: the assistant asks for an image when it wants one.
@@ -80,3 +90,12 @@ A tool that fails returns an error with its reason (not connected, picked up, cl
 - On a robot (2026-11-23): `drive` of 100 mm at 20 mm/s, the operator picked the robot up while it rolled: the wheels
   stopped (the robot had moved 22 mm), the answer was `stopped_by: "cliff"` (the cliff sensor reacted before the picked up
   flag), `status` showed `cliff_detected`, and the next `drive` was refused with "A cliff is detected".
+- On a robot, on a table (2026-11-23, through the MCP client, the operator did not touch the robot): the robot was put about
+  15 cm from the edge, facing it. `status` showed no known edge and a backup room of 0, and `drive` backward was refused (unknown
+  floor). Two forward `drive` calls at 15 mm/s stopped at the drop after 168.6 mm (`stopped_by` cliff): one edge known, a
+  backup room of 100 mm. At the edge `drive` forward and `turn` were refused ("it can only back up"). `drive` of -100 mm then ran
+  in full, and `turn` of 90 degrees was allowed. The wheels stayed on the table all along.
+- Two defects were found and fixed with this test: a robot at the edge could not back up (every move was refused), and a
+  backward move stopped after 31 mm on 205 mm of known floor, because the drift of the heading (up to 6 degrees) moved the rear
+  corners out of the strip by more than 5 mm; the lateral tolerance of the backward check is now 10 mm (checked on the floor,
+  then on the table). This is one robot on one table: the margins were not measured on other surfaces or edges.

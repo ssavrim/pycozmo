@@ -21,6 +21,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from . import edges
 from . import event
 from . import lights
 from . import protocol_encoder
@@ -72,6 +73,11 @@ CUBE_TYPES = frozenset((protocol_encoder.ObjectType.Block_LIGHTCUBE1, protocol_e
                         protocol_encoder.ObjectType.Block_LIGHTCUBE3))
 #: Poll interval of a movement, in seconds: how fast a pick up or a cliff stops it.
 POLL_INTERVAL = 0.05
+#: A move that the edges leave less than this many millimeters is refused.
+MIN_STEP_MM = 10.0
+#: How far to the side of the floor that it has driven over the rear corners of the robot may be when it backs up (mm):
+#: its heading drifts by a few degrees while it backs, which moves the corners sideways (docs/specs/edges.md).
+BACKUP_TOLERANCE_MM = 10.0
 
 
 class RobotController:
@@ -80,15 +86,20 @@ class RobotController:
 
     ``connect_fn`` returns a connected client (by default, one that connects to the robot at ``robot_addr``).
     ``allow_drive=False`` makes the wheels unusable: the robot can still be looked at, spoken to and its head, lift and
-    lights moved.
+    lights moved. ``edge_guard`` (on by default) uses the memory of the table edges (docs/specs/edges.md): the robot
+    backs up only onto floor that it has driven over, drives forward only until a known edge, and turns on the spot only
+    clear of a known edge.
     """
 
     def __init__(
             self, connect_fn: Callable[[], Any] | None = None, limits: Limits | None = None, allow_drive: bool = True,
             robot_addr: tuple[str, int] | None = None, sleep: Callable[[float], None] = time.sleep,
-            clock: Callable[[], float] = time.monotonic) -> None:
+            clock: Callable[[], float] = time.monotonic, edge_guard: bool = True) -> None:
         self.limits = limits or Limits()
         self.allow_drive = allow_drive
+        self.edge_guard = edge_guard
+        self.memory = edges.TableMemory()
+        self._state_handler: Any = None
         self._connect_fn = connect_fn or (lambda: _connect(robot_addr))
         self._sleep = sleep
         self._clock = clock
@@ -112,6 +123,8 @@ class RobotController:
                     self._cli = self._connect_fn()
                 except Exception as e:
                     raise ToolError("Failed to connect to the robot: {}".format(e)) from e
+                self.memory = edges.TableMemory()
+                self._state_handler = self._cli.add_handler(event.EvtRobotStateUpdated, self._on_state)
             return self.status()
 
     def disconnect(self) -> dict[str, Any]:
@@ -119,6 +132,7 @@ class RobotController:
         with self._lock:
             if self._cli is not None:
                 try:
+                    self._cli.del_handler(event.EvtRobotStateUpdated, self._state_handler)
                     self._cli.stop_all_motors()
                     self._cli.disconnect()
                     self._cli.stop()
@@ -127,6 +141,18 @@ class RobotController:
                 self._cli = None
                 self._cube_players.clear()
         return {"connected": False}
+
+    def _pose(self) -> tuple[float, float, float, int]:
+        pose = self.client.pose
+        return pose.position.x, pose.position.y, pose.rotation.angle_z.radians, pose.origin_id
+
+    def _on_state(self, cli: Any, *_: Any) -> None:
+        """ At each robot state: the pose and the cliff flag feed the memory of the edges. """
+        try:
+            x, y, heading, origin = self._pose()
+            self.memory.observe(x, y, heading, origin, cli.robot_status, self._clock())
+        except Exception as e:
+            logger.error("Failed to note the state of the robot. {}".format(e))
 
     def status(self) -> dict[str, Any]:
         """ State of the robot: battery, pose, head, lift, flags, cubes. """
@@ -149,7 +175,12 @@ class RobotController:
             "cubes_available": sorted(
                 "0x{:08x}".format(i) for i, o in dict(cli.available_objects).items() if o.object_type in CUBE_TYPES),
             "cubes_connected": sorted(self._cube_ids()),
+            "edge_guard": self.edge_guard,
         }
+        x, y, heading, origin = self._pose()
+        result["known_edges"] = len(self.memory.edges_known(origin, self._clock()))
+        result["backup_room_mm"] = round(
+            self.memory.backup_room(x, y, heading, origin, lateral_tolerance_mm=BACKUP_TOLERANCE_MM), 1)
         return result
 
     # Motion
@@ -185,9 +216,32 @@ class RobotController:
         if speed <= 0.0:
             raise ToolError("The speed must not be 0.")
         distance = min(max(distance, -self.limits.max_drive_mm), self.limits.max_drive_mm)
+        self._check_can_drive(backing=distance < 0)
+        result: dict[str, Any] = {}
+        if self.edge_guard and distance != 0.0:
+            distance, limited_by = self._limit_by_edges(distance)
+            if limited_by:
+                result["limited_by"] = limited_by
         seconds = abs(distance) / speed
         sign = 1.0 if distance >= 0 else -1.0
-        return self._run_wheels(sign * speed, sign * speed, seconds, {"distance_mm": distance, "speed_mmps": speed})
+        result.update(distance_mm=distance, speed_mmps=speed)
+        return self._run_wheels(sign * speed, sign * speed, seconds, result)
+
+    def _limit_by_edges(self, distance: float) -> tuple[float, str | None]:
+        """ The distance that the memory of the edges allows (and why it is shorter); refused when it is too short. """
+        x, y, heading, origin = self._pose()
+        if distance < 0:
+            room = self.memory.backup_room(
+                x, y, heading, origin, limit_mm=-distance, lateral_tolerance_mm=BACKUP_TOLERANCE_MM)
+            if room < MIN_STEP_MM:
+                raise ToolError(
+                    "Unknown floor behind the robot: it backs up only onto floor that it has driven over. "
+                    "Drive forward or turn first.")
+            return (-room, "known floor") if room < -distance else (distance, None)
+        ahead = self.memory.clear_ahead(x, y, heading, origin, self._clock(), limit_mm=distance)
+        if ahead < MIN_STEP_MM:
+            raise ToolError("A known edge is just ahead: the robot does not drive toward it. Turn away first.")
+        return (ahead, "known edge") if ahead < distance else (distance, None)
 
     def turn(self, angle_deg: float) -> dict[str, Any]:
         """
@@ -196,24 +250,43 @@ class RobotController:
         It stops by itself, and at once when the robot is picked up or detects a cliff.
         """
         angle = min(max(_finite(angle_deg, "angle_deg"), -self.limits.max_turn_deg), self.limits.max_turn_deg)
+        self._check_can_drive()
+        if self.edge_guard and angle != 0.0:
+            x, y, _, origin = self._pose()
+            if not self.memory.can_turn(x, y, origin, self._clock()):
+                raise ToolError("A known edge is too close to turn on the spot: back up first (onto known floor).")
         seconds = abs(angle) / self.limits.turn_speed_dps
         # A point turn: the wheels run in opposite directions, at the speed that gives the angular speed.
         wheel = math.radians(self.limits.turn_speed_dps) * robot.TRACK_WIDTH.mm / 2.0
         sign = 1.0 if angle >= 0 else -1.0
         return self._run_wheels(-sign * wheel, sign * wheel, seconds, {"angle_deg": angle})
 
-    def _check_can_drive(self) -> None:
+    def _check_can_drive(self, backing: bool = False) -> None:
+        """
+        Refuse to move when the wheels are disabled, the robot is picked up or it is at a cliff.
+
+        With the edge guard, a robot at a cliff may back up (``backing``): that is how it leaves the edge, within the
+        floor that it has driven over, which ``_limit_by_edges`` checks.
+        """
         if not self.allow_drive:
             raise ToolError("The wheels are disabled (the server was started without driving).")
         cli = self.client
         flags = cli.robot_status
         if cli.robot_picked_up or flags & robot.RobotStatusFlag.IS_PICKED_UP:
             raise ToolError("The robot is picked up: put it on the floor first.")
-        if flags & robot.RobotStatusFlag.CLIFF_DETECTED:
-            raise ToolError("A cliff is detected: the robot does not move.")
+        if flags & robot.RobotStatusFlag.CLIFF_DETECTED and not (backing and self.edge_guard):
+            raise ToolError("A cliff is detected: the robot does not move"
+                            + (" (it can only back up)." if self.edge_guard else "."))
+
+    def _floor_behind(self) -> bool:
+        """ Whether the robot can still back up a little: the same rule as ``_limit_by_edges``. """
+        x, y, heading, origin = self._pose()
+        room = self.memory.backup_room(x, y, heading, origin, limit_mm=15.0, lateral_tolerance_mm=BACKUP_TOLERANCE_MM)
+        return room >= MIN_STEP_MM
 
     def _run_wheels(self, left: float, right: float, seconds: float, result: dict[str, Any]) -> dict[str, Any]:
-        self._check_can_drive()
+        backing = left < 0 and right < 0
+        self._check_can_drive(backing=backing)
         cli = self.client
         seconds = min(seconds, self.limits.max_seconds)
         with self._lock:
@@ -226,8 +299,11 @@ class RobotController:
                     flags = cli.robot_status
                     if cli.robot_picked_up or flags & robot.RobotStatusFlag.IS_PICKED_UP:
                         stopped_by = "picked up"
-                    elif flags & robot.RobotStatusFlag.CLIFF_DETECTED:
+                    elif flags & robot.RobotStatusFlag.CLIFF_DETECTED and not (backing and self.edge_guard):
+                        # Backing away keeps the sensor over the drop for a moment: that is not a stop.
                         stopped_by = "cliff"
+                    elif self.edge_guard and left < 0 and right < 0 and not self._floor_behind():
+                        stopped_by = "unknown floor"
                     if stopped_by:
                         break
             finally:
@@ -461,11 +537,14 @@ def build_server(controller: RobotController) -> Any:
         return c.move_lift(height)
 
     def drive(distance_mm: float, speed_mmps: float | None = None) -> dict[str, Any]:
-        """Drive straight by a distance in mm (negative: backward), at most 200 mm at up to 60 mm/s."""
+        """
+        Drive straight by a distance in mm (negative: backward), at most 200 mm at up to 60 mm/s.
+        It backs up only onto floor that it has already driven over and stops before a known table edge.
+        """
         return c.drive(distance_mm, speed_mmps)
 
     def turn(angle_deg: float) -> dict[str, Any]:
-        """Turn on the spot by an angle in degrees (positive: counterclockwise), at most 180."""
+        """Turn on the spot by an angle in degrees (positive: counterclockwise), at most 180, clear of a known edge."""
         return c.turn(angle_deg)
 
     def set_backpack_color(color: str) -> dict[str, Any]:
@@ -509,12 +588,14 @@ def build_server(controller: RobotController) -> Any:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="MCP server for the Cozmo robot (standard input and output).")
     parser.add_argument("--no-drive", action="store_true", help="disable the wheels (look, speak, light, head, lift)")
+    parser.add_argument("--no-edge-guard", action="store_true",
+                        help="do not use the memory of the table edges to limit the moves")
     parser.add_argument("--max-speed", type=float, default=Limits.max_speed_mmps, help="fastest wheel speed, in mm/s")
     parser.add_argument("--max-drive", type=float, default=Limits.max_drive_mm, help="longest drive, in mm")
     args = parser.parse_args(argv)
     limits = Limits(max_speed_mmps=min(max(args.max_speed, 1.0), robot.MAX_WHEEL_SPEED.mmps),
                     max_drive_mm=min(max(args.max_drive, 1.0), 1000.0))
-    controller = RobotController(limits=limits, allow_drive=not args.no_drive)
+    controller = RobotController(limits=limits, allow_drive=not args.no_drive, edge_guard=not args.no_edge_guard)
     try:
         server = build_server(controller)
     except ImportError:
