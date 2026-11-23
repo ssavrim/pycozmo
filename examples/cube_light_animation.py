@@ -1,48 +1,50 @@
 #!/usr/bin/env python
-
+"""Connect a cube and play animations of its lights (requires a nearby cube and the prepared resources)."""
+import threading
 import time
 
 import pycozmo
+from pycozmo import cube_lights
 
 
 with pycozmo.connect() as cli:
+    root = str(pycozmo.util.get_cozmo_asset_dir())
+    animations = cube_lights.load_cube_light_animations(root)
 
     print("Waiting for cube...")
-    cube_factory_id = None
-    while not cube_factory_id:
-        available_objects = dict(cli.available_objects)
-        for factory_id, obj in available_objects.items():
-            if obj.object_type == pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE1:
-                cube_factory_id = factory_id
-                break
-    print("Cube with S/N 0x{:08x} available.".format(cube_factory_id))
+    cube_types = {pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE1,
+                  pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE2,
+                  pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE3}
+    deadline = time.monotonic() + 30
+    factory_id = None
+    while factory_id is None and time.monotonic() < deadline:
+        factory_id = next((i for i, o in list(cli.available_objects.items()) if o.object_type in cube_types), None)
+        time.sleep(0.1)
+    if factory_id is None:
+        raise RuntimeError("No cube detected; wake it by moving or tapping it.")
 
-    print("Connecting to cube...")
-    pkt: pycozmo.protocol_encoder.Packet = pycozmo.protocol_encoder.ObjectConnect(
-        factory_id=cube_factory_id, connect=True)
-    cli.conn.send(pkt)
-    cli.conn.wait_for(pycozmo.protocol_encoder.ObjectConnectionState)
-    cube_id = list(cli.connected_objects.keys())[0]
-    print("Cube connected - ID {}.".format(cube_id))
+    ready = threading.Event()
+    result: dict[str, int] = {}
 
-    color = pycozmo.lights.Color(int_color=0x00ff00ff)
-    light = pycozmo.protocol_encoder.LightState(
-        on_color=color.to_int16(),
-        off_color=pycozmo.lights.off.to_int16(),
-        on_frames=5,
-        off_frames=20,
-        transition_on_frames=5,
-        transition_off_frames=10)
+    def on_connection(_client, packet):
+        if packet.factory_id == factory_id and packet.connected:
+            result['object_id'] = packet.object_id
+            ready.set()
 
-    # Select cube
-    pkt = pycozmo.protocol_encoder.CubeId(object_id=cube_id, rotation_period_frames=40)
-    cli.conn.send(pkt)
-    # Set lights
-    pkt = pycozmo.protocol_encoder.CubeLights(states=(
-        light,
-        pycozmo.lights.off_light,
-        pycozmo.lights.off_light,
-        pycozmo.lights.off_light))
-    cli.conn.send(pkt)
-
-    time.sleep(30.0)
+    handler = cli.add_handler(pycozmo.protocol_encoder.ObjectConnectionState, on_connection)
+    try:
+        cli.set_object_connection(factory_id)
+        if not ready.wait(10):
+            raise RuntimeError("Cube connection timed out.")
+        player = cube_lights.CubeLightPlayer.for_cube(cli, result['object_id'])
+        for name in ("flash", "speedTapWin", "dancing_01", "pyramidFlourish"):
+            print("Playing {}".format(name))
+            finished = threading.Event()
+            player.play(animations[name], on_finished=finished.set)
+            while not finished.is_set():
+                player.update()
+                time.sleep(0.02)
+            time.sleep(1)
+        cli.set_cube_lights(result['object_id'], (pycozmo.lights.off_light,) * 4)
+    finally:
+        cli.del_handler(pycozmo.protocol_encoder.ObjectConnectionState, handler)

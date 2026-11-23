@@ -202,3 +202,14 @@ class TestPlayer(unittest.TestCase):
         self.assertIsNone(self.player.current)
         self.player.update()
         self.assertFalse(self.player.play(LightAnimation("empty")))
+
+    def test_for_cube(self):
+        calls: list[Any] = []
+
+        class FakeClient:
+            def set_cube_lights(self, object_id, states, *, rotation_period_frames=0):
+                calls.append((object_id, len(states), rotation_period_frames))
+
+        player = CubeLightPlayer.for_cube(FakeClient(), 3, clock=self.clock)
+        player.play(LightAnimation("a", [pattern(0, rotationPeriod_ms=100)]))
+        self.assertEqual(calls, [(3, 4, 4)])
