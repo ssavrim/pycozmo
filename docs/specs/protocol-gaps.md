@@ -138,6 +138,9 @@ and **must not be sent to a robot**.
   The robot kept answering (no error), but neither the cliff flag of `RobotState` (always off) nor the raw cliff values
   (`cliff_data_raw` about 922, 0, 0, 0) changed: the effect of the threshold could not be observed at rest, and the default
   value is still not known. The robot has to be restarted afterwards.
+- `FlashObjectIDs` (0x4d): sent 5 times, 3 s apart, with the object identifier of a connected cube (object 1): **nothing was
+  seen on the cube** (watched by the operator). The message is not known to do anything on this robot; the field may expect
+  something else than the object identifier (the factory identifier, for example), which was not tried.
 
 ## Names from the C# code of the application
 
