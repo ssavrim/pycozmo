@@ -126,6 +126,9 @@ and **must not be sent to a robot**.
   are about 0 at rest and move when the robot is turned (gyroscope); the next three keep a magnitude of about 10450 whatever the
   tilt (0.3 % of variation over 1200 samples) and their components follow the tilt (accelerometer, 1 g is about 10450).
   The last two bytes are not understood. The unit of the values is not known.
+- `TurnInPlaceAtAngularSpeed` (0x3a): sent every 100 ms for 3 s with `speed_rad_per_sec` 0.5 and `unknown1` 0, the robot turned
+  on the spot (about a quarter of a turn seen on the floor) and stopped after `stop_all_motors`. The odometry gave 70 degrees
+  for 86 expected: the start-up ramp is not accounted for. The role of `unknown1` is not known (perhaps an acceleration).
 
 ## Messages not declared
 

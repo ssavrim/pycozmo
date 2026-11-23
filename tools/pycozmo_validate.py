@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights", "markers", "protocol")
+    "brainreact", "cubelights", "markers", "protocol", "wheels")
 
 
 class State:
@@ -547,6 +547,34 @@ def test_protocol(cli, state, report, ctx):
     # IMURequest must give a stream of IMURawDataChunk: 500 ms at about 180 per second.
     report.add("protocol", "PASS" if seen["IMURawDataChunk"] >= 50 else "FAIL", declared_seen=dict(seen),
                not_declared={hex(k): v for k, v in unknown.items()})
+
+
+def test_wheels(cli, state, report, ctx):
+    """ TurnInPlaceAtAngularSpeed (0x3a): turn on the spot at a given angular speed, 3 s at 0.5 rad/s. """
+    from pycozmo import protocol_encoder as pe
+    print("\nwheels: TurnInPlaceAtAngularSpeed, 0.5 rad/s for 3 s (put Cozmo on the floor with 30 cm free around it)")
+    if not wheels_allowed(report, "wheels"):
+        return
+    input("  Press Enter to start.")
+    t0 = time.monotonic()
+    first = state.last()
+    try:
+        while time.monotonic() - t0 < 3.0:
+            cli.conn.send(pe.TurnInPlaceAtAngularSpeed(speed_rad_per_sec=0.5, unknown1=0.0))
+            time.sleep(0.1)
+    finally:
+        cli.stop_all_motors()
+    time.sleep(1.0)
+    last = state.last()
+    turned = None
+    if first and last:
+        turned = math.degrees(last[3] - first[3])
+    peak = max((abs(s[6]) + abs(s[7]) for s in state.since(t0)), default=0.0)
+    print("   heading change {} deg, peak wheel speed sum {:.0f} mm/s".format(
+        None if turned is None else round(turned), peak))
+    floor = ask_number("  Heading change measured on the floor, in degrees?")
+    report.add("wheels", "MEASURED", odometry_deg=None if turned is None else round(turned), floor_deg=floor,
+               expected_deg=round(math.degrees(0.5 * 3.0)), peak_wheel_sum_mmps=round(peak))
 
 
 def test_brain(cli, state, report, ctx):

@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-23 13:43",
+  "python": "3.12.3",
+  "pycozmo": "0.9.0",
+  "tests": [
+    {
+      "name": "wheels",
+      "status": "MEASURED",
+      "odometry_deg": 70,
+      "floor_deg": null,
+      "expected_deg": 86,
+      "peak_wheel_sum_mmps": 52
+    }
+  ]
+}
