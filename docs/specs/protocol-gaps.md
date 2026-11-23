@@ -166,7 +166,12 @@ declaration says it). A fixed array has no length.
 
 Assumed: the types of the values of `GoalPose` (4 floats and a uint32, as in the pose of `RobotState`) and of
 `IMUDataChunk` (signed 32-bit) are not given by the unpacking, only their size. The fields are named `unknown*` except
-the data, the text and the name. None of these messages was received from a robot.
+the data, the text and the name.
+
+On a robot (2026-11-23): `RequestCrashReports` (0x80, with 0) is answered by one `CrashReport` (0xcf) with all fields 0 and
+an empty `dump`: the message and its 1-byte length are decoded; the robot has no crash to report. The other messages
+(`PrintText`, `GoalPose`, `DataDump`, `TimeProfileStat`, `IMUDataChunk`, `DefaultCameraParams`, `FWVersionInfo`) were not received
+during the tests and what triggers them is not known.
 
 ## Messages that only PyCozmo declares
 
