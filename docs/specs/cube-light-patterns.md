@@ -7,8 +7,6 @@ cube, and played one after the other. Implemented in `pycozmo/lights.py` (colors
 Confidence: **Specified** (precise rule, tested), **Assumed** (reasonable choice, may differ from the original),
 **Not modeled**.
 
-Implemented in `pycozmo/lights.py` (colors, frames, LED states) and `pycozmo/cube_lights.py` (files and playback).
-
 ## Files
 
 `config/engine/lights/cubeLights/**/*.json` (38 files). A file defines one animation, named by its only key (the first
