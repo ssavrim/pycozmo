@@ -74,3 +74,7 @@ A tool that fails returns an error with its reason (not connected, picked up, cl
 - On a robot (2026-11-23): an MCP client started the server by its standard input and output, and called `connect`,
   `status`, `move_head`, `set_backpack_color`, `camera_image` (a JPEG of 19.6 kB) and `disconnect`; the refusal of the wheels
   in `--no-drive` came back with its reason.
+- On a robot, on the floor (2026-11-23): through the same MCP client, `drive` 50 mm forward then 50 mm backward and `turn` 90
+  degrees, twice; the operator saw the movements as expected. The angles on the floor were not measured (the odometry read
+  right after the stop is late and gave 33 degrees once, so it is not a measure). The stop on a pick up or a cliff during a
+  movement was not tried on the robot.
