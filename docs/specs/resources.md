@@ -25,6 +25,43 @@ Reference version: **3.4.0, version code 1204**, package `com.anki.cozmo`.
 | OBB `main.1204.com.anki.cozmo.obb` SHA-256 | `0f86f75fa139bf492558f37a29073b7992f11834256ff636861f5ed184c6caef` |
 | APK signing certificate SHA-256 | `2f2e06275f965972119e72ffd4ac0a11f02a54cb28f21981a87c9499f535535a` |
 
+## Obtaining the files
+
+PyCozmo does not download the application, from a mirror or from anywhere else, and no official direct download of the
+version 3.4.0 files is known: the user supplies a copy of the package. This is on
+purpose: a file from an unknown site cannot be trusted, and the right to distribute the application is not PyCozmo's.
+
+What the tool needs:
+
+| Goal | Files |
+| --- | --- |
+| Animations, configuration, sound banks | the OBB `main.1204.com.anki.cozmo.obb` (alone, or in an XAPK, or with the APK) |
+| Marker recognition (`pycozmo.markers`) | the APK, which holds the engine library; an OBB alone does not |
+
+Ways to get them, none of which needs a phone on the user's desk:
+
+- **A package that the user already has**: an XAPK, or an APK and its OBB, kept from an earlier install or a backup of a
+  device.
+- **An Android emulator on the computer** with the Play Store (the emulator of Android Studio with a "Google Play" image,
+  or Waydroid on Linux). Install the application of the package `com.anki.cozmo`, start it once so that the store downloads
+  its expansion file, then copy the files out with `adb` (the emulator is an `adb` device):
+
+  ```bash
+  adb shell pm path com.anki.cozmo                                  # the path of the APK, base.apk
+  adb pull <path of the APK> cozmo-3.4.0.apk
+  adb pull /sdcard/Android/obb/com.anki.cozmo/main.1204.com.anki.cozmo.obb
+  pycozmo_resources.py prepare cozmo-3.4.0.apk --obb main.1204.com.anki.cozmo.obb
+  ```
+
+  On recent versions of Android the folder `Android/obb` may not be readable by `adb pull`; copying it out with a file
+  manager of the emulator, or enabling the access to the files of the application, then works.
+
+- The package of the Digital Dream Labs application (`com.digitaldreamlabs.cozmo2`) is another application: its files are
+  not those of the reference version, and `prepare` refuses another version unless `--allow-other-version` is given.
+
+`prepare` checks what it is given (version, signing certificate of Anki, checksums of the APK and of the OBB, see below): a
+wrong or altered file is refused or reported, wherever it came from.
+
 ## Checks
 
 1. **Version**: from `manifest.json` (XAPK) or the OBB name `main.<code>.com.anki.cozmo.obb`.

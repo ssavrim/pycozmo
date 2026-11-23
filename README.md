@@ -280,6 +280,10 @@ pycozmo_resources.py prepare cozmo-3.4.0.xapk      # or: prepare app.apk --obb m
 pycozmo_resources.py verify
 ```
 
+The files are not downloaded by PyCozmo. If you do not have them, `docs/specs/resources.md` explains how to get them
+without a phone, for example from an Android emulator on your computer. The APK is needed for the recognition of
+the markers (`pycozmo.markers`); an OBB alone is enough for the other resources.
+
 Resources go to `~/.pycozmo/assets` (or `$PYCOZMO_DIR/assets`, or `--dest`), with
 a `resources-manifest.json` that records the version, the checksums of the
 package and of the extracted files. The tool checks the version and Anki's

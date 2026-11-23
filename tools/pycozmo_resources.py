@@ -91,7 +91,8 @@ def do_download(args: argparse.Namespace) -> int:
     print("Automatic download has been removed: PyCozmo no longer fetches the Cozmo application from a "
           "third-party mirror.\n"
           "Obtain the Cozmo Android application 3.4.0 (XAPK, or APK and main.1204.com.anki.cozmo.obb), then run:\n"
-          "  pycozmo_resources.py prepare <file> [--obb <obb file>]")
+          "  pycozmo_resources.py prepare <file> [--obb <obb file>]\n"
+          "docs/specs/resources.md explains how to get the files, for example from an Android emulator.")
     return 1
 
 
