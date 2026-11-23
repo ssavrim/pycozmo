@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Add an MCP server (pycozmo.mcp_server, tools/pycozmo_mcp.py, docs/specs/mcp-server.md; `pip install pycozmo[mcp]`) that
+    lets an AI assistant connect to the robot, read its state, move the head and lift, drive and turn in short bounded steps
+    that stop on a pick up or a cliff, light the backpack and the cubes, speak, play animations and get a camera image.
 - Add pycozmo.edges (docs/specs/edges.md), ported from Cozmonaute: TableMemory remembers the drops that the cliff sensor saw
     and the floor that the robot stood on (observe, backup_room, can_turn, clear_ahead), and CliffRetreat is the reflex that
     backs off and turns away from a drop.
