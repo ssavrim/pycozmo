@@ -1,15 +1,16 @@
 {
-  "date": "2026-11-23 13:43",
+  "date": "2026-11-23 13:44",
   "python": "3.12.3",
   "pycozmo": "0.9.0",
   "tests": [
     {
-      "name": "wheels",
-      "status": "MEASURED",
-      "odometry_deg": 70,
-      "floor_deg": null,
-      "expected_deg": 86,
-      "peak_wheel_sum_mmps": 52
+      "name": "protocol",
+      "status": "PASS",
+      "declared_seen": {
+        "IMURawDataChunk": 100,
+        "MotorAutoEnabled": 2
+      },
+      "not_declared": {}
     }
   ]
 }

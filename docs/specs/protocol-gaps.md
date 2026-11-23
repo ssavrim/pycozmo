@@ -129,6 +129,8 @@ and **must not be sent to a robot**.
 - `TurnInPlaceAtAngularSpeed` (0x3a): sent every 100 ms for 3 s with `speed_rad_per_sec` 0.5 and `unknown1` 0, the robot turned
   on the spot (about a quarter of a turn seen on the floor) and stopped after `stop_all_motors`. The odometry gave 70 degrees
   for 86 expected: the start-up ramp is not accounted for. The role of `unknown1` is not known (perhaps an acceleration).
+- `MotorAutoEnabled` (0xd8): received twice while the robot was lifted, `motor_id` `MOTOR_LIFT`, `enabled` False. The
+  motor identifier is decoded. `CliffEvent`, `PotentialCliff` and `RobotStopped` were not received (two lifts).
 
 ## Messages not declared
 
