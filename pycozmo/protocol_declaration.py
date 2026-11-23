@@ -726,6 +726,221 @@ PROTOCOL = Protocol(
             FloatArgument("accel_y"),
             FloatArgument("accel_z"),
         ]),
+
+        # Messages of the original application that PyCozmo did not declare (docs/specs/protocol-gaps.md). The layout
+        # comes from the original application; the fields are named only where the name of the message says what they
+        # are, and the others are unknown. The meaning of these messages was not validated: some are for the factory
+        # or for tests and must not be sent to a robot.
+        Command(0x01, "AdjustTimestamp", group="system", arguments=[
+            UInt32Argument("timestamp"),
+        ]),
+        Command(0x02, "BackpackSetLayer", group="lights", arguments=[
+            UInt8Argument("layer"),
+        ]),
+        Command(0x06, "KillBodyCode", group="factory"),
+        Command(0x07, "SetBodyRadioMode", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            UInt8Argument("unknown1"),
+        ]),
+        Command(0x0e, "ReadBodyStorage", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            UInt8Argument("unknown1"),
+        ]),
+        Command(0x12, "SendDTMCommand", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            Int32Argument("unknown3"),
+        ]),
+        Command(0x24, "GetBodySerialNumber", group="factory"),
+        Command(0x38, "HeadAngleUpdate", group="motors", arguments=[
+            FloatArgument("angle_rad"),
+        ]),
+        Command(0x3a, "TurnInPlaceAtAngularSpeed", group="motors", arguments=[
+            FloatArgument("speed_rad_per_sec"),
+            FloatArgument("unknown1"),
+        ]),
+        Command(0x44, "PlaceObjectOnGround", group="docking", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            FloatArgument("unknown2"),
+            FloatArgument("unknown3"),
+            FloatArgument("unknown4"),
+            FloatArgument("unknown5"),
+            BoolArgument("unknown6"),
+        ]),
+        Command(0x46, "StartControllerTestMode", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            UInt8Argument("unknown3"),
+        ]),
+        Command(0x47, "ControllerGains", group="factory", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            FloatArgument("unknown2"),
+            FloatArgument("unknown3"),
+            UInt8Argument("unknown4"),
+        ]),
+        Command(0x4a, "IMURequest", group="system", arguments=[
+            UInt32Argument("length_ms", description="Duration of the stream of IMURawDataChunk, in milliseconds."),
+        ]),
+        Command(0x4d, "FlashObjectIDs", group="objects", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0x4e, "ObjectBeingCarried", group="localization", arguments=[
+            UInt32Argument("object_id"),
+            BoolArgument("carried"),
+        ]),
+        Command(0x50, "EnableMotorPower", group="motors", arguments=[
+            EnumArgument("motor_id", MOTOR_ID, data_type=UInt8Argument()),
+            BoolArgument("enable"),
+        ]),
+        Command(0x51, "SetMotionModelParams", group="motors", arguments=[
+            FloatArgument("unknown0"),
+        ]),
+        Command(0x52, "EnterSleepMode", group="system"),
+        Command(0x53, "PowerState", group="system", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            UInt8Argument("unknown3"),
+            BoolArgument("unknown4"),
+            BoolArgument("unknown5"),
+            UInt8Argument("unknown6"),
+            BoolArgument("unknown7"),
+        ]),
+        Command(0x54, "SetCliffDetectThreshold", group="system", arguments=[
+            UInt16Argument("threshold"),
+        ]),
+        Command(0x55, "EnableReadToolCodeMode", group="docking", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            BoolArgument("unknown2"),
+        ]),
+        Command(0x59, "RollActionParams", group="docking", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            FloatArgument("unknown2"),
+            Int32Argument("unknown3"),
+            FloatArgument("unknown4"),
+        ]),
+        Command(0x5a, "CameraFOVInfo", group="camera", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+        ]),
+        Command(0x61, "ForceDelocalizeSimulatedRobot", group="localization"),
+        Command(0x62, "ObjectConnectionStateToRobot", group="objects", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            BoolArgument("unknown3"),
+        ]),
+        Command(0x63, "EnableBraceWhenFalling", group="system", arguments=[
+            BoolArgument("enable"),
+        ]),
+        Command(0x65, "GenerateTestTone", group="system"),
+        Command(0x80, "RequestCrashReports", group="system", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0x82, "EnableWiFiTelemetry", group="system"),
+        Command(0x89, "DebugSetRTTO", group="system", arguments=[
+            UInt16Argument("unknown0"),
+        ]),
+        Command(0x96, "AnimEventToRTIP", group="anim", arguments=[
+            UInt8Argument("unknown0"),
+            UInt8Argument("unknown1"),
+        ]),
+        Command(0xa2, "EnterFactoryTestMode", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+        ]),
+        Command(0xa3, "DisplayNumber", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            UInt8Argument("unknown1"),
+            UInt8Argument("unknown2"),
+            UInt8Argument("unknown3"),
+        ]),
+        Command(0xa5, "BodySerialNumber", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xab, "AppConnectConfigFlags", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int16Argument("unknown2"),
+            UInt8Argument("unknown3"),
+            UInt8Argument("unknown4"),
+            UInt8Argument("unknown5"),
+            UInt8Argument("unknown6"),
+            UInt8Argument("unknown7"),
+            UInt8Argument("unknown8"),
+            UInt8Argument("unknown9"),
+        ]),
+        Command(0xac, "AppConnectConfigIPInfo", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            UInt8Argument("unknown3"),
+        ]),
+        Command(0xad, "AppConnectGetRobotIP", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+        ]),
+        Command(0xb2, "MainCycleTimeError", group="debug", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            Int32Argument("unknown3"),
+        ]),
+        Command(0xba, "RampTraverseStart", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xbb, "RampTraverseComplete", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+            BoolArgument("unknown1"),
+        ]),
+        Command(0xbc, "BridgeTraverseStart", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xbd, "BridgeTraverseComplete", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+            BoolArgument("unknown1"),
+        ]),
+        Command(0xc0, "CliffEvent", group="state", arguments=[
+            UInt32Argument("unknown0"),
+            UInt8Argument("unknown1"),
+            BoolArgument("unknown2"),
+        ]),
+        Command(0xc1, "PotentialCliff", group="state"),
+        Command(0xd4, "RobotStopped", group="state", arguments=[
+            UInt8Argument("unknown0"),
+        ]),
+        Command(0xd6, "FactoryTestParameter", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xd8, "MotorAutoEnabled", group="motors", arguments=[
+            EnumArgument("motor_id", MOTOR_ID, data_type=UInt8Argument()),
+            BoolArgument("enabled"),
+        ]),
+        Command(0xd9, "RobotErrorReport", group="state", arguments=[
+            UInt32Argument("unknown0"),
+            BoolArgument("unknown1"),
+        ]),
+        Command(0xdc, "IMUTemperature", group="state", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xec, "WiFiFlashID", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xc7, "IMURawDataChunk", group="state", arguments=[
+            Int16Argument("gyro_x", description="Raw value."),
+            Int16Argument("gyro_y", description="Raw value."),
+            Int16Argument("gyro_z", description="Raw value."),
+            Int16Argument("accel_x", description="Raw value, about 10450 for 1 g."),
+            Int16Argument("accel_y", description="Raw value, about 10450 for 1 g."),
+            Int16Argument("accel_z", description="Raw value, about 10450 for 1 g."),
+            UInt8Argument("unknown6"),
+            UInt8Argument("unknown7"),
+        ]),
     ]
 
 )

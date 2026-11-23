@@ -1,0 +1,102 @@
+
+"""
+The messages of the original application: names, numbers and sizes (docs/specs/protocol-gaps.md), compared with the
+declaration of the protocol.
+"""
+
+import json
+import os
+import unittest
+
+from pycozmo import protocol_declaration as declaration
+
+
+SIZES = {
+    "FloatArgument": 4, "DoubleArgument": 8, "BoolArgument": 1, "UInt8Argument": 1, "UInt16Argument": 2,
+    "UInt32Argument": 4, "Int8Argument": 1, "Int16Argument": 2, "Int32Argument": 4,
+}
+
+#: Messages whose declared size differs from the one of the original application, and why.
+KNOWN_DIFFERENCES = {
+    0xa9: "ShutdownRobot: the original has a payload of 32 bytes that PyCozmo does not declare",
+}
+
+
+def argument_size(argument):
+    name = type(argument).__name__
+    if name in SIZES:
+        return SIZES[name]
+    if name == "EnumArgument":
+        return argument_size(argument.data_type)
+    if name == "FArrayArgument":
+        return argument.length * argument_size(argument.data_type)
+    if name == "VArrayArgument" or name == "StringArgument":
+        return None
+    if hasattr(argument, "arguments"):
+        sizes = [argument_size(a) for a in argument.arguments]
+        return None if None in sizes else sum(sizes)
+    return None
+
+
+def packet_size(packet):
+    sizes = [argument_size(a) for a in packet.arguments]
+    return None if None in sizes else sum(sizes)
+
+
+def load_reference():
+    with open(os.path.join(os.path.dirname(__file__), "protocol_reference.json")) as f:
+        return {int(k, 16): v for k, v in json.load(f).items()}
+
+
+def declared():
+    return {p.id: p for p in declaration.PROTOCOL.packets if isinstance(p.id, int)}
+
+
+class TestProtocolReference(unittest.TestCase):
+
+    def test_reference_is_complete(self):
+        reference = load_reference()
+        self.assertEqual(len(reference), 136)
+        self.assertEqual(sum(1 for v in reference.values() if v["side"] == "engine to robot"), 82)
+        self.assertEqual(sum(1 for v in reference.values() if v["side"] == "robot to engine"), 54)
+
+    def test_sizes(self):
+        reference = load_reference()
+        packets = declared()
+        compared = 0
+        for number, entry in reference.items():
+            if number not in packets or entry["size"] is None:
+                continue
+            size = packet_size(packets[number])
+            if size is None or number in KNOWN_DIFFERENCES:
+                continue
+            compared += 1
+            self.assertEqual(
+                size, entry["size"], "0x{:02x} {} (PyCozmo: {})".format(number, entry["name"], packets[number].name))
+        self.assertGreater(compared, 100)
+
+    def test_known_differences_still_differ(self):
+        reference = load_reference()
+        packets = declared()
+        for number in KNOWN_DIFFERENCES:
+            self.assertNotEqual(packet_size(packets[number]), reference[number]["size"], hex(number))
+
+    def test_declared_messages_of_the_original(self):
+        """ The messages added from the original application are declared with the name of the original. """
+        packets = declared()
+        expected = ((0x3a, "TurnInPlaceAtAngularSpeed"), (0x4a, "IMURequest"), (0x54, "SetCliffDetectThreshold"),
+                    (0x63, "EnableBraceWhenFalling"), (0xc0, "CliffEvent"), (0xc7, "IMURawDataChunk"),
+                    (0xd8, "MotorAutoEnabled"))
+        for number, name in expected:
+            self.assertEqual(packets[number].name, name)
+
+    def test_names_that_differ_are_known(self):
+        """ PyCozmo keeps its own name for some messages; the differences are listed in the specification. """
+        reference = load_reference()
+        packets = declared()
+        different = {n for n, e in reference.items()
+                     if n in packets and packets[n].name.lower() != e["name"].lower()}
+        with open(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "specs", "protocol-gaps.md")) as f:
+            text = f.read()
+        for number in sorted(different):
+            self.assertIn("0x{:02x}".format(number), text, "0x{:02x} is not in the specification".format(number))
