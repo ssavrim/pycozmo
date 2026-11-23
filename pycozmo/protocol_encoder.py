@@ -8850,56 +8850,6 @@ class IMURequest(Packet):
             length_ms=length_ms)
 
 
-class FlashObjectIDs(Packet):
-
-    __slots__ = (
-        "_object_id",  # uint32
-    )
-
-    def __init__(self,
-                 object_id=0):
-        super().__init__(PacketType.COMMAND, packet_id=0x4d)
-        self.object_id = object_id
-
-    @property
-    def object_id(self):
-        return self._object_id
-
-    @object_id.setter
-    def object_id(self, value):
-        self._object_id = validate_integer("object_id", value, 0, 4294967295)
-
-    def __len__(self):
-        return \
-            4
-
-    def __repr__(self):
-        return "{type}(" \
-               "object_id={object_id})".format(
-                type=type(self).__name__,
-                object_id=self._object_id)
-
-    def to_bytes(self):
-        writer = BinaryWriter()
-        self.to_writer(writer)
-        return writer.dumps()
-
-    def to_writer(self, writer):
-        writer.write(self._object_id, "L")
-
-    @classmethod
-    def from_bytes(cls, buffer):
-        reader = BinaryReader(buffer)
-        obj = cls.from_reader(reader)
-        return obj
-
-    @classmethod
-    def from_reader(cls, reader):
-        object_id = reader.read("L")
-        return cls(
-            object_id=object_id)
-
-
 class ObjectBeingCarried(Packet):
 
     __slots__ = (
@@ -12967,7 +12917,6 @@ PACKETS_BY_ID = {
     0x4a: IMURequest,  # 74
     0x4b: SyncTime,  # 75
     0x4c: EnableCamera,  # 76
-    0x4d: FlashObjectIDs,  # 77
     0x4e: ObjectBeingCarried,  # 78
     0x4f: CheckLiftLoad,  # 79
     0x50: EnableMotorPower,  # 80
@@ -13212,7 +13161,6 @@ PACKETS_BY_GROUP = {
         0x0a,  # SetAccessoryDiscovery
         0x0c,  # SetCubeGamma
         0x10,  # CubeId
-        0x4d,  # FlashObjectIDs
         0x62,  # ObjectConnectionStateToRobot
         0xb4,  # ObjectMoved
         0xb5,  # ObjectStoppedMoving

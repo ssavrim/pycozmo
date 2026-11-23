@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold", "flash", "turn")
+    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold", "turn")
 
 
 class State:
@@ -642,48 +642,6 @@ def test_cliffthreshold(cli, state, report, ctx):
     finally:
         cli.del_handler(pe.RobotState, on_state)
     report.add("cliffthreshold", "MEASURED", results={str(k): v for k, v in results.items()})
-
-
-def test_flash(cli, state, report, ctx):
-    """ FlashObjectIDs (0x4d): ask a cube to flash its lights. """
-    from pycozmo import protocol_encoder as pe
-    print("\nflash: FlashObjectIDs on a cube (wake the cube by moving or tapping it; no movement of the robot)")
-    cube_types = {pe.ObjectType.Block_LIGHTCUBE1, pe.ObjectType.Block_LIGHTCUBE2, pe.ObjectType.Block_LIGHTCUBE3}
-    deadline = time.monotonic() + 30.0
-    factory_id = None
-    while factory_id is None and time.monotonic() < deadline:
-        factory_id = next((i for i, o in list(cli.available_objects.items()) if o.object_type in cube_types), None)
-        time.sleep(0.1)
-    if factory_id is None:
-        report.add("flash", "FAIL", detail="no cube found within 30 s")
-        return
-    connected = threading.Event()
-    found = {}
-
-    def on_connection(_cli, pkt):
-        if pkt.factory_id == factory_id and pkt.connected:
-            found["object_id"] = pkt.object_id
-            connected.set()
-
-    handler = cli.add_handler(pe.ObjectConnectionState, on_connection)
-    try:
-        cli.set_object_connection(factory_id)
-        if not connected.wait(10.0):
-            report.add("flash", "FAIL", detail="the cube did not connect")
-            return
-        object_id = found["object_id"]
-        print("   cube {} (factory id 0x{:x}) connected: watch it".format(object_id, factory_id))
-        for label, value in (("object id", object_id), ("factory id", factory_id)):
-            print("   {}: 3 messages with {} (0x{:x}), 3 s apart".format(label, label, value))
-            for i in range(3):
-                cli.conn.send(pe.FlashObjectIDs(object_id=value))
-                print("     sent {} ({})".format(i + 1, label), flush=True)
-                time.sleep(3.0)
-            time.sleep(3.0)
-        # What the cube did is seen by the operator, not by this tool.
-        report.add("flash", "MEASURED", object_id=object_id, factory_id=factory_id, sent=6)
-    finally:
-        cli.del_handler(pe.ObjectConnectionState, handler)
 
 
 def test_turn(cli, state, report, ctx):
