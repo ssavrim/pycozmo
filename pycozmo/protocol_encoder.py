@@ -1056,6 +1056,57 @@ class SetHeadLight(Packet):
             enable=enable)
 
 
+class SetCubeGamma(Packet):
+
+    __slots__ = (
+        "_gamma",  # uint8
+    )
+
+    def __init__(self,
+                 gamma=0):
+        super().__init__(PacketType.COMMAND, packet_id=0x0c)
+        # Gamma of the cube LEDs; the original application sets 0x80.
+        self.gamma = gamma
+
+    @property
+    def gamma(self):
+        return self._gamma
+
+    @gamma.setter
+    def gamma(self, value):
+        self._gamma = validate_integer("gamma", value, 0, 255)
+
+    def __len__(self):
+        return \
+            1
+
+    def __repr__(self):
+        return "{type}(" \
+               "gamma={gamma})".format(
+                type=type(self).__name__,
+                gamma=self._gamma)
+
+    def to_bytes(self):
+        writer = BinaryWriter()
+        self.to_writer(writer)
+        return writer.dumps()
+
+    def to_writer(self, writer):
+        writer.write(self._gamma, "B")
+
+    @classmethod
+    def from_bytes(cls, buffer):
+        reader = BinaryReader(buffer)
+        obj = cls.from_reader(reader)
+        return obj
+
+    @classmethod
+    def from_reader(cls, reader):
+        gamma = reader.read("B")
+        return cls(
+            gamma=gamma)
+
+
 class CubeId(Packet):
 
     __slots__ = (
@@ -7894,6 +7945,7 @@ PACKETS_BY_ID = {
     0x08: StreamObjectAccel,  # 8
     0x0a: SetAccessoryDiscovery,  # 10
     0x0b: SetHeadLight,  # 11
+    0x0c: SetCubeGamma,  # 12
     0x10: CubeId,  # 16
     0x11: LightStateSide,  # 17
     0x25: Enable,  # 37
@@ -8068,6 +8120,7 @@ PACKETS_BY_GROUP = {
         0x05,  # ObjectConnect
         0x08,  # StreamObjectAccel
         0x0a,  # SetAccessoryDiscovery
+        0x0c,  # SetCubeGamma
         0x10,  # CubeId
         0xb4,  # ObjectMoved
         0xb5,  # ObjectStoppedMoving

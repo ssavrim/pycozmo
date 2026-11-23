@@ -37,7 +37,12 @@ from . import robot_debug
 
 __all__ = [
     "Client",
+    "CUBE_GAMMA",
 ]
+
+
+#: Gamma of the cube LEDs, as set by the original application.
+CUBE_GAMMA = 0x80
 
 
 class Client(event.Dispatcher):
@@ -99,6 +104,7 @@ class Client(event.Dispatcher):
         self.available_objects: dict[int, object.Object] = dict()
         self.connected_objects: dict[int, dict[str, Any]] = dict()
         self._cube_light_lock = Lock()
+        self._cube_gamma: dict[int, int] = dict()
         # Filters
         self.packet_type_filter = filter.Filter()
         self.packet_type_filter.deny_ids({protocol_declaration.PacketType.PING.value})
@@ -387,6 +393,9 @@ class Client(event.Dispatcher):
 
     def _on_object_connection_state(self, cli: Any, pkt: protocol_encoder.ObjectConnectionState) -> None:
         del cli
+        # A cube that connects again may have lost its gamma.
+        with self._cube_light_lock:
+            self._cube_gamma.pop(pkt.object_id, None)
         if pkt.connected:
             # Connected
             self.connected_objects[pkt.object_id] = {
@@ -407,15 +416,22 @@ class Client(event.Dispatcher):
         """
         self.conn.send(protocol_encoder.ObjectConnect(factory_id=factory_id, connect=connect))
 
-    def set_cube_lights(self, object_id: int, states: Any, *, rotation_period_frames: int = 0) -> None:
+    def set_cube_lights(self, object_id: int, states: Any, *, rotation_period_frames: int = 0,
+                        gamma: int | None = CUBE_GAMMA) -> None:
         """Set four cube lights by connected object ID.
 
         Calls to this method serialize selection and light packets. Direct sends
         of CubeId or CubeLights must also be coordinated by the application.
+
+        The gamma of the cube LEDs is sent before the first lights of a cube (and again after the cube connects
+        again), as the original application does; without it, white shows as yellow and red. Pass None to not send it.
         """
         select = protocol_encoder.CubeId(object_id=object_id, rotation_period_frames=rotation_period_frames)
         command = protocol_encoder.CubeLights(states=states)
         with self._cube_light_lock:
+            if gamma is not None and self._cube_gamma.get(object_id) != gamma:
+                self.conn.send(protocol_encoder.SetCubeGamma(gamma=gamma))
+                self._cube_gamma[object_id] = gamma
             self.conn.send(select)
             self.conn.send(command)
 

@@ -323,6 +323,9 @@ PROTOCOL = Protocol(
         Command(0x0b, "SetHeadLight", group="camera", arguments=[
             BoolArgument("enable")
         ]),
+        Command(0x0c, "SetCubeGamma", group="objects", arguments=[
+            UInt8Argument("gamma", description="Gamma of the cube LEDs; the original application sets 0x80."),
+        ]),
         Command(0x10, "CubeId", group="objects", arguments=[
             UInt32Argument("object_id"),
             UInt8Argument("rotation_period_frames"),
