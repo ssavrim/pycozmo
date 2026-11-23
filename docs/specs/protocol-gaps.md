@@ -126,18 +126,51 @@ and **must not be sent to a robot**.
   are about 0 at rest and move when the robot is turned (gyroscope); the next three keep a magnitude of about 10450 whatever the
   tilt (0.3 % of variation over 1200 samples) and their components follow the tilt (accelerometer, 1 g is about 10450).
   The last two bytes are not understood. The unit of the values is not known.
-- `TurnInPlaceAtAngularSpeed` (0x3a): sent every 100 ms for 3 s with `speed_rad_per_sec` 0.5 and `unknown1` 0, the robot turned
+- `TurnInPlaceAtAngularSpeed` (0x3a): sent every 100 ms for 3 s with `speed_rad_per_sec` 0.5 and `accel_rad_per_sec2` 0, the robot turned
   on the spot (about a quarter of a turn seen on the floor) and stopped after `stop_all_motors`. The odometry gave 70 degrees
-  for 86 expected: the start-up ramp is not accounted for. The role of `unknown1` is not known (perhaps an acceleration).
+  for 86 expected: the start-up ramp is not accounted for. The acceleration was 0: the robot still turned, so 0 probably means a default.
 - `MotorAutoEnabled` (0xd8): received twice while the robot was lifted, `motor_id` `MOTOR_LIFT`, `enabled` False. The
   motor identifier is decoded.
 - `CliffEvent` (0xc0) and `RobotStopped` (0xd4): received while the robot drove at 20 mm/s and was lifted from
-  the floor (not by lifting it at rest): `CliffEvent` x5 (`unknown0` 1650, `unknown1` 3, `unknown2` True) and `RobotStopped`
-  x3 (`unknown0` 1). The meaning of the fields is not known (1650 looks like a sensor value). `PotentialCliff` was not received.
+  the floor (not by lifting it at rest): `CliffEvent` x5 (`timestamp` 1650, `detected_flags` 3, `did_stop_for_cliff` True) and `RobotStopped`
+  x3 (`unknown0` 1). `RobotStopped` has no named field in the application. `PotentialCliff` was not received.
 - `SetCliffDetectThreshold` (0x54): sent with 0, 100, 300, 600, 1000, 1500, 2500, 4000 and 0 to a robot at rest on the floor.
   The robot kept answering (no error), but neither the cliff flag of `RobotState` (always off) nor the raw cliff values
   (`cliff_data_raw` about 922, 0, 0, 0) changed: the effect of the threshold could not be observed at rest, and the default
   value is still not known. The robot has to be restarted afterwards.
+
+## Names from the C# code of the application
+
+The APK holds the Unity code (`assets/bin/Data/Managed/Assembly-CSharp.dll`, managed code, so with the names of the
+members, unlike the engine library). It declares a type for each message that the game layer uses. The fields of each
+type, in order, were read from its metadata (a script with the `dnfile` module) and compared with the layout of the native
+unpacking functions: a name was used only when the type of the C# (`ExternalInterface` or not) has the same name, the same
+number of fields and compatible types. A third-party analysis of the same application (`cozmo-stack`) lists the same names.
+
+Applied (names and, where it differed, the type):
+
+| Number | Message | Fields |
+|---|---|---|
+| 0x07 | SetBodyRadioMode | `radio_mode`, `wifi_channel` |
+| 0x3a | TurnInPlaceAtAngularSpeed | `speed_rad_per_sec`, `accel_rad_per_sec2` |
+| 0x46 | StartControllerTestMode | `p1`, `p2`, `p3` (int32), `mode` |
+| 0x47 | ControllerGains | `kp`, `ki`, `kd`, `max_integral_error`, `controller` |
+| 0x4d | FlashObjectIDs | `object_id` |
+| 0x51 | SetMotionModelParams | `slip_factor` |
+| 0x53 | PowerState | `v_bat_fixed`, `v_ext_fixed`, `unused` (int32), `battery_level`, `on_charger`, `is_charging`, `operating_mode`, `charger_oos` |
+| 0x59 | RollActionParams | `lift_height_mm`, `drive_speed_mmps`, `drive_accel_mmps2`, `drive_duration_ms`, `back_up_dist_mm` |
+| 0x62 | ObjectConnectionStateToRobot | `object_id`, `factory_id`, `object_type`, `connected` |
+| 0xbf | IMUDataChunk | `a_x`, `a_y`, `a_z`, `g_x`, `g_y`, `g_z` (8 **floats** each, not integers), `seq_id`, `chunk_id`, `total_num_chunks` |
+| 0xc0 | CliffEvent | `timestamp`, `detected_flags`, `did_stop_for_cliff` |
+| 0xc7 | IMURawDataChunk | the two arrays of 3 are `g` and `a`; the last two bytes are `order` and `timestamp` |
+| 0xdc | IMUTemperature | `temperature_degc`, a **float** (the first declaration said uint32) |
+
+The C# types of two messages did not match (`PlaceObjectOnGround` has 11 fields in the C#, 7 on the wire), they were not
+used. Names that other analyses give for messages that PyCozmo already declared (for example `SetBodyAngle`:
+`numHalfRevolutions`, `isAbsolute`) were not applied, to keep the names of the existing API.
+
+The messages without a type in the C# keep `unknown*`: the game layer does not use them, so the names are only in the
+native code, which does not keep them.
 
 ## Messages with arrays and strings
 
@@ -164,9 +197,9 @@ declaration says it). A fixed array has no length.
 | 0xcf | CrashReport | uint32, int16, uint8, array of uint32 |
 | 0xd2 | FWVersionInfo | uint32, int32, int32, 16 uint8, 16 uint8 (44 bytes) |
 
-Assumed: the types of the values of `GoalPose` (4 floats and a uint32, as in the pose of `RobotState`) and of
-`IMUDataChunk` (signed 32-bit) are not given by the unpacking, only their size. The fields are named `unknown*` except
-the data, the text and the name.
+Assumed: the types of the values of `GoalPose` (4 floats and a uint32, as in the pose of `RobotState`) are not given by the
+unpacking, only their size. The fields are named `unknown*` except
+the data, the text and the name (and those of `IMUDataChunk`, see below).
 
 On a robot (2026-11-23): `RequestCrashReports` (0x80, with 0) is answered by one `CrashReport` (0xcf) with all fields 0 and
 an empty `dump`: the message and its 1-byte length are decoded; the robot has no crash to report. The other messages

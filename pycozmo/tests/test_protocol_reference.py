@@ -121,6 +121,6 @@ class TestProtocolReference(unittest.TestCase):
         version = pe.FWVersionInfo(unknown0=1, unknown1=2, unknown2=3, unknown3=tuple(range(16)),
                                    unknown4=tuple(range(16, 32)))
         self.assertEqual(len(version.to_bytes()), 44)
-        self.assertEqual(len(pe.IMUDataChunk(data0=(0,) * 8, data1=(0,) * 8, data2=(0,) * 8,
-                                             data3=(0,) * 8, data4=(0,) * 8, data5=(0,) * 8,
-                                             unknown6=0, unknown7=0, unknown8=0).to_bytes()), 195)
+        self.assertEqual(len(pe.IMUDataChunk(a_x=(0.0,) * 8, a_y=(0.0,) * 8, a_z=(0.0,) * 8,
+                                             g_x=(0.0,) * 8, g_y=(0.0,) * 8, g_z=(0.0,) * 8,
+                                             seq_id=0, chunk_id=0, total_num_chunks=0).to_bytes()), 195)
