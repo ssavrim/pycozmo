@@ -672,13 +672,16 @@ def test_flash(cli, state, report, ctx):
             report.add("flash", "FAIL", detail="the cube did not connect")
             return
         object_id = found["object_id"]
-        print("   cube {} connected: watch it, 5 messages follow, 3 s apart".format(object_id))
-        for i in range(5):
-            cli.conn.send(pe.FlashObjectIDs(object_id=object_id))
-            print("   sent {}".format(i + 1))
+        print("   cube {} (factory id 0x{:x}) connected: watch it".format(object_id, factory_id))
+        for label, value in (("object id", object_id), ("factory id", factory_id)):
+            print("   {}: 3 messages with {} (0x{:x}), 3 s apart".format(label, label, value))
+            for i in range(3):
+                cli.conn.send(pe.FlashObjectIDs(object_id=value))
+                print("     sent {} ({})".format(i + 1, label), flush=True)
+                time.sleep(3.0)
             time.sleep(3.0)
         # What the cube did is seen by the operator, not by this tool.
-        report.add("flash", "MEASURED", object_id=object_id, sent=5)
+        report.add("flash", "MEASURED", object_id=object_id, factory_id=factory_id, sent=6)
     finally:
         cli.del_handler(pe.ObjectConnectionState, handler)
 
