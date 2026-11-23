@@ -13,10 +13,6 @@ from pycozmo.lights import encode_color, ms_to_frames
 from pycozmo.tests.test_mood_needs import Clock
 
 
-def cube_color(color):
-    return encode_color(color, cube=True)
-
-
 def pattern_json(**changes: Any) -> dict[str, Any]:
     data: dict[str, Any] = dict(
         onColors=[[255, 0, 0, 255]] * 4, offColors=[[0, 0, 0, 0]] * 4, onPeriod_ms=[100] * 4,
@@ -44,7 +40,7 @@ class TestPatternToStates(unittest.TestCase):
         self.assertEqual(rotation, 4)
         self.assertEqual(states[0].on_frames, 4)
         self.assertEqual(states[0].off_frames, 7)
-        self.assertEqual(states[0].on_color, cube_color((255, 0, 0, 255)))
+        self.assertEqual(states[0].on_color, encode_color((255, 0, 0, 255)))
         self.assertEqual(states[0].off_color, 0)
         self.assertEqual([s.offset for s in states], [0, 1, 2, 0])
 
@@ -54,7 +50,7 @@ class TestPatternToStates(unittest.TestCase):
             offColors=[[0, 0, 255, 255], [0, 0, 255, 255], [0, 0, 255, 255], [0, 0, 255, 255]],
             onPeriod_ms=[0, 0, 100, 100], offPeriod_ms=[0, 50, 0, 50]))
         solid_frames = ms_to_frames(lights.SOLID_PERIOD)
-        red, blue = cube_color((255, 0, 0, 255)), cube_color((0, 0, 255, 255))
+        red, blue = encode_color((255, 0, 0, 255)), encode_color((0, 0, 255, 255))
         # Both periods 0: black. Only the on period 0: the off color. Only the off period 0: the on color.
         self.assertEqual((states[0].on_color, states[0].off_color), (0, 0))
         self.assertEqual((states[0].on_frames, states[0].off_frames), (solid_frames, solid_frames))
