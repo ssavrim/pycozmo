@@ -10,35 +10,24 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-import numpy as np
-
+from . import lights
 from . import protocol_encoder
 from .json_loader import get_json_files, load_json_file
 from .logger import logger
 
 
 __all__ = [
-    "FRAME_MS",
     "LightPattern",
     "LightAnimation",
     "CubeLightPlayer",
 
     "load_cube_light_animations",
     "load_cube_animation_triggers",
-    "ms_to_frames",
-    "offset_to_frames",
-    "white_balance",
-    "encode_color",
     "pattern_to_light_states",
 ]
 
 
-#: Duration of a frame of the cube, in milliseconds.
-FRAME_MS = 30
-#: Period of the LEDs that never change.
-SOLID_PERIOD = 0x7fffffff
-
-Color = tuple[int, int, int, int]
+Color = lights.RGBA
 
 
 @dataclass
@@ -104,69 +93,14 @@ class LightAnimation:
         return self.patterns[0].can_be_overridden if self.patterns else True
 
 
-def ms_to_frames(ms: int) -> int:
-    """ Milliseconds to frames of the cube: rounded up, on 32 bits then kept on 8 bits; -1 gives 255. """
-    if ms == -1:
-        return 0xff
-    return (((ms + FRAME_MS - 1) & 0xffffffff) // FRAME_MS) & 0xff
-
-
-def offset_to_frames(ms: int) -> int:
-    """ Same as ms_to_frames for the offset of a LED: signed, kept on 16 bits. """
-    if ms == -1:
-        return 0xff
-    value = ms + FRAME_MS - 1
-    frames = abs(value) // FRAME_MS * (1 if value >= 0 else -1)
-    frames &= 0xffff
-    return frames - 0x10000 if frames >= 0x8000 else frames
-
-
-def white_balance(color: Color) -> Color:
-    """ Green and blue are scaled down to 0.6 when the red value is not 0. """
-    r, g, b, a = color
-    if r > 0:
-        inv = np.float32(0.003921569)
-        scale = np.float32(0.6)
-        full = np.float32(255.0)
-        g = int(np.float32(np.float32(np.float32(g) * inv) * scale) * full)
-        b = int(np.float32(np.float32(np.float32(b) * inv) * scale) * full)
-    return r, g, b, a
-
-
-def encode_color(color: Color) -> int:
-    """ 16-bit color of the cube: 5 bits per channel after the white balance, bit 15 when the alpha is not 0. """
-    r, g, b, a = white_balance(color)
-    value = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3)
-    if a != 0:
-        value |= 0x8000
-    return value
-
-
 def pattern_to_light_states(pattern: LightPattern) -> tuple[tuple[protocol_encoder.LightState, ...], int]:
     """ The four LightState of the pattern and the rotation period, in frames, for the selection of the cube. """
-    states = []
-    for i in range(4):
-        on_color, off_color = pattern.on_colors[i], pattern.off_colors[i]
-        on_period, off_period = pattern.on_period_ms[i], pattern.off_period_ms[i]
-        if on_period == 0:
-            if off_period == 0:
-                on_color = off_color = (0, 0, 0, 0)
-                off_period = SOLID_PERIOD
-            else:
-                on_color = off_color
-            on_period = SOLID_PERIOD
-        elif off_period == 0:
-            off_color = on_color
-            off_period = SOLID_PERIOD
-        states.append(protocol_encoder.LightState(
-            on_color=encode_color(on_color),
-            off_color=encode_color(off_color),
-            on_frames=ms_to_frames(on_period),
-            off_frames=ms_to_frames(off_period),
-            transition_on_frames=ms_to_frames(pattern.transition_on_ms[i]),
-            transition_off_frames=ms_to_frames(pattern.transition_off_ms[i]),
-            offset=offset_to_frames(pattern.offset[i])))
-    return tuple(states), ms_to_frames(pattern.rotation_period_ms)
+    states = tuple(
+        lights.make_light_state(
+            pattern.on_colors[i], pattern.off_colors[i], pattern.on_period_ms[i], pattern.off_period_ms[i],
+            pattern.transition_on_ms[i], pattern.transition_off_ms[i], pattern.offset[i])
+        for i in range(4))
+    return states, lights.ms_to_frames(pattern.rotation_period_ms)
 
 
 def load_cube_light_animations(resource_dir: str) -> dict[str, LightAnimation]:

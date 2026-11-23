@@ -4,11 +4,20 @@ Helper routines for working with colors and lights.
 
 """
 
+import numpy as np
+
 from . import protocol_encoder
 
 
 __all__ = [
     'Color',
+    'FRAME_MS',
+    'SOLID_PERIOD',
+    'ms_to_frames',
+    'offset_to_frames',
+    'white_balance',
+    'encode_color',
+    'make_light_state',
 
     'green',
     'red',
@@ -36,6 +45,80 @@ LED_ENC_BLUE_SHIFT = 0
 LED_ENC_GREEN_SHIFT = 5
 LED_ENC_RED_SHIFT = 10
 LED_ENC_IR_SHIFT = 15
+
+#: Duration of a frame of the cube, in milliseconds.
+FRAME_MS = 30
+#: Period of the LEDs that never change.
+SOLID_PERIOD = 0x7fffffff
+
+RGBA = tuple[int, int, int, int]
+
+
+def ms_to_frames(ms: int) -> int:
+    """ Milliseconds to frames of the cube: rounded up, on 32 bits then kept on 8 bits; -1 gives 255. """
+    if ms == -1:
+        return 0xff
+    return (((ms + FRAME_MS - 1) & 0xffffffff) // FRAME_MS) & 0xff
+
+
+def offset_to_frames(ms: int) -> int:
+    """ Same as ms_to_frames for the offset of a LED: signed, kept on 16 bits. """
+    if ms == -1:
+        return 0xff
+    value = ms + FRAME_MS - 1
+    frames = abs(value) // FRAME_MS * (1 if value >= 0 else -1)
+    frames &= 0xffff
+    return frames - 0x10000 if frames >= 0x8000 else frames
+
+
+def white_balance(color: RGBA) -> RGBA:
+    """ Green and blue are scaled down to 0.6 when the red value is not 0. """
+    r, g, b, a = color
+    if r > 0:
+        inv = np.float32(0.003921569)
+        scale = np.float32(0.6)
+        full = np.float32(255.0)
+        g = int(np.float32(np.float32(np.float32(g) * inv) * scale) * full)
+        b = int(np.float32(np.float32(np.float32(b) * inv) * scale) * full)
+    return r, g, b, a
+
+
+def encode_color(color: RGBA) -> int:
+    """ 16-bit color of the cube: 5 bits per channel after the white balance, bit 15 when the alpha is not 0. """
+    r, g, b, a = white_balance(color)
+    value = ((r >> 3) << LED_ENC_RED_SHIFT) | ((g >> 3) << LED_ENC_GREEN_SHIFT) | (b >> 3)
+    if a != 0:
+        value |= LED_ENC_IR
+    return value
+
+
+def make_light_state(
+        on_color: RGBA, off_color: RGBA, on_period_ms: int, off_period_ms: int,
+        transition_on_ms: int = 0, transition_off_ms: int = 0, offset_ms: int = 0) -> protocol_encoder.LightState:
+    """
+    A LightState of a cube LED from colors and durations in milliseconds.
+
+    A LED whose on period is 0 is solid in its off color (black when the off period is also 0), and a LED whose off
+    period is 0 is solid in its on color; a solid LED gets both colors equal and the period SOLID_PERIOD.
+    """
+    if on_period_ms == 0:
+        if off_period_ms == 0:
+            on_color = off_color = (0, 0, 0, 0)
+            off_period_ms = SOLID_PERIOD
+        else:
+            on_color = off_color
+        on_period_ms = SOLID_PERIOD
+    elif off_period_ms == 0:
+        off_color = on_color
+        off_period_ms = SOLID_PERIOD
+    return protocol_encoder.LightState(
+        on_color=encode_color(on_color),
+        off_color=encode_color(off_color),
+        on_frames=ms_to_frames(on_period_ms),
+        off_frames=ms_to_frames(off_period_ms),
+        transition_on_frames=ms_to_frames(transition_on_ms),
+        transition_off_frames=ms_to_frames(transition_off_ms),
+        offset=offset_to_frames(offset_ms))
 
 
 class Color:
@@ -73,6 +156,11 @@ class Color:
         b = ((self._int_color & 0x0000FF00) >> 8) * 31 // 255
         value = (r << LED_ENC_RED_SHIFT) | (g << LED_ENC_GREEN_SHIFT) | (b << LED_ENC_BLUE_SHIFT)
         return value
+
+    def to_cube_int16(self) -> int:
+        """ Color as the light patterns of the original application encode it (see encode_color). """
+        c = self._int_color
+        return encode_color(((c >> 24) & 0xff, (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff))
 
     @classmethod
     def from_int16(cls, value: int) -> "Color":

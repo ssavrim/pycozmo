@@ -12,7 +12,9 @@ Unreleased
     Brain.reaction_manager. Add select_reaction_trigger.
 - Add pycozmo.cube_lights (docs/specs/cube-light-patterns.md): read the cube light animations and the cube animation
     triggers of the prepared resources, convert a pattern to the four LightState of a cube and its rotation period,
-    and play an animation with CubeLightPlayer (durations, resume of the previous animation, canBeOverridden).
+    and play an animation with CubeLightPlayer (durations, resume of the previous animation, canBeOverridden). The
+    color and frame conversions are in pycozmo.lights (encode_color, white_balance, ms_to_frames, make_light_state,
+    Color.to_cube_int16); Color.to_int16 is unchanged.
 - Decide which reaction triggers fire (docs/specs/reaction-triggers.md): ReactionTriggerManager, with the
     parameters of FistBump and Frustration read by ReactionTrigger, and load_reaction_triggers, which keeps the
     entries that share a trigger (load_reaction_trigger_behavior_map keeps the last one). SelectionContext gains the
