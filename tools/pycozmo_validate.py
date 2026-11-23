@@ -53,7 +53,7 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights", "markers", "protocol", "wheels")
+    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff")
 
 
 class State:
@@ -575,6 +575,42 @@ def test_wheels(cli, state, report, ctx):
     floor = ask_number("  Heading change measured on the floor, in degrees?")
     report.add("wheels", "MEASURED", odometry_deg=None if turned is None else round(turned), floor_deg=floor,
                expected_deg=round(math.degrees(0.5 * 3.0)), peak_wheel_sum_mmps=round(peak))
+
+
+def test_cliff(cli, state, report, ctx):
+    """ Messages sent when the floor disappears under a driving robot: drive slowly while it is held in the air. """
+    import collections
+    from pycozmo import protocol_encoder as pe
+    print("\ncliff: Cozmo drives at 20 mm/s for 15 s. HOLD IT in your hand, wheels free, then lift it from the floor")
+    print("  and put it back (or hold it over a table edge). Keep your hand under it.")
+    if not ask("Ready, holding the robot above the floor?", False):
+        report.add("cliff", "SKIP", detail="not confirmed")
+        return
+    seen: collections.Counter = collections.Counter()
+    examples: dict[str, str] = {}
+    names = ("CliffEvent", "PotentialCliff", "RobotStopped", "MotorAutoEnabled", "RobotErrorReport")
+
+    def make(name):
+        def handler(_cli, pkt):
+            seen[name] += 1
+            examples.setdefault(name, repr(pkt))
+        return handler
+
+    handlers = [(getattr(pe, n), make(n)) for n in names]
+    for cls, handler in handlers:
+        cli.add_handler(cls, handler)
+    try:
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 15.0:
+            cli.drive_wheels(20.0, 20.0)
+            time.sleep(0.1)
+    finally:
+        cli.stop_all_motors()
+        for cls, handler in handlers:
+            cli.del_handler(cls, handler)
+    for name, count in sorted(seen.items()):
+        print("   {} x{}: {}".format(name, count, examples[name]))
+    report.add("cliff", "MEASURED", seen=dict(seen))
 
 
 def test_brain(cli, state, report, ctx):
