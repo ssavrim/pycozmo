@@ -739,8 +739,8 @@ PROTOCOL = Protocol(
         ]),
         Command(0x06, "KillBodyCode", group="factory"),
         Command(0x07, "SetBodyRadioMode", group="factory", arguments=[
-            UInt8Argument("unknown0"),
-            UInt8Argument("unknown1"),
+            UInt8Argument("radio_mode"),
+            UInt8Argument("wifi_channel"),
         ]),
         Command(0x0e, "ReadBodyStorage", group="factory", arguments=[
             UInt8Argument("unknown0"),
@@ -758,7 +758,7 @@ PROTOCOL = Protocol(
         ]),
         Command(0x3a, "TurnInPlaceAtAngularSpeed", group="motors", arguments=[
             FloatArgument("speed_rad_per_sec"),
-            FloatArgument("unknown1"),
+            FloatArgument("accel_rad_per_sec2"),
         ]),
         Command(0x44, "PlaceObjectOnGround", group="docking", arguments=[
             FloatArgument("unknown0"),
@@ -770,23 +770,23 @@ PROTOCOL = Protocol(
             BoolArgument("unknown6"),
         ]),
         Command(0x46, "StartControllerTestMode", group="factory", arguments=[
-            UInt32Argument("unknown0"),
-            Int32Argument("unknown1"),
-            Int32Argument("unknown2"),
-            UInt8Argument("unknown3"),
+            Int32Argument("p1"),
+            Int32Argument("p2"),
+            Int32Argument("p3"),
+            UInt8Argument("mode"),
         ]),
         Command(0x47, "ControllerGains", group="factory", arguments=[
-            FloatArgument("unknown0"),
-            FloatArgument("unknown1"),
-            FloatArgument("unknown2"),
-            FloatArgument("unknown3"),
-            UInt8Argument("unknown4"),
+            FloatArgument("kp"),
+            FloatArgument("ki"),
+            FloatArgument("kd"),
+            FloatArgument("max_integral_error"),
+            UInt8Argument("controller"),
         ]),
         Command(0x4a, "IMURequest", group="system", arguments=[
             UInt32Argument("length_ms", description="Duration of the stream of IMURawDataChunk, in milliseconds."),
         ]),
         Command(0x4d, "FlashObjectIDs", group="objects", arguments=[
-            UInt32Argument("unknown0"),
+            UInt32Argument("object_id"),
         ]),
         Command(0x4e, "ObjectBeingCarried", group="localization", arguments=[
             UInt32Argument("object_id"),
@@ -797,18 +797,18 @@ PROTOCOL = Protocol(
             BoolArgument("enable"),
         ]),
         Command(0x51, "SetMotionModelParams", group="motors", arguments=[
-            FloatArgument("unknown0"),
+            FloatArgument("slip_factor"),
         ]),
         Command(0x52, "EnterSleepMode", group="system"),
         Command(0x53, "PowerState", group="system", arguments=[
-            UInt32Argument("unknown0"),
-            Int32Argument("unknown1"),
-            Int32Argument("unknown2"),
-            UInt8Argument("unknown3"),
-            BoolArgument("unknown4"),
-            BoolArgument("unknown5"),
-            UInt8Argument("unknown6"),
-            BoolArgument("unknown7"),
+            Int32Argument("v_bat_fixed"),
+            Int32Argument("v_ext_fixed"),
+            Int32Argument("unused"),
+            UInt8Argument("battery_level"),
+            BoolArgument("on_charger"),
+            BoolArgument("is_charging"),
+            UInt8Argument("operating_mode"),
+            BoolArgument("charger_oos"),
         ]),
         Command(0x54, "SetCliffDetectThreshold", group="system", arguments=[
             UInt16Argument("threshold"),
@@ -819,11 +819,11 @@ PROTOCOL = Protocol(
             BoolArgument("unknown2"),
         ]),
         Command(0x59, "RollActionParams", group="docking", arguments=[
-            FloatArgument("unknown0"),
-            FloatArgument("unknown1"),
-            FloatArgument("unknown2"),
-            Int32Argument("unknown3"),
-            FloatArgument("unknown4"),
+            FloatArgument("lift_height_mm"),
+            FloatArgument("drive_speed_mmps"),
+            FloatArgument("drive_accel_mmps2"),
+            UInt32Argument("drive_duration_ms"),
+            FloatArgument("back_up_dist_mm"),
         ]),
         Command(0x5a, "CameraFOVInfo", group="camera", arguments=[
             FloatArgument("unknown0"),
@@ -831,10 +831,10 @@ PROTOCOL = Protocol(
         ]),
         Command(0x61, "ForceDelocalizeSimulatedRobot", group="localization"),
         Command(0x62, "ObjectConnectionStateToRobot", group="objects", arguments=[
-            UInt32Argument("unknown0"),
-            Int32Argument("unknown1"),
-            Int32Argument("unknown2"),
-            BoolArgument("unknown3"),
+            UInt32Argument("object_id"),
+            UInt32Argument("factory_id"),
+            Int32Argument("object_type"),
+            BoolArgument("connected"),
         ]),
         Command(0x63, "EnableBraceWhenFalling", group="system", arguments=[
             BoolArgument("enable"),
@@ -906,9 +906,9 @@ PROTOCOL = Protocol(
             BoolArgument("unknown1"),
         ]),
         Command(0xc0, "CliffEvent", group="state", arguments=[
-            UInt32Argument("unknown0"),
-            UInt8Argument("unknown1"),
-            BoolArgument("unknown2"),
+            UInt32Argument("timestamp"),
+            UInt8Argument("detected_flags"),
+            BoolArgument("did_stop_for_cliff"),
         ]),
         Command(0xc1, "PotentialCliff", group="state"),
         Command(0xd4, "RobotStopped", group="state", arguments=[
@@ -926,7 +926,7 @@ PROTOCOL = Protocol(
             BoolArgument("unknown1"),
         ]),
         Command(0xdc, "IMUTemperature", group="state", arguments=[
-            UInt32Argument("unknown0"),
+            FloatArgument("temperature_degc"),
         ]),
         Command(0xec, "WiFiFlashID", group="factory", arguments=[
             UInt32Argument("unknown0"),
@@ -938,8 +938,8 @@ PROTOCOL = Protocol(
             Int16Argument("accel_x", description="Raw value, about 10450 for 1 g."),
             Int16Argument("accel_y", description="Raw value, about 10450 for 1 g."),
             Int16Argument("accel_z", description="Raw value, about 10450 for 1 g."),
-            UInt8Argument("unknown6"),
-            UInt8Argument("unknown7"),
+            UInt8Argument("order"),
+            UInt8Argument("timestamp"),
         ]),
         # Messages with arrays and strings, read from the unpacking functions of the original application
         # (docs/specs/protocol-gaps.md). Arrays and strings have a length on 1 byte.
@@ -992,15 +992,15 @@ PROTOCOL = Protocol(
             StringArgument("name", length_type=UInt8Argument()),
         ]),
         Command(0xbf, "IMUDataChunk", group="state", arguments=[
-            FArrayArgument("data0", data_type=Int32Argument(), length=8),
-            FArrayArgument("data1", data_type=Int32Argument(), length=8),
-            FArrayArgument("data2", data_type=Int32Argument(), length=8),
-            FArrayArgument("data3", data_type=Int32Argument(), length=8),
-            FArrayArgument("data4", data_type=Int32Argument(), length=8),
-            FArrayArgument("data5", data_type=Int32Argument(), length=8),
-            UInt8Argument("unknown6"),
-            UInt8Argument("unknown7"),
-            UInt8Argument("unknown8"),
+            FArrayArgument("a_x", data_type=FloatArgument(), length=8),
+            FArrayArgument("a_y", data_type=FloatArgument(), length=8),
+            FArrayArgument("a_z", data_type=FloatArgument(), length=8),
+            FArrayArgument("g_x", data_type=FloatArgument(), length=8),
+            FArrayArgument("g_y", data_type=FloatArgument(), length=8),
+            FArrayArgument("g_z", data_type=FloatArgument(), length=8),
+            UInt8Argument("seq_id"),
+            UInt8Argument("chunk_id"),
+            UInt8Argument("total_num_chunks"),
         ]),
         Command(0xc8, "DefaultCameraParams", group="camera", arguments=[
             FloatArgument("unknown0"),
