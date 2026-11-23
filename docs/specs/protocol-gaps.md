@@ -141,6 +141,11 @@ and **must not be sent to a robot**.
 - `FlashObjectIDs` (0x4d): sent 5 times, 3 s apart, with the object identifier of a connected cube (object 1): **nothing was
   seen on the cube** (watched by the operator). The message is not known to do anything on this robot; the field may expect
   something else than the object identifier (the factory identifier, for example), which was not tried.
+- `TurnInPlace` (0x39), relative turn of 90 degrees (`angle_rad` pi/2, 1 rad/s, `accel_rad_per_sec2` 3, tolerance 0.05, not
+  absolute): with `num_half_revolutions` 0 the robot turned a quarter of a turn counterclockwise (odometry 89 degrees); with
+  `num_half_revolutions` 1 it turned almost a full turn counterclockwise (odometry -21 degrees, that is 339 modulo 360, seen
+  on the floor as nearly a full turn). The field adds turning to the angle: one unit is about a half revolution (the
+  total, 339 degrees, is not exactly 90 + 180: not measured more precisely, the end of the turn is not checked here).
 
 ## Names from the C# code of the application
 
