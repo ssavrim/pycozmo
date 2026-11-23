@@ -81,7 +81,7 @@ created by `Brain`, which calls `update` once per frame:
 Not done: the brain does not connect the cubes by itself (use `Client.set_object_connection`), and no behavior plays a
 cube animation yet; the triggers of the original (`Sleep`, `Dance_*`, `GuardDog*`...) are for the behaviors that use them.
 On a robot (2026-11-23, `--tests braincubes`): the brain created with the prepared resources played `Connected`, `Flash`
-and `Dance_01` on a cube (the packets were sent; the look is for the operator to confirm).
+and `Dance_01` on a cube (the packets were sent; the operator saw the animations).
 
 ## Open points
 
@@ -94,4 +94,4 @@ and `Dance_01` on a cube (the packets were sent; the look is for the operator to
 | Stop behavior and lights after the last pattern | Assumed |
 | Gamma sent before the lights | Specified (validated on three cubes) |
 | Layers, blending, default animation | Not modeled |
-| Playing the animations of the connected cubes from the brain (`Connected`, `play_cube_animation`) | Tested offline and on a robot (packets); the look to confirm by the operator |
+| Playing the animations of the connected cubes from the brain (`Connected`, `play_cube_animation`) | Tested offline and on a robot (the operator saw the animations) |
