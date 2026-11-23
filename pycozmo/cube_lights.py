@@ -5,6 +5,7 @@ Light patterns of the cubes: reading, conversion to cube packets and playback (d
 """
 
 import os
+import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -20,6 +21,7 @@ __all__ = [
     "LightPattern",
     "LightAnimation",
     "CubeLightPlayer",
+    "CubeLightManager",
 
     "load_cube_light_animations",
     "load_cube_animation_triggers",
@@ -225,3 +227,95 @@ class CubeLightPlayer:
         duration = self._pattern(playing).duration_ms
         playing.deadline = now + duration / 1000.0 if duration else None
         self._apply(playing)
+
+
+CUBE_TYPES = frozenset((protocol_encoder.ObjectType.Block_LIGHTCUBE1, protocol_encoder.ObjectType.Block_LIGHTCUBE2,
+                        protocol_encoder.ObjectType.Block_LIGHTCUBE3))
+
+
+class CubeLightManager:
+    """
+    Plays the light animations on the cubes that are connected.
+
+    A player is created for each cube that connects (and dropped when it disconnects); the animation of the trigger
+    ``Connected`` plays on it. ``play`` plays an animation by the name of its trigger (the ``CladEvent`` of
+    ``CubeAnimationTriggerMap.json``, for example ``Flash``) or of the animation itself. ``update`` must be called
+    regularly (the brain does it once per frame) to advance the patterns.
+    """
+
+    CONNECTED = "Connected"
+
+    def __init__(
+            self, cli: Any, animations: dict[str, LightAnimation], triggers: dict[str, str],
+            clock: Callable[[], float] = time.monotonic) -> None:
+        self.cli = cli
+        self.animations = animations
+        self.triggers = triggers
+        self.clock = clock
+        self._players: dict[int, CubeLightPlayer] = {}
+        self._lock = threading.RLock()
+
+    def attach(self) -> None:
+        """ Follow the connection of the cubes of the client. """
+        self.cli.add_handler(protocol_encoder.ObjectConnectionState, self.on_connection)
+
+    @property
+    def object_ids(self) -> list[int]:
+        with self._lock:
+            return sorted(self._players)
+
+    def on_connection(self, cli: Any, pkt: Any) -> None:
+        del cli
+        if pkt.object_type not in CUBE_TYPES and pkt.connected:
+            return
+        if pkt.connected:
+            with self._lock:
+                self._players[pkt.object_id] = CubeLightPlayer.for_cube(self.cli, pkt.object_id, clock=self.clock)
+            logger.debug("Cube {} connected.".format(pkt.object_id))
+            self.play(self.CONNECTED, pkt.object_id)
+        else:
+            with self._lock:
+                self._players.pop(pkt.object_id, None)
+
+    def resolve(self, name: str) -> LightAnimation | None:
+        """ The animation of a trigger or of an animation name; None when unknown. """
+        animation = self.animations.get(self.triggers.get(name, name))
+        if animation is None:
+            logger.warning("Unknown cube light animation or trigger {}.".format(name))
+        return animation
+
+    def play(self, name: str, object_id: int | None = None, on_finished: Callable[[], None] | None = None) -> int:
+        """ Play an animation on a cube, or on every connected cube. Returns the number of cubes it plays on. """
+        animation = self.resolve(name)
+        if animation is None:
+            return 0
+        with self._lock:
+            players = [self._players[object_id]] if object_id in self._players else (
+                list(self._players.values()) if object_id is None else [])
+            count = 0
+            for player in players:
+                try:
+                    if player.play(animation, on_finished=on_finished):
+                        count += 1
+                except Exception as e:
+                    logger.error("Failed to play cube light animation {}. {}".format(name, e))
+            return count
+
+    def update(self) -> None:
+        with self._lock:
+            for object_id, player in list(self._players.items()):
+                try:
+                    player.update()
+                except Exception as e:
+                    logger.error("Failed to update the lights of cube {}. {}".format(object_id, e))
+
+    def stop(self, off: bool = True) -> None:
+        """ Stop the animations and, by default, turn the lights of the cubes off. """
+        with self._lock:
+            for object_id, player in list(self._players.items()):
+                player.stop_all()
+                if off:
+                    try:
+                        self.cli.set_cube_lights(object_id, (lights.off_light,) * 4)
+                    except Exception as e:
+                        logger.error("Failed to turn off the lights of cube {}. {}".format(object_id, e))

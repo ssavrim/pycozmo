@@ -53,7 +53,8 @@ from pycozmo import anim, anim_encoder as ae, event, protocol_encoder as pe, rob
 
 ALL_TESTS = (
     "event", "head", "lift", "body", "arcs", "face", "sound", "clip", "needs", "mood", "select", "react", "brain",
-    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold", "turn")
+    "brainreact", "cubelights", "markers", "protocol", "wheels", "cliff", "cliffthreshold", "turn",
+    "braincubes")
 
 
 class State:
@@ -418,7 +419,7 @@ def test_cubelights(cli, state, report, ctx):
                look="to confirm by the operator")
 
 
-def _make_brain(cli, ctx):
+def _make_brain(cli, ctx, **kwargs):
     """ Create a brain on the prepared resources. """
     import tempfile
     from pycozmo import brain as brain_module
@@ -427,7 +428,7 @@ def _make_brain(cli, ctx):
         previous = os.environ.get("PYCOZMO_DIR")
         os.environ["PYCOZMO_DIR"] = tmp
         try:
-            return brain_module.Brain(cli)
+            return brain_module.Brain(cli, **kwargs)
         finally:
             if previous is None:
                 del os.environ["PYCOZMO_DIR"]
@@ -666,6 +667,61 @@ def test_turn(cli, state, report, ctx):
         print("   odometry {} deg".format(None if turned is None else round(turned)))
         results[halves] = dict(odometry_deg=None if turned is None else round(turned), floor_deg=floor)
     report.add("turn", "MEASURED", results={str(k): v for k, v in results.items()})
+
+
+def test_braincubes(cli, state, report, ctx):
+    """ The brain plays the light animations on a cube that connects, reacts to a cube that moves and sees. """
+    print("\nbraincubes: Brain(markers=True) with a cube (the packets are checked here, the lights by the operator)")
+    brain = _make_brain(cli, ctx, markers=True)
+    seen = []
+    original = brain.activate_behavior
+
+    def spy(behavior_id, *args, **kwargs):
+        seen.append(behavior_id)
+        original(behavior_id, *args, **kwargs)
+
+    brain.activate_behavior = spy
+    cube_types = {pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE1,
+                  pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE2,
+                  pycozmo.protocol_encoder.ObjectType.Block_LIGHTCUBE3}
+    brain.start()
+    markers_seen: set[str] = set()
+    try:
+        print("  Wake a cube (move or tap it); it connects by itself.")
+        deadline = time.monotonic() + 30.0
+        factory_id = None
+        while factory_id is None and time.monotonic() < deadline:
+            factory_id = next((i for i, o in list(cli.available_objects.items()) if o.object_type in cube_types), None)
+            time.sleep(0.1)
+        if factory_id is None:
+            report.add("braincubes", "FAIL", detail="no cube found within 30 s")
+            return
+        cli.set_object_connection(factory_id)
+        deadline = time.monotonic() + 10.0
+        while not brain.cube_lights.object_ids and time.monotonic() < deadline:
+            time.sleep(0.1)
+        if not brain.cube_lights.object_ids:
+            report.add("braincubes", "FAIL", detail="the cube did not connect")
+            return
+        print("  Cube connected: the 'Connected' animation plays (watch the cube).")
+        time.sleep(4.0)
+        for name in ("Flash", "Dance_01"):
+            print("  play_cube_animation({!r}): {} cube(s)".format(name, brain.play_cube_animation(name)))
+            time.sleep(4.0)
+        print("  Now MOVE the cube, then hold it 15 cm in front of the camera, for 25 s.")
+        deadline = time.monotonic() + 25.0
+        while time.monotonic() < deadline:
+            markers_seen.update(m.name for m in list(brain.visible_markers))
+            time.sleep(0.2)
+    finally:
+        brain.stop()
+    watcher = brain.marker_watcher
+    images = (watcher.submitted, watcher.processed) if watcher is not None else (None, None)
+    print("   images submitted/processed: {}/{}; markers seen: {}; behaviors run: {}".format(
+        images[0], images[1], sorted(markers_seen), seen))
+    report.add("braincubes", "MEASURED", cubes=len(brain.cube_lights.object_ids), markers=sorted(markers_seen),
+               images_submitted=images[0], images_processed=images[1], behaviors=seen,
+               look="the cube animations are to confirm by the operator")
 
 
 def test_brain(cli, state, report, ctx):

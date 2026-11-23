@@ -90,6 +90,22 @@ runs on frames that look like markers but hold a random pattern. On 114 images a
 This does not say how it behaves on real images, which have lighting, motion blur and clutter: they were only checked by
 eye on a few frames of the robot (see the audit).
 
+## In the brain
+
+`Brain(cli, markers=True)` looks for markers in the images of the camera (it turns the camera on at `start`). The images
+go to a `MarkerWatcher`, a thread of its own that keeps only the latest image (a detection takes longer than the time between
+two images) and calls `Brain.on_markers` with the markers of each processed image, kept in `Brain.visible_markers`.
+
+- A cube (any face) or the charger that was not seen for 5 seconds posts the reaction trigger `ObjectPositionUpdated`,
+  which runs the behavior `AcknowledgeObject` (Assumed: the rules of the original for this trigger are not modeled).
+- A cube that moves (`ObjectMoved`) posts `CubeMoved`, at most every 2 seconds.
+- Without the marker library in the prepared resources, a warning is logged and the markers are not used. The option is
+  off by default: it costs a thread and the camera.
+
+On a robot (2026-11-23, `--tests braincubes`): with a cube held in front of the camera, 410 of 558 images were processed
+over the test, the face `LIGHTCUBEJ_LEFT` (the cube 2) was seen, and `AcknowledgeObject` and `ReactToCubeMoved` ran.
+The robot is not driven by what it sees: no head or wheel movement follows the markers.
+
 ## Open points
 
 | Point | Status |
@@ -100,5 +116,6 @@ eye on a few frames of the robot (see the audit).
 | Detection of the frames and refinement of the corners | Assumed (OpenCV, not the original algorithm) |
 | Letters of the cubes (I, J, K) are the cubes 1, 2, 3; sizes of the markers and of the cubes | Specified |
 | Pose of an object (its center) from its markers | Not modeled |
+| Markers in the brain: `ObjectPositionUpdated` and `CubeMoved` triggers | Assumed (the rules of the original for these triggers are not modeled); tested offline and on a robot |
 | Recognition on synthetic images (99 %, no false detection) | Measured; real images were not measured |
 | Speed | About 0.15 to 0.3 s for an image of 320 x 240 on the test machine: about 4 images per second |

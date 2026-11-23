@@ -416,3 +416,75 @@ class TestObjects(unittest.TestCase):
         double = markers.estimate_marker_pose(charger, (54.0, 40.0), matrix)
         assert double is not None
         self.assertAlmostEqual(double[1][2], 300.0, delta=3.0)
+
+
+class TestWatcher(unittest.TestCase):
+
+    class Detector:
+        def __init__(self, fail=False):
+            self.images = []
+            self.fail = fail
+
+        def detect(self, image):
+            self.images.append(image)
+            if self.fail:
+                raise ValueError("broken")
+            return [image]
+
+    def test_only_the_latest_image_is_processed(self):
+        found: list = []
+        detector = self.Detector()
+        watcher = markers.MarkerWatcher(detector, found.append)  # type: ignore[arg-type]
+        self.assertFalse(watcher.process_latest())
+        watcher.submit("a")
+        watcher.submit("b")
+        self.assertTrue(watcher.process_latest())
+        self.assertFalse(watcher.process_latest())
+        self.assertEqual(detector.images, ["b"])
+        self.assertEqual(found, [["b"]])
+        self.assertEqual((watcher.submitted, watcher.processed), (2, 1))
+
+    def test_errors_are_logged_not_raised(self):
+        found: list = []
+        watcher = markers.MarkerWatcher(self.Detector(fail=True), found.append)  # type: ignore[arg-type]
+        watcher.submit("a")
+        self.assertTrue(watcher.process_latest())
+        self.assertEqual(found, [])
+
+    def test_thread(self):
+        import threading
+        done = threading.Event()
+        found: list = []
+
+        def on_markers(result):
+            found.append(result)
+            done.set()
+
+        watcher = markers.MarkerWatcher(self.Detector(), on_markers)  # type: ignore[arg-type]
+        watcher.start()
+        try:
+            watcher.start()                  # no second thread
+            watcher.submit("a")
+            self.assertTrue(done.wait(5.0))
+        finally:
+            watcher.stop()
+        self.assertEqual(found, [["a"]])
+        watcher.stop()                       # stopping twice is fine
+
+
+class TestDegenerateHomography(unittest.TestCase):
+
+    def test_collapsed_frame_gives_probes_without_warning(self):
+        import warnings
+        library = make_library()
+        image = np.full((60, 80), 120, dtype=np.uint8)
+        collapsed = np.zeros((3, 3), dtype=np.float64)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            probes = sample_probes(image, collapsed, library)
+        self.assertEqual(probes.shape, (GRID * GRID,))
+        detector = MarkerDetector(library)
+        corners = np.array([[10, 10], [10, 10], [10, 10], [10, 10]], dtype=np.float32)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            detector._distance(image, corners)

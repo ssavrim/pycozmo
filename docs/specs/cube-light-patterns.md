@@ -66,6 +66,23 @@ A cube plays one animation at a time; this is what is modeled for one layer (`Cu
   animation with the current lights, the default animation chosen when a layer is empty, the lights state
   transition messages, and the lights while the cube is not connected.
 
+## In the brain
+
+`CubeLightManager` (in `pycozmo.cube_lights`) holds one player per connected cube, follows `ObjectConnectionState` and is
+created by `Brain`, which calls `update` once per frame:
+
+- A cube that connects (the three light cubes only) plays the animation of the trigger `Connected`; a cube that
+  disconnects loses its player.
+- `Brain.play_cube_animation(name, object_id=None)` plays an animation by the name of its trigger (the `CladEvent` of
+  `CubeAnimationTriggerMap.json`, for example `Flash`, `Dance_01`) or of the animation, on one cube or on all of them. It
+  returns the number of cubes it plays on (0 for an unknown name, a warning is logged).
+- When the brain stops, the animations stop and the lights of the cubes are turned off.
+
+Not done: the brain does not connect the cubes by itself (use `Client.set_object_connection`), and no behavior plays a
+cube animation yet; the triggers of the original (`Sleep`, `Dance_*`, `GuardDog*`...) are for the behaviors that use them.
+On a robot (2026-11-23, `--tests braincubes`): the brain created with the prepared resources played `Connected`, `Flash`
+and `Dance_01` on a cube (the packets were sent; the look is for the operator to confirm).
+
 ## Open points
 
 | Point | Status |
@@ -77,3 +94,4 @@ A cube plays one animation at a time; this is what is modeled for one layer (`Cu
 | Stop behavior and lights after the last pattern | Assumed |
 | Gamma sent before the lights | Specified (validated on three cubes) |
 | Layers, blending, default animation | Not modeled |
+| Playing the animations of the connected cubes from the brain (`Connected`, `play_cube_animation`) | Tested offline and on a robot (packets); the look to confirm by the operator |
