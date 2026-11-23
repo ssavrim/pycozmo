@@ -3,6 +3,8 @@ Revision History
 
 Unreleased
 ----------
+- Client.set_all_backpack_lights turns the left and right backpack LEDs off for white and grey: they are red only and
+    showed red next to a white line. Add lights.is_white_shade and lights.side_light. Other colors are unchanged.
 - Use the needs, the mood, the reaction triggers and the behavior selection in Brain: it updates the needs, runs the
     reaction that ReactionTriggerManager fires (Frustration now picks the minor or the major reaction from the
     Confident emotion), lets a reaction interrupt the running behavior, and, with Brain(cli, freeplay=True), chooses

@@ -21,6 +21,9 @@ __all__ = [
     'blue_light',
     'white_light',
     'off_light',
+
+    'is_white_shade',
+    'side_light',
 ]
 
 
@@ -109,3 +112,21 @@ blue_light = protocol_encoder.LightState(on_color=blue.to_int16(), off_color=blu
 white_light = protocol_encoder.LightState(on_color=white.to_int16(), off_color=white.to_int16())
 #: Off/no light.
 off_light = protocol_encoder.LightState(on_color=off.to_int16(), off_color=off.to_int16())
+
+
+def is_white_shade(color: int) -> bool:
+    """ Whether a 16-bit LED color is white or grey: the three channels are equal, give or take two steps. """
+    r = (color & LED_ENC_RED) >> LED_ENC_RED_SHIFT
+    g = (color & LED_ENC_GREEN) >> LED_ENC_GREEN_SHIFT
+    b = (color & LED_ENC_BLUE) >> LED_ENC_BLUE_SHIFT
+    return max(r, g, b) > 0 and max(r, g, b) - min(r, g, b) <= 2
+
+
+def side_light(light: protocol_encoder.LightState) -> protocol_encoder.LightState:
+    """
+    The light for the left and right LEDs of the backpack, which are red only: off when the light is a shade of
+    white (they would show red next to a white line), the light itself otherwise.
+    """
+    if is_white_shade(light.on_color) or is_white_shade(light.off_color):
+        return off_light
+    return light
