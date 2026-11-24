@@ -658,19 +658,25 @@ class Client(event.Dispatcher):
     def cancel_anim(self) -> None:
         self.anim_controller.cancel_anim()
 
-    def play_anim_group(self, anim_group_name: str) -> None:
+    def play_anim_group(self, anim_group_name: str, *, allowed_types: Any = None) -> str | None:
+        """
+        Play an animation of a group, optionally filtering to specified keyframe types.
+
+        Returns the name of the clip that plays, or None when the group is unknown or none of its clips can play now.
+        """
         logger_animation.info("Playing animation group {}".format(anim_group_name))
         animation_group = self.animation_groups.get(anim_group_name)
         if not animation_group:
             logger_animation.error("Failed to find animation group {}.".format(anim_group_name))
-            return
+            return None
         member = animation_group.choose_member(cooldowns=self._anim_cooldowns,
                                                head_angle_rad=self.head_angle.radians)
         if member is None:
             logger_animation.error("No animation of group {} can be played.".format(anim_group_name))
-            return
+            return None
         logger_animation.info("Playing animation {}".format(member.name))
-        self.play_anim(member.name)
+        self.play_anim(member.name, allowed_types=allowed_types)
+        return str(member.name)
 
     def load_anims(self, anim_dir: str | None = None) -> None:
         """Load animation clips; optionally provide a directory of extracted assets.
