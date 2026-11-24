@@ -377,14 +377,18 @@ class RobotController:
             raise ToolError("The animations are not available: {}".format(e)) from e
         return names
 
-    def play_animation(self, name: str) -> dict[str, Any]:
+    def play_animation(self, name: str, wheels: bool = False) -> dict[str, Any]:
         """
         Play an animation group (see list_animations) and return when it is over, after 20 seconds, or on stop.
 
-        The animation never drives the wheels: its body motions are left out (``ANIMATION_TYPES``).
+        By default the animation does not drive the wheels: its body motions are left out (``ANIMATION_TYPES``). With
+        ``wheels``, they play, under the checks of a drive: refused when the wheels are disabled, the robot is picked
+        up, at a cliff or, with the edge guard, near a known edge; stopped at once by a pick up, a cliff or stop.
         """
         cli = self.client
         name = str(name)
+        if not isinstance(wheels, bool):
+            raise ToolError("wheels must be true or false.")
         done = threading.Event()
         handler = cli.add_handler(event.EvtAnimationCompleted, lambda *_: done.set())
         stopped_by = None
@@ -396,25 +400,44 @@ class RobotController:
                 raise ToolError("The animations are not available: {}".format(e)) from e
             if name not in cli.animation_groups:
                 raise ToolError("Unknown animation group {!r}: see list_animations.".format(name))
-            self._stop_requested.clear()
-            try:
-                clip = cli.play_anim_group(name, allowed_types=ANIMATION_TYPES)
-            except Exception as e:
-                raise ToolError("Failed to play the animation: {}".format(e)) from e
-            if clip is None:
-                raise ToolError("No animation of group {!r} can be played now (cooldown or head angle).".format(name))
-            deadline = self._clock() + ANIMATION_TIMEOUT
-            while not done.is_set() and self._clock() < deadline:
-                if self._stop_requested.is_set():
-                    stopped_by = "stop"
-                    break
-                self._sleep(POLL_INTERVAL)
+            with self._lock:
+                if wheels:
+                    self._check_can_drive()
+                    if self.edge_guard:
+                        x, y, _, origin = self._pose()
+                        if not self.memory.can_turn(x, y, origin, self._clock()):
+                            raise ToolError("A known edge is too close for an animation that moves the wheels: "
+                                            "back up first (onto known floor).")
+                self._stop_requested.clear()
+                try:
+                    clip = cli.play_anim_group(name, allowed_types=None if wheels else ANIMATION_TYPES)
+                except Exception as e:
+                    raise ToolError("Failed to play the animation: {}".format(e)) from e
+                if clip is None:
+                    raise ToolError(
+                        "No animation of group {!r} can be played now (cooldown or head angle).".format(name))
+                try:
+                    deadline = self._clock() + ANIMATION_TIMEOUT
+                    while not done.is_set() and self._clock() < deadline:
+                        flags = cli.robot_status
+                        if self._stop_requested.is_set():
+                            stopped_by = "stop"
+                        elif wheels and (cli.robot_picked_up or flags & robot.RobotStatusFlag.IS_PICKED_UP):
+                            stopped_by = "picked up"
+                        elif wheels and flags & robot.RobotStatusFlag.CLIFF_DETECTED:
+                            stopped_by = "cliff"
+                        if stopped_by:
+                            break
+                        self._sleep(POLL_INTERVAL)
+                finally:
+                    if not done.is_set():
+                        cli.cancel_anim()
+                    if wheels:
+                        cli.stop_all_motors()
         finally:
             cli.del_handler(event.EvtAnimationCompleted, handler)
-        finished = done.is_set()
-        if not finished:
-            cli.cancel_anim()
-        return {"animation": name, "clip": clip, "finished": finished, "stopped_by": stopped_by}
+        return {"animation": name, "clip": clip, "wheels": wheels, "finished": done.is_set(),
+                "stopped_by": stopped_by}
 
     # Camera
 
@@ -615,9 +638,12 @@ def build_server(controller: RobotController) -> Any:
         """Animation groups that the robot can play (needs the prepared resources)."""
         return c.list_animations()
 
-    def play_animation(name: str) -> dict[str, Any]:
-        """Play an animation group (without moving the wheels) and wait for its end, 20 s at most."""
-        return c.play_animation(name)
+    def play_animation(name: str, wheels: bool = False) -> dict[str, Any]:
+        """
+        Play an animation group and wait for its end, 20 s at most. With wheels=true its body motions play too
+        (refused when picked up, at a cliff or near a known edge; stopped on a pick up or a cliff).
+        """
+        return c.play_animation(name, wheels)
 
     def camera_image() -> Any:
         """A JPEG image of what the robot sees."""
