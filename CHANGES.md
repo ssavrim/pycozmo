@@ -3,6 +3,13 @@ Revision History
 
 Unreleased
 ----------
+- MCP server: `play_animation` never drives the wheels (body motion and turn-to-heading keyframes are left out), and refuses
+    an unknown group, or a group that cannot play now, at once instead of waiting 20 s; `stop` also cancels the animation
+    and ends a drive, a turn or an animation in progress (`stopped_by` "stop"); a drive or a turn longer than the time
+    limit reports the distance or angle actually allowed (`limited_by` "time"). The `mcp` extra now requires the SDK 2.x,
+    which serves `stop` while another tool runs.
+- `Client.play_anim_group` takes `allowed_types` like `play_anim`, and returns the name of the clip that plays (None
+    when none plays).
 - The MCP server uses the memory of the table edges (pycozmo.edges): it backs up only onto floor that the robot has driven
     over, drives forward only until a known edge, turns on the spot only clear of a known edge, and stops a backward move when
     the floor runs out (`--no-edge-guard` turns it off). `status` reports `known_edges` and `backup_room_mm`.

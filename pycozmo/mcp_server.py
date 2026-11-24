@@ -21,6 +21,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from . import anim_encoder
 from . import edges
 from . import event
 from . import lights
@@ -75,6 +76,13 @@ CUBE_TYPES = frozenset((protocol_encoder.ObjectType.Block_LIGHTCUBE1, protocol_e
 POLL_INTERVAL = 0.05
 #: A move that the edges leave less than this many millimeters is refused.
 MIN_STEP_MM = 10.0
+#: Longest wait for the end of an animation, in seconds.
+ANIMATION_TIMEOUT = 20.0
+#: The keyframes that an animation may play: all but those that drive the wheels (body motion, turn to a recorded
+#: heading), which no limit of the server would bound.
+ANIMATION_TYPES = (anim_encoder.AnimHeadAngle, anim_encoder.AnimLiftHeight, anim_encoder.AnimProceduralFace,
+                   anim_encoder.AnimFaceAnimation, anim_encoder.AnimBackpackLights, anim_encoder.AnimEvent,
+                   anim_encoder.AnimRobotAudio, anim_encoder.AnimRecordHeading)
 #: How far to the side of the floor that it has driven over the rear corners of the robot may be when it backs up (mm):
 #: its heading drifts by a few degrees while it backs, which moves the corners sideways (docs/specs/edges.md).
 BACKUP_TOLERANCE_MM = 10.0
@@ -106,6 +114,8 @@ class RobotController:
         self._cli: Any = None
         self._lock = threading.RLock()
         self._cube_players: dict[int, Any] = {}
+        # Set by stop: a movement or an animation in progress ends at its next poll.
+        self._stop_requested = threading.Event()
 
     # Connection
 
@@ -186,8 +196,18 @@ class RobotController:
     # Motion
 
     def stop(self) -> dict[str, Any]:
-        """ Stop the wheels, the head and the lift at once. """
-        self.client.stop_all_motors()
+        """
+        Stop the wheels, the head, the lift and the animation at once.
+
+        A drive, a turn or an animation in progress ends at its next poll with ``stopped_by`` "stop" (the SDK runs each
+        tool in a thread of its own, so stop is served while they run).
+        """
+        cli = self.client
+        self._stop_requested.set()
+        try:
+            cli.stop_all_motors()
+        finally:
+            cli.cancel_anim()
         return {"stopped": True}
 
     def move_head(self, angle_deg: float) -> dict[str, Any]:
@@ -218,6 +238,11 @@ class RobotController:
         distance = min(max(distance, -self.limits.max_drive_mm), self.limits.max_drive_mm)
         self._check_can_drive(backing=distance < 0)
         result: dict[str, Any] = {}
+        # The wheels run max_seconds at most: the distance is what they cover in that time.
+        reach = speed * self.limits.max_seconds
+        if abs(distance) > reach:
+            distance = math.copysign(reach, distance)
+            result["limited_by"] = "time"
         if self.edge_guard and distance != 0.0:
             distance, limited_by = self._limit_by_edges(distance)
             if limited_by:
@@ -255,11 +280,17 @@ class RobotController:
             x, y, _, origin = self._pose()
             if not self.memory.can_turn(x, y, origin, self._clock()):
                 raise ToolError("A known edge is too close to turn on the spot: back up first (onto known floor).")
+        result: dict[str, Any] = {}
+        reach = self.limits.turn_speed_dps * self.limits.max_seconds
+        if abs(angle) > reach:
+            angle = math.copysign(reach, angle)
+            result["limited_by"] = "time"
         seconds = abs(angle) / self.limits.turn_speed_dps
+        result["angle_deg"] = angle
         # A point turn: the wheels run in opposite directions, at the speed that gives the angular speed.
         wheel = math.radians(self.limits.turn_speed_dps) * robot.TRACK_WIDTH.mm / 2.0
         sign = 1.0 if angle >= 0 else -1.0
-        return self._run_wheels(-sign * wheel, sign * wheel, seconds, {"angle_deg": angle})
+        return self._run_wheels(-sign * wheel, sign * wheel, seconds, result)
 
     def _check_can_drive(self, backing: bool = False) -> None:
         """
@@ -291,13 +322,16 @@ class RobotController:
         seconds = min(seconds, self.limits.max_seconds)
         with self._lock:
             stopped_by = None
+            self._stop_requested.clear()
             cli.drive_wheels(left, right)
             deadline = self._clock() + seconds
             try:
                 while self._clock() < deadline:
                     self._sleep(POLL_INTERVAL)
                     flags = cli.robot_status
-                    if cli.robot_picked_up or flags & robot.RobotStatusFlag.IS_PICKED_UP:
+                    if self._stop_requested.is_set():
+                        stopped_by = "stop"
+                    elif cli.robot_picked_up or flags & robot.RobotStatusFlag.IS_PICKED_UP:
                         stopped_by = "picked up"
                     elif flags & robot.RobotStatusFlag.CLIFF_DETECTED and not (backing and self.edge_guard):
                         # Backing away keeps the sensor over the drop for a moment: that is not a stop.
@@ -344,21 +378,43 @@ class RobotController:
         return names
 
     def play_animation(self, name: str) -> dict[str, Any]:
-        """ Play an animation group (see list_animations) and return when it is over, or after 20 seconds. """
+        """
+        Play an animation group (see list_animations) and return when it is over, after 20 seconds, or on stop.
+
+        The animation never drives the wheels: its body motions are left out (``ANIMATION_TYPES``).
+        """
         cli = self.client
+        name = str(name)
         done = threading.Event()
         handler = cli.add_handler(event.EvtAnimationCompleted, lambda *_: done.set())
+        stopped_by = None
+        clip = None
         try:
-            cli.load_anims()
-            cli.play_anim_group(str(name))
-            finished = done.wait(20.0)
-        except Exception as e:
-            raise ToolError("Failed to play the animation: {}".format(e)) from e
+            try:
+                cli.load_anims()
+            except Exception as e:
+                raise ToolError("The animations are not available: {}".format(e)) from e
+            if name not in cli.animation_groups:
+                raise ToolError("Unknown animation group {!r}: see list_animations.".format(name))
+            self._stop_requested.clear()
+            try:
+                clip = cli.play_anim_group(name, allowed_types=ANIMATION_TYPES)
+            except Exception as e:
+                raise ToolError("Failed to play the animation: {}".format(e)) from e
+            if clip is None:
+                raise ToolError("No animation of group {!r} can be played now (cooldown or head angle).".format(name))
+            deadline = self._clock() + ANIMATION_TIMEOUT
+            while not done.is_set() and self._clock() < deadline:
+                if self._stop_requested.is_set():
+                    stopped_by = "stop"
+                    break
+                self._sleep(POLL_INTERVAL)
         finally:
             cli.del_handler(event.EvtAnimationCompleted, handler)
+        finished = done.is_set()
         if not finished:
             cli.cancel_anim()
-        return {"animation": str(name), "finished": finished}
+        return {"animation": name, "clip": clip, "finished": finished, "stopped_by": stopped_by}
 
     # Camera
 
@@ -490,15 +546,15 @@ def _report_errors(tool: Callable[..., Any], sdk_error: type[Exception]) -> Call
 
 
 def _mcp_classes() -> tuple[Any, Any, Any]:
-    """ The server, image and tool error classes of the installed ``mcp`` package (2.x names them differently). """
-    try:
-        module = importlib.import_module("mcp.server.mcpserver")
-        errors = importlib.import_module("mcp.server.mcpserver.exceptions")
-        return module.MCPServer, module.Image, errors.ToolError
-    except ImportError:
-        module = importlib.import_module("mcp.server.fastmcp")
-        errors = importlib.import_module("mcp.server.fastmcp.exceptions")
-        return module.FastMCP, module.Image, errors.ToolError
+    """
+    The server, image and tool error classes of the ``mcp`` package (2.x).
+
+    2.x runs a synchronous tool in a worker thread, so ``stop`` is served while a drive or an animation runs; 1.x ran
+    it in the event loop and ``stop`` waited for the end of the movement.
+    """
+    module = importlib.import_module("mcp.server.mcpserver")
+    errors = importlib.import_module("mcp.server.mcpserver.exceptions")
+    return module.MCPServer, module.Image, errors.ToolError
 
 
 def build_server(controller: RobotController) -> Any:
@@ -525,7 +581,7 @@ def build_server(controller: RobotController) -> Any:
         return c.status()
 
     def stop() -> dict[str, Any]:
-        """Stop the wheels, head and lift at once."""
+        """Stop the wheels, head, lift and animation at once, also during a drive, a turn or an animation."""
         return c.stop()
 
     def move_head(angle_deg: float) -> dict[str, Any]:
@@ -560,7 +616,7 @@ def build_server(controller: RobotController) -> Any:
         return c.list_animations()
 
     def play_animation(name: str) -> dict[str, Any]:
-        """Play an animation group and wait for its end."""
+        """Play an animation group (without moving the wheels) and wait for its end, 20 s at most."""
         return c.play_animation(name)
 
     def camera_image() -> Any:
@@ -599,7 +655,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         server = build_server(controller)
     except ImportError:
-        parser.exit(1, "The MCP package is missing: pip install pycozmo[mcp]\n")
+        parser.exit(1, "The MCP package (2.x) is missing: pip install pycozmo[mcp]\n")
     try:
         server.run()
     finally:

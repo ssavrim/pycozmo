@@ -8,8 +8,8 @@ from typing import Any
 
 from PIL import Image
 
-from pycozmo import event, protocol_encoder, robot
-from pycozmo.mcp_server import Limits, RobotController, ToolError, build_server
+from pycozmo import anim_encoder, event, protocol_encoder, robot
+from pycozmo.mcp_server import ANIMATION_TIMEOUT, Limits, RobotController, ToolError, build_server
 
 
 class Clock:
@@ -39,6 +39,8 @@ class FakeClient:
         self.handlers: list[tuple[Any, Any]] = []
         self.on_step: Any = None        # called by the fake wheels, to change the state while the robot moves
         self.animation_groups = {"B": object(), "A": object()}
+        self.anim_ends = True           # the fake robot reports the end of an animation at once
+        self.anim_clip: str | None = "a_01"
 
     def add_handler(self, cls: Any, handler: Any) -> Any:
         self.handlers.append((cls, handler))
@@ -88,6 +90,17 @@ class FakeClient:
 
     def load_anims(self) -> None:
         pass
+
+    def play_anim_group(self, name: str, *, allowed_types: Any = None) -> str | None:
+        self.calls.append(("anim", name, allowed_types))
+        if self.anim_clip is not None and self.anim_ends:
+            for cls, handler in list(self.handlers):
+                if cls is event.EvtAnimationCompleted:
+                    handler(self)
+        return self.anim_clip
+
+    def cancel_anim(self) -> None:
+        self.calls.append(("cancel_anim",))
 
     def say_text(self, text: str) -> None:
         self.calls.append(("say", text))
@@ -255,9 +268,38 @@ class TestMotion(unittest.TestCase):
         limits = Limits(max_seconds=1.0, max_drive_mm=1000.0)
         controller, fake, clock = make(limits=limits)
         controller.connect()
-        result = controller.drive(1000, 10)
+        result = controller.drive(-1000, 10)
         self.assertEqual(result["seconds"], 1.0)
         self.assertLessEqual(clock.now, 1.1)
+        # The answer gives the distance that the wheels cover in that time, not the one asked.
+        self.assertEqual(result["distance_mm"], -10.0)
+        self.assertEqual(result["limited_by"], "time")
+
+    def test_turn_time_is_capped(self):
+        controller, _, _ = make(limits=Limits(max_seconds=1.0))
+        controller.connect()
+        result = controller.turn(-90)
+        self.assertEqual(result["angle_deg"], -Limits().turn_speed_dps)
+        self.assertEqual(result["limited_by"], "time")
+        self.assertNotIn("limited_by", controller.turn(30))
+
+    def test_stop_during_a_drive_ends_it(self):
+        original_sleep = self.controller._sleep
+
+        def sleep(seconds: float) -> None:
+            original_sleep(seconds)
+            if self.clock.now > 0.5:
+                self.controller.stop()      # as the SDK does from another thread
+
+        self.controller._sleep = sleep
+        result = self.controller.drive(200, 40)
+        self.assertEqual(result["stopped_by"], "stop")
+        self.assertLess(self.clock.now, 1.0)
+        self.assertEqual(self.fake.calls[-1], ("stop",))
+
+    def test_a_stop_before_a_drive_does_not_cancel_it(self):
+        self.controller.stop()
+        self.assertIsNone(self.controller.drive(20)["stopped_by"])
 
     def test_no_drive_mode(self):
         controller, fake, _ = make(allow_drive=False)
@@ -271,13 +313,13 @@ class TestMotion(unittest.TestCase):
 
     def test_stop(self):
         self.assertEqual(self.controller.stop(), {"stopped": True})
-        self.assertEqual(self.fake.calls, [("stop",)])
+        self.assertEqual(self.fake.calls, [("stop",), ("cancel_anim",)])
 
 
 class TestExpression(unittest.TestCase):
 
     def setUp(self):
-        self.controller, self.fake, _ = make()
+        self.controller, self.fake, self.clock = make()
         self.controller.connect()
 
     def test_backpack_colors(self):
@@ -294,6 +336,51 @@ class TestExpression(unittest.TestCase):
 
     def test_list_animations_sorted(self):
         self.assertEqual(self.controller.list_animations(), ["A", "B"])
+
+    def test_animation_never_drives_the_wheels(self):
+        result = self.controller.play_animation("A")
+        self.assertEqual(result, {"animation": "A", "clip": "a_01", "finished": True, "stopped_by": None})
+        _, name, allowed = self.fake.calls[0]
+        self.assertEqual(name, "A")
+        self.assertNotIn(anim_encoder.AnimBodyMotion, allowed)
+        self.assertNotIn(anim_encoder.AnimTurnToRecordedHeading, allowed)
+        self.assertIn(anim_encoder.AnimHeadAngle, allowed)
+        self.assertEqual(self.fake.user_handlers(), [])
+
+    def test_unknown_animation_is_refused_at_once(self):
+        with self.assertRaises(ToolError):
+            self.controller.play_animation("nope")
+        self.assertEqual(self.clock.now, 0.0)
+        self.assertEqual(self.fake.calls, [])
+        self.assertEqual(self.fake.user_handlers(), [])
+
+    def test_animation_that_cannot_play_now_is_refused(self):
+        self.fake.anim_clip = None
+        with self.assertRaises(ToolError):
+            self.controller.play_animation("A")
+        self.assertEqual(self.clock.now, 0.0)
+
+    def test_animation_that_does_not_end_is_cancelled(self):
+        self.fake.anim_ends = False
+        result = self.controller.play_animation("A")
+        self.assertFalse(result["finished"])
+        self.assertGreaterEqual(self.clock.now, ANIMATION_TIMEOUT)
+        self.assertEqual(self.fake.calls[-1], ("cancel_anim",))
+
+    def test_stop_during_an_animation_ends_it(self):
+        self.fake.anim_ends = False
+        original_sleep = self.controller._sleep
+
+        def sleep(seconds: float) -> None:
+            original_sleep(seconds)
+            if self.clock.now > 1.0:
+                self.controller.stop()
+
+        self.controller._sleep = sleep
+        result = self.controller.play_animation("B")
+        self.assertEqual(result["stopped_by"], "stop")
+        self.assertFalse(result["finished"])
+        self.assertLess(self.clock.now, 2.0)
 
     def test_capture_image_is_a_jpeg_and_the_handler_is_removed(self):
         data = self.controller.capture_image()
@@ -466,3 +553,30 @@ class TestServer(unittest.TestCase):
             "connect", "disconnect", "status", "stop", "move_head", "move_lift", "drive", "turn", "set_backpack_color",
             "say", "list_animations", "play_animation", "camera_image", "find_markers", "connect_cube",
             "set_cube_color"})
+
+    def test_stop_is_served_while_a_drive_runs(self):
+        """ Through the SDK, with real time: a stop sent 0.3 s into a 5 s drive ends it. """
+        import anyio
+        import time
+        from mcp import Client
+        fake = FakeClient()
+        controller = RobotController(connect_fn=lambda: fake, edge_guard=False)
+        server = build_server(controller)
+        results: dict[str, Any] = {}
+
+        async def drive(client: Any) -> None:
+            results["drive"] = await client.call_tool("drive", {"distance_mm": 200, "speed_mmps": 40})
+
+        async def scenario() -> None:
+            async with Client(server) as client:
+                await client.call_tool("connect", {})
+                start = time.monotonic()
+                async with anyio.create_task_group() as tg:
+                    tg.start_soon(drive, client)
+                    await anyio.sleep(0.3)
+                    await client.call_tool("stop", {})
+                results["seconds"] = time.monotonic() - start
+
+        anyio.run(scenario)
+        self.assertLess(results["seconds"], 1.5)
+        self.assertEqual(results["drive"].structured_content["stopped_by"], "stop")
