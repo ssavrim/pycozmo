@@ -566,9 +566,9 @@ class TestServer(unittest.TestCase):
 
     def test_stop_is_served_while_a_drive_runs(self):
         """ Through the SDK, with real time: a stop sent 0.3 s into a 5 s drive ends it. """
-        import anyio
         import time
-        from mcp import Client
+        anyio = importlib.import_module("anyio")        # optional packages: imported at run time, as by the server
+        Client = importlib.import_module("mcp").Client
         fake = FakeClient()
         controller = RobotController(connect_fn=lambda: fake, edge_guard=False)
         server = build_server(controller)
