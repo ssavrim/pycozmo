@@ -38,7 +38,7 @@ Other clients take the same command in their configuration (`"command"` and `"ar
 | `turn(angle_deg)` | Turn on the spot, positive counterclockwise. |
 | `set_backpack_color(color)` | Backpack: off, red, green, blue, white. |
 | `say(text)` | Speak a text of 1 to 300 characters (needs eSpeak NG on the computer). |
-| `list_animations`, `play_animation(name)` | Animation groups of the prepared resources; plays one without its wheel movements and waits for its end (20 s at most). |
+| `list_animations`, `play_animation(name, wheels)` | Animation groups of the prepared resources; plays one and waits for its end (20 s at most). Without its wheel movements unless `wheels` is true. |
 | `camera_image` | A JPEG image of what the robot sees. |
 | `find_markers` | Cubes and charger in the image now (needs the marker library of the prepared resources). |
 | `connect_cube`, `set_cube_color(object_id, color)` | Connect the first cube that the robot sees; light it. |
@@ -56,9 +56,13 @@ The robot is a physical object, so the movements are limited by the server, not 
   of a pick up, a cliff or a call of `stop` (`stopped_by` "picked up", "cliff" or "stop"), and when anything fails (the
   stop is sent in all cases). `stop` is served while a movement runs because the SDK 2.x runs each tool in a thread of
   its own; the SDK 1.x ran them one after the other, which is why 2.x is required.
-- **Animations do not drive the wheels.** `play_animation` leaves out the body motion and turn-to-heading keyframes of
-  the clip, which none of the limits above would bound; the head, lift, face, lights and sound play. An unknown group, or
-  a group none of whose clips can play now (cooldown, head angle), is refused at once.
+- **Animations drive the wheels only when asked.** By default `play_animation` leaves out the body motion and
+  turn-to-heading keyframes of the clip, whose speed and length none of the limits above bound; the head, lift, face,
+  lights and sound play. With `wheels` true they play too, under the checks of a drive: refused with `--no-drive`, when
+  the robot is picked up or at a cliff, and (edge guard) when a known edge is within reach of the body; the animation and
+  the wheels stop within 50 ms of a pick up, a cliff or `stop`, and the wheels are stopped at its end. The distance that
+  such an animation drives is not bounded beforehand. An unknown group, or a group none of whose clips can play now
+  (cooldown, head angle), is refused at once.
 - **Table edges** (`--no-edge-guard` turns it off; docs/specs/edges.md). The server keeps a `TableMemory` that the robot
   state feeds: the floor that the robot has driven over, and the drops that its cliff sensor saw. Backing up is limited to
   that floor (a robot that has not moved yet cannot back up: drive forward or turn first), forward driving stops before a
@@ -90,7 +94,8 @@ A tool that fails returns an error with its reason (not connected, picked up, cl
 
 - Offline: the controller is tested with a fake robot (limits, refusals, stop on a cliff or a pick up during a movement,
   stop when the wheels fail, no drive mode, camera, cubes, animations without wheel keyframes, refusal of an unknown
-  animation, distance and angle limited by the time, stop of a drive or an animation in progress), and the server with
+  animation, animations with wheels (refusals, stop on a cliff or a pick up), distance and angle limited by the time,
+  stop of a drive or an animation in progress), and the server with
   the installed SDK (the 16 tools, and a `stop` sent 0.3 s into a 5 s `drive` that ends it).
 - On a robot (2026-11-23): an MCP client started the server by its standard input and output, and called `connect`,
   `status`, `move_head`, `set_backpack_color`, `camera_image` (a JPEG of 19.6 kB) and `disconnect`; the refusal of the wheels

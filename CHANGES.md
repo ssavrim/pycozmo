@@ -3,7 +3,8 @@ Revision History
 
 Unreleased
 ----------
-- MCP server: `play_animation` never drives the wheels (body motion and turn-to-heading keyframes are left out), and refuses
+- MCP server: `play_animation` drives the wheels only with `wheels` true (by default its body motion and turn-to-heading
+    keyframes are left out; with `wheels`, the checks of a drive apply and a pick up or a cliff stops it), and refuses
     an unknown group, or a group that cannot play now, at once instead of waiting 20 s; `stop` also cancels the animation
     and ends a drive, a turn or an animation in progress (`stopped_by` "stop"); a drive or a turn longer than the time
     limit reports the distance or angle actually allowed (`limited_by` "time"). The `mcp` extra now requires the SDK 2.x,

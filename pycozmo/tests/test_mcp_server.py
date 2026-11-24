@@ -339,7 +339,8 @@ class TestExpression(unittest.TestCase):
 
     def test_animation_never_drives_the_wheels(self):
         result = self.controller.play_animation("A")
-        self.assertEqual(result, {"animation": "A", "clip": "a_01", "finished": True, "stopped_by": None})
+        self.assertEqual(result, {"animation": "A", "clip": "a_01", "wheels": False, "finished": True,
+                                  "stopped_by": None})
         _, name, allowed = self.fake.calls[0]
         self.assertEqual(name, "A")
         self.assertNotIn(anim_encoder.AnimBodyMotion, allowed)
@@ -462,6 +463,15 @@ class TestEdgeGuard(unittest.TestCase):
         self.assertEqual(result["distance_mm"], 100.0)
         self.assertNotIn("limited_by", result)
 
+    def test_animation_with_wheels_needs_a_clear_distance_from_a_known_edge(self):
+        self.controller.memory.note_edge(0.0, 0.0, 0.0, 1, 0.0)
+        with self.assertRaises(ToolError):
+            self.controller.play_animation("A", wheels=True)
+        self.assertEqual(self.fake.calls, [])
+        self.assertFalse(self.controller.play_animation("A")["wheels"])     # without the wheels, it plays
+        self.fake.pose.position.x = -60.0                           # backed off
+        self.assertTrue(self.controller.play_animation("A", wheels=True)["wheels"])
+
     def test_turning_needs_a_clear_distance_from_a_known_edge(self):
         self.controller.memory.note_edge(0.0, 0.0, 0.0, 1, 0.0)
         with self.assertRaises(ToolError):
@@ -580,3 +590,75 @@ class TestServer(unittest.TestCase):
         anyio.run(scenario)
         self.assertLess(results["seconds"], 1.5)
         self.assertEqual(results["drive"].structured_content["stopped_by"], "stop")
+
+
+class TestAnimationWheels(unittest.TestCase):
+    """ play_animation(wheels=True): the animation keeps its wheel keyframes, under the checks of a drive. """
+
+    def setUp(self):
+        self.controller, self.fake, self.clock = make()
+        self.controller.connect()
+
+    def play(self) -> dict[str, Any]:
+        return self.controller.play_animation("A", wheels=True)
+
+    def test_all_keyframes_play_and_the_wheels_are_stopped_after(self):
+        self.assertTrue(self.play()["wheels"])
+        self.assertEqual(self.fake.calls[0], ("anim", "A", None))
+        self.assertEqual(self.fake.calls[-1], ("stop",))
+
+    def test_wheels_must_be_a_boolean(self):
+        with self.assertRaises(ToolError):
+            self.controller.play_animation("A", wheels="yes")       # type: ignore[arg-type]
+        self.assertEqual(self.fake.calls, [])
+
+    def test_refused_in_no_drive_mode(self):
+        controller, fake, _ = make(allow_drive=False)
+        controller.connect()
+        with self.assertRaises(ToolError):
+            controller.play_animation("A", wheels=True)
+        self.assertEqual(fake.calls, [])
+        self.assertFalse(controller.play_animation("A")["wheels"])
+
+    def test_refused_when_picked_up_or_at_a_cliff(self):
+        self.fake.robot_picked_up = True
+        with self.assertRaises(ToolError):
+            self.play()
+        self.fake.robot_picked_up = False
+        self.fake.robot_status = robot.RobotStatusFlag.CLIFF_DETECTED
+        with self.assertRaises(ToolError):
+            self.play()
+        self.assertEqual(self.fake.calls, [])
+        self.assertEqual(self.fake.user_handlers(), [])
+
+    def test_a_cliff_during_the_animation_stops_it(self):
+        self.fake.anim_ends = False
+        original_sleep = self.controller._sleep
+
+        def sleep(seconds: float) -> None:
+            original_sleep(seconds)
+            if self.clock.now > 0.5:
+                self.fake.robot_status = robot.RobotStatusFlag.CLIFF_DETECTED
+
+        self.controller._sleep = sleep
+        result = self.play()
+        self.assertEqual(result["stopped_by"], "cliff")
+        self.assertFalse(result["finished"])
+        self.assertLess(self.clock.now, 1.0)
+        self.assertEqual(self.fake.calls[-2:], [("cancel_anim",), ("stop",)])
+
+    def test_a_pick_up_during_the_animation_stops_it(self):
+        self.fake.anim_ends = False
+        original_sleep = self.controller._sleep
+
+        def sleep(seconds: float) -> None:
+            original_sleep(seconds)
+            if self.clock.now > 0.3:
+                self.fake.robot_picked_up = True
+
+        self.controller._sleep = sleep
+        self.assertEqual(self.play()["stopped_by"], "picked up")
+
+    def test_without_wheels_a_cliff_does_not_stop_the_animation(self):
+        self.fake.robot_status = robot.RobotStatusFlag.CLIFF_DETECTED
+        self.assertTrue(self.controller.play_animation("A")["finished"])
