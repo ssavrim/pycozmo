@@ -1,0 +1,682 @@
+{
+ "0x01": {
+  "name": "AdjustTimestamp",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x02": {
+  "name": "BackpackSetLayer",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x03": {
+  "name": "BackpackLightsMiddle",
+  "side": "engine to robot",
+  "size": null
+ },
+ "0x04": {
+  "name": "CubeLights",
+  "side": "engine to robot",
+  "size": null
+ },
+ "0x05": {
+  "name": "SetPropSlot",
+  "side": "engine to robot",
+  "size": 5
+ },
+ "0x06": {
+  "name": "KillBodyCode",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x07": {
+  "name": "SetBodyRadioMode",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x08": {
+  "name": "StreamObjectAccel",
+  "side": "engine to robot",
+  "size": 5
+ },
+ "0x0a": {
+  "name": "SetAccessoryDiscovery",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x0b": {
+  "name": "SetHeadlight",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x0c": {
+  "name": "SetCubeGamma",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x0e": {
+  "name": "ReadBodyStorage",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x0f": {
+  "name": "WriteBodyStorage",
+  "side": "engine to robot",
+  "size": null
+ },
+ "0x10": {
+  "name": "CubeID",
+  "side": "engine to robot",
+  "size": 5
+ },
+ "0x11": {
+  "name": "BackpackLightsTurnSignals",
+  "side": "engine to robot",
+  "size": null
+ },
+ "0x12": {
+  "name": "SendDTMCommand",
+  "side": "engine to robot",
+  "size": 16
+ },
+ "0x24": {
+  "name": "GetBodySerialNumber",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x25": {
+  "name": "GetManufacturingInfo",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x32": {
+  "name": "DriveWheels",
+  "side": "engine to robot",
+  "size": 16
+ },
+ "0x33": {
+  "name": "DriveWheelsCurvature",
+  "side": "engine to robot",
+  "size": 10
+ },
+ "0x34": {
+  "name": "MoveLift",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x35": {
+  "name": "MoveHead",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x36": {
+  "name": "SetLiftHeight",
+  "side": "engine to robot",
+  "size": 17
+ },
+ "0x37": {
+  "name": "SetHeadAngle",
+  "side": "engine to robot",
+  "size": 17
+ },
+ "0x38": {
+  "name": "HeadAngleUpdate",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x39": {
+  "name": "SetBodyAngle",
+  "side": "engine to robot",
+  "size": 20
+ },
+ "0x3a": {
+  "name": "TurnInPlaceAtSpeed",
+  "side": "engine to robot",
+  "size": 8
+ },
+ "0x3b": {
+  "name": "StopAllMotors",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x3c": {
+  "name": "ClearPath",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x3d": {
+  "name": "AppendPathSegmentLine",
+  "side": "engine to robot",
+  "size": 28
+ },
+ "0x3e": {
+  "name": "AppendPathSegmentArc",
+  "side": "engine to robot",
+  "size": 32
+ },
+ "0x3f": {
+  "name": "AppendPathSegmentPointTurn",
+  "side": "engine to robot",
+  "size": 29
+ },
+ "0x40": {
+  "name": "TrimPath",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x41": {
+  "name": "ExecutePath",
+  "side": "engine to robot",
+  "size": 3
+ },
+ "0x42": {
+  "name": "DockWithObject",
+  "side": "engine to robot",
+  "size": 21
+ },
+ "0x43": {
+  "name": "AbortDocking",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x44": {
+  "name": "PlaceObjectOnGround",
+  "side": "engine to robot",
+  "size": 25
+ },
+ "0x45": {
+  "name": "AbsoluteLocalizationUpdate",
+  "side": "engine to robot",
+  "size": 24
+ },
+ "0x46": {
+  "name": "StartControllerTestMode",
+  "side": "engine to robot",
+  "size": 13
+ },
+ "0x47": {
+  "name": "ControllerGains",
+  "side": "engine to robot",
+  "size": 17
+ },
+ "0x48": {
+  "name": "DockingErrorSignal",
+  "side": "engine to robot",
+  "size": 22
+ },
+ "0x49": {
+  "name": "CarryStateUpdate",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x4a": {
+  "name": "IMURequest",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x4b": {
+  "name": "SyncTime",
+  "side": "engine to robot",
+  "size": 8
+ },
+ "0x4c": {
+  "name": "ImageRequest",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x4d": {
+  "name": "FlashObjectIDs",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x4e": {
+  "name": "ObjectBeingCarried",
+  "side": "engine to robot",
+  "size": 5
+ },
+ "0x4f": {
+  "name": "CheckLiftLoad",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x50": {
+  "name": "EnableMotorPower",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x51": {
+  "name": "SetMotionModelParams",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x52": {
+  "name": "EnterSleepMode",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x53": {
+  "name": "PowerState",
+  "side": "engine to robot",
+  "size": 17
+ },
+ "0x54": {
+  "name": "SetCliffDetectThreshold",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x55": {
+  "name": "EnableReadToolCodeMode",
+  "side": "engine to robot",
+  "size": 9
+ },
+ "0x57": {
+  "name": "SetCameraParams",
+  "side": "engine to robot",
+  "size": 7
+ },
+ "0x58": {
+  "name": "StartMotorCalibration",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x59": {
+  "name": "RollActionParams",
+  "side": "engine to robot",
+  "size": 20
+ },
+ "0x5a": {
+  "name": "CameraFOVInfo",
+  "side": "engine to robot",
+  "size": 8
+ },
+ "0x60": {
+  "name": "EnableStopOnCliff",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x61": {
+  "name": "ForceDelocalizeSimulatedRobot",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x62": {
+  "name": "ObjectConnectionStateToRobot",
+  "side": "engine to robot",
+  "size": 13
+ },
+ "0x63": {
+  "name": "EnableBraceWhenFalling",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x64": {
+  "name": "SetAudioVolume",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x65": {
+  "name": "GenerateTestTone",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x66": {
+  "name": "EnableColorImages",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0x80": {
+  "name": "RequestCrashReports",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0x82": {
+  "name": "EnableWiFiTelemetry",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x89": {
+  "name": "DebugSetRTTO",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0x8d": {
+  "name": "AbortAnimation",
+  "side": "engine to robot",
+  "size": 0
+ },
+ "0x96": {
+  "name": "AnimEventToRTIP",
+  "side": "engine to robot",
+  "size": 2
+ },
+ "0xa0": {
+  "name": "SetAppRunID",
+  "side": "engine to robot",
+  "size": 16
+ },
+ "0xa1": {
+  "name": "TestState",
+  "side": "engine to robot",
+  "size": 49
+ },
+ "0xa2": {
+  "name": "EnterFactoryTestMode",
+  "side": "engine to robot",
+  "size": 8
+ },
+ "0xa3": {
+  "name": "DisplayNumber",
+  "side": "engine to robot",
+  "size": 7
+ },
+ "0xa4": {
+  "name": "BodyStorageContents",
+  "side": "engine to robot",
+  "size": null
+ },
+ "0xa5": {
+  "name": "BodySerialNumber",
+  "side": "engine to robot",
+  "size": 4
+ },
+ "0xa9": {
+  "name": "ShutdownRobot",
+  "side": "engine to robot",
+  "size": 32
+ },
+ "0xaa": {
+  "name": "AppConnectConfigString",
+  "side": "engine to robot",
+  "size": 17
+ },
+ "0xab": {
+  "name": "AppConnectConfigFlags",
+  "side": "engine to robot",
+  "size": 17
+ },
+ "0xac": {
+  "name": "AppConnectConfigIPInfo",
+  "side": "engine to robot",
+  "size": 13
+ },
+ "0xad": {
+  "name": "AppConnectGetRobotIP",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0xae": {
+  "name": "WiFiOff",
+  "side": "engine to robot",
+  "size": 1
+ },
+ "0xb0": {
+  "name": "PrintTrace",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xb1": {
+  "name": "PrintText",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xb2": {
+  "name": "MainCycleTimeError",
+  "side": "robot to engine",
+  "size": 16
+ },
+ "0xb3": {
+  "name": "GoalPose",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xb4": {
+  "name": "ObjectMoved",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xb5": {
+  "name": "ObjectStoppedMoving",
+  "side": "robot to engine",
+  "size": 8
+ },
+ "0xb6": {
+  "name": "ObjectTapped",
+  "side": "robot to engine",
+  "size": 12
+ },
+ "0xb7": {
+  "name": "DataDump",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xb8": {
+  "name": "PickAndPlaceResult",
+  "side": "robot to engine",
+  "size": 7
+ },
+ "0xb9": {
+  "name": "ObjectTappedFiltered",
+  "side": "robot to engine",
+  "size": 10
+ },
+ "0xba": {
+  "name": "RampTraverseStart",
+  "side": "robot to engine",
+  "size": 4
+ },
+ "0xbb": {
+  "name": "RampTraverseComplete",
+  "side": "robot to engine",
+  "size": 5
+ },
+ "0xbc": {
+  "name": "BridgeTraverseStart",
+  "side": "robot to engine",
+  "size": 4
+ },
+ "0xbd": {
+  "name": "BridgeTraverseComplete",
+  "side": "robot to engine",
+  "size": 5
+ },
+ "0xbe": {
+  "name": "TimeProfileStat",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xbf": {
+  "name": "IMUDataChunk",
+  "side": "robot to engine",
+  "size": 195
+ },
+ "0xc0": {
+  "name": "CliffEvent",
+  "side": "robot to engine",
+  "size": 6
+ },
+ "0xc1": {
+  "name": "PotentialCliff",
+  "side": "robot to engine",
+  "size": 0
+ },
+ "0xc2": {
+  "name": "SyncTimeAck",
+  "side": "robot to engine",
+  "size": 0
+ },
+ "0xc3": {
+  "name": "RobotPoked",
+  "side": "robot to engine",
+  "size": 0
+ },
+ "0xc4": {
+  "name": "MotorActionAck",
+  "side": "robot to engine",
+  "size": 1
+ },
+ "0xc5": {
+  "name": "MovingLiftPostDock",
+  "side": "robot to engine",
+  "size": 1
+ },
+ "0xc6": {
+  "name": "PathFollowingEvent",
+  "side": "robot to engine",
+  "size": 3
+ },
+ "0xc7": {
+  "name": "IMURawDataChunk",
+  "side": "robot to engine",
+  "size": 14
+ },
+ "0xc8": {
+  "name": "DefaultCameraParams",
+  "side": "robot to engine",
+  "size": 29
+ },
+ "0xc9": {
+  "name": "RobotAvailable",
+  "side": "robot to engine",
+  "size": 6
+ },
+ "0xca": {
+  "name": "AnimationStarted",
+  "side": "robot to engine",
+  "size": 1
+ },
+ "0xcb": {
+  "name": "AnimationEnded",
+  "side": "robot to engine",
+  "size": 1
+ },
+ "0xce": {
+  "name": "ObjectPowerLevel",
+  "side": "robot to engine",
+  "size": 9
+ },
+ "0xcf": {
+  "name": "CrashReport",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xd0": {
+  "name": "ObjectConnectionState",
+  "side": "robot to engine",
+  "size": 13
+ },
+ "0xd1": {
+  "name": "MotorCalibration",
+  "side": "robot to engine",
+  "size": 3
+ },
+ "0xd2": {
+  "name": "FWVersionInfo",
+  "side": "robot to engine",
+  "size": 44
+ },
+ "0xd3": {
+  "name": "DockingStatus",
+  "side": "robot to engine",
+  "size": 5
+ },
+ "0xd4": {
+  "name": "RobotStopped",
+  "side": "robot to engine",
+  "size": 1
+ },
+ "0xd5": {
+  "name": "AnimationEvent",
+  "side": "robot to engine",
+  "size": 6
+ },
+ "0xd6": {
+  "name": "FactoryTestParameter",
+  "side": "robot to engine",
+  "size": 4
+ },
+ "0xd7": {
+  "name": "ObjectUpAxisChanged",
+  "side": "robot to engine",
+  "size": 9
+ },
+ "0xd8": {
+  "name": "MotorAutoEnabled",
+  "side": "robot to engine",
+  "size": 2
+ },
+ "0xd9": {
+  "name": "RobotErrorReport",
+  "side": "robot to engine",
+  "size": 5
+ },
+ "0xda": {
+  "name": "LiftLoad",
+  "side": "robot to engine",
+  "size": 1
+ },
+ "0xdb": {
+  "name": "BackpackButton",
+  "side": "robot to engine",
+  "size": 1
+ },
+ "0xdc": {
+  "name": "IMUTemperature",
+  "side": "robot to engine",
+  "size": 4
+ },
+ "0xdd": {
+  "name": "FallingStarted",
+  "side": "robot to engine",
+  "size": 4
+ },
+ "0xde": {
+  "name": "FallingStopped",
+  "side": "robot to engine",
+  "size": 12
+ },
+ "0xec": {
+  "name": "WiFiFlashID",
+  "side": "robot to engine",
+  "size": 4
+ },
+ "0xed": {
+  "name": "ManufacturingID",
+  "side": "robot to engine",
+  "size": 12
+ },
+ "0xee": {
+  "name": "FirmwareVersion",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xf0": {
+  "name": "RobotState",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xf1": {
+  "name": "AnimationState",
+  "side": "robot to engine",
+  "size": 15
+ },
+ "0xf2": {
+  "name": "ImageChunk",
+  "side": "robot to engine",
+  "size": null
+ },
+ "0xf3": {
+  "name": "ObjectAvailable",
+  "side": "robot to engine",
+  "size": 9
+ },
+ "0xf4": {
+  "name": "ImageImuData",
+  "side": "robot to engine",
+  "size": 17
+ },
+ "0xf5": {
+  "name": "ObjectAccel",
+  "side": "robot to engine",
+  "size": null
+ }
+}

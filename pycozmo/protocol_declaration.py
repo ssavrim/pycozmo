@@ -1,0 +1,1022 @@
+"""
+
+Cozmo protocol abstract syntax tree (AST) declaration.
+
+"""
+
+from .protocol_ast import *
+
+
+__all__ = [
+    "FRAME_ID",
+    "MIN_FRAME_SIZE",
+    "MAX_FRAME_PAYLOAD_SIZE",
+    "FIRST_ROBOT_PACKET_ID",
+    "FIRMWARE_VERSION",
+    "MAX_SEQ",
+    "OOB_SEQ",
+
+    "PROTOCOL",
+]
+
+
+FRAME_ID = b"COZ\x03RE\x01"
+MIN_FRAME_SIZE = len(FRAME_ID) + 1 + 2 + 2 + 2
+MAX_FRAME_SIZE = 1051
+# The robot drops frames with payload size, larger than 1037 B.
+MAX_FRAME_PAYLOAD_SIZE = MAX_FRAME_SIZE - MIN_FRAME_SIZE
+
+FIRST_ROBOT_PACKET_ID = 0xb0
+
+FIRMWARE_VERSION = 2381
+
+# Maximum used sequence ID.
+MAX_SEQ = 0xfffe
+# Sequence ID used for out-of-band packets.
+OOB_SEQ = 0xffff
+
+
+BODY_COLOR = Enum("BodyColor", members=[
+    EnumMember("UNKNOWN", -1),
+    EnumMember("WHITE_v10", 0),
+    EnumMember("RESERVED", 1),
+    EnumMember("WHITE_v15", 2, description="White."),
+    EnumMember("CE_LM_v15", 3, description="Collectors edition, liquid metal."),
+    EnumMember("LE_BL_v16", 4, description="Limited edition, blue."),
+    EnumMember("WHITE_v17", 5, description="White, HW v1.7."),
+])
+NV_ENTRY_TAG = Enum("NvEntryTag", base=16, members=[
+    EnumMember("NVEntry_Invalid", 0xffffffff),
+    EnumMember("NVEntry_GameSkillLevels", 0x180000),
+    EnumMember("NVEntry_OnboardingData", 0x181000),
+    EnumMember("NVEntry_GameUnlocks", 0x182000),
+    EnumMember("NVEntry_FaceEnrollData", 0x183000),
+    EnumMember("NVEntry_FaceAlbumData", 0x184000),
+    EnumMember("NVEntry_NurtureGameData", 0x194000),
+    EnumMember("NVEntry_InventoryData", 0x195000),
+    EnumMember("NVEntry_LabAssignments", 0x196000),
+    EnumMember("NVEntry_SavedCubeIDs", 0x197000),
+    EnumMember("NVEntry_NEXT_SLOT", 0x198000),
+    EnumMember("NVEntry_FACTORY_RESERVED1", 0x1c0000),
+    EnumMember("NVEntry_FACTORY_RESERVED2", 0x1de000),
+    EnumMember("NVEntry_BirthCertificate", 0x80000000),
+    EnumMember("NVEntry_CameraCalib", 0x80000001),
+    EnumMember("NVEntry_ToolCodeInfo", 0x80000002),
+    EnumMember("NVEntry_CalibPose", 0x80000003),
+    EnumMember("NVEntry_CalibMetaInfo", 0x80000004),
+    EnumMember("NVEntry_ObservedCubePose", 0x80000005),
+    EnumMember("NVEntry_IMUInfo", 0x80000006),
+    EnumMember("NVEntry_CliffValOnDrop", 0x80000007),
+    EnumMember("NVEntry_CliffValOnGround", 0x80000008),
+    EnumMember("NVEntry_PlaypenTestResults", 0x80000010),
+    EnumMember("NVEntry_FactoryLock", 0x80000011),
+    EnumMember("NVEntry_VersionMagic", 0x80000012),
+    EnumMember("NVEntry_CalibImage1", 0x80010000),
+    EnumMember("NVEntry_CalibImage2", 0x80020000),
+    EnumMember("NVEntry_CalibImage3", 0x80030000),
+    EnumMember("NVEntry_CalibImage4", 0x80040000),
+    EnumMember("NVEntry_CalibImage5", 0x80050000),
+    EnumMember("NVEntry_CalibImage6", 0x80060000),
+    EnumMember("NVEntry_ToolCodeImageLeft", 0x80100000),
+    EnumMember("NVEntry_ToolCodeImageRight", 0x80110000),
+    EnumMember("NVEntry_PrePlaypenResults", 0xc0000000),
+    EnumMember("NVEntry_PrePlaypenCentroids", 0xc0000001),
+    EnumMember("NVEntry_IMUAverages", 0xc0000004),
+    EnumMember("NVEntry_FactoryBaseTag", 0xde000),
+    EnumMember("NVEntry_FactoryBaseTagWithBCOffset", 0xde030),
+])
+NV_OPERATION = Enum("NvOperation", members=[
+    EnumMember("NVOP_READ", 0),
+    EnumMember("NVOP_WRITE", 1),
+    EnumMember("NVOP_ERASE", 2),
+    EnumMember("NVOP_WIPEALL", 3),
+])
+NV_RESULT = Enum("NvResult", members=[
+    EnumMember("NV_OKAY", 0),
+    EnumMember("NV_SCHEDULED", 1),
+    EnumMember("NV_NO_DO", 2),
+    EnumMember("NV_MORE", 3),
+    EnumMember("NV_UNKNOWN_4", 4),
+    EnumMember("NV_UNKNOWN_5", 5),
+    EnumMember("NV_UNKNOWN_6", 6),
+    EnumMember("NV_UNKNOWN_7", 7),
+    EnumMember("NV_UNKNOWN_8", 8),
+    EnumMember("NV_NOT_FOUND", -1),
+    EnumMember("NV_NO_ROOM", -2),
+    EnumMember("NV_ERROR", -3),
+    EnumMember("NV_TIMEOUT", -4),
+    EnumMember("NV_BUSY", -5),
+    EnumMember("NV_BAD_ARGS", -6),
+    EnumMember("NV_NO_MEM", -7),
+    EnumMember("NV_LOOP", -8),
+    EnumMember("NV_CORRUPT", -9),
+])
+ANIM_EVENT = Enum("AnimEventType", members=[
+    EnumMember("DEVICE_AUDIO_TRIGGER", 0),
+    EnumMember("ENERGY_DRAINCUBE_END", 1),
+    EnumMember("TAPPED_BLOCK", 2),
+])
+UP_AXIS = Enum("UpAxis", members=[
+    EnumMember("XNegative", 0),
+    EnumMember("XPositive", 1),
+    EnumMember("YNegative", 2),
+    EnumMember("YPositive", 3),
+    EnumMember("ZNegative", 4),
+    EnumMember("ZPositive", 5),
+    EnumMember("NumAxes", 6),
+    EnumMember("UnknownAxis", 7),
+])
+OBJECT_TYPE = Enum("ObjectType", members=[
+    EnumMember("InvalidObject", -1),
+    EnumMember("UnknownObject", 0),
+    EnumMember("Block_LIGHTCUBE1", 1),
+    EnumMember("Block_LIGHTCUBE2", 2),
+    EnumMember("Block_LIGHTCUBE3", 3),
+    EnumMember("Block_LIGHTCUBE_GHOST", 4),
+    EnumMember("FlatMat_GEARS_4x4", 5),
+    EnumMember("FlatMat_LETTERS_4x4", 6),
+    EnumMember("FlatMat_ANKI_LOGO_8BIT", 7),
+    EnumMember("FlatMat_LAVA_PLAYTEST", 8),
+    EnumMember("Platform_LARGE", 9),
+    EnumMember("Bridge_LONG", 10),
+    EnumMember("Bridge_SHORT", 11),
+    EnumMember("Ramp_Basic", 12),
+    EnumMember("Charger_Basic", 13),
+    EnumMember("ProxObstacle", 14),
+    EnumMember("CliffDetection", 15),
+    EnumMember("CollisionObstacle", 16),
+    EnumMember("CustomType00", 17),
+    EnumMember("CustomType01", 18),
+    EnumMember("CustomType02", 19),
+    EnumMember("CustomType03", 20),
+    EnumMember("CustomType04", 21),
+    EnumMember("CustomType05", 22),
+    EnumMember("CustomType06", 23),
+    EnumMember("CustomType07", 24),
+    EnumMember("CustomType08", 25),
+    EnumMember("CustomType09", 26),
+    EnumMember("CustomType10", 27),
+    EnumMember("CustomType11", 28),
+    EnumMember("CustomType12", 29),
+    EnumMember("CustomType13", 30),
+    EnumMember("CustomType14", 31),
+    EnumMember("CustomType15", 32),
+    EnumMember("CustomType16", 33),
+    EnumMember("CustomType17", 34),
+    EnumMember("CustomType18", 35),
+    EnumMember("CustomType19", 36),
+    EnumMember("CustomFixedObstacle", 37),
+])
+IMAGE_ENCODING = Enum("ImageEncoding", members=[
+    EnumMember("NoneImageEncoding", 0),
+    EnumMember("RawGray", 1),
+    EnumMember("RawRGB", 2),
+    EnumMember("YUYV", 3),
+    EnumMember("BAYER", 4),
+    EnumMember("JPEGGray", 5),
+    EnumMember("JPEGColor", 6),
+    EnumMember("JPEGColorHalfWidth", 7),
+    EnumMember("JPEGMinimizedGray", 8),
+    EnumMember("JPEGMinimizedColor", 9),
+])
+IMAGE_RESOLUTION = Enum("ImageResolution", members=[
+    EnumMember("VerificationSnapshot", 0),
+    EnumMember("QQQQVGA", 1),
+    EnumMember("QQQVGA", 2),
+    EnumMember("QQVGA", 3),
+    EnumMember("QVGA", 4, description="320x240"),
+    EnumMember("CVGA", 5),
+    EnumMember("VGA", 6, description="640x480"),
+    EnumMember("SVGA", 7),
+    EnumMember("XGA", 8),
+    EnumMember("SXGA", 9),
+    EnumMember("UXGA", 10),
+    EnumMember("QXGA", 11),
+    EnumMember("QUXGA", 12),
+    EnumMember("ImageResolutionCount", 13),
+    EnumMember("ImageResolutionNone", 14),
+])
+IMAGE_SEND_MODE = Enum("ImageSendMode", members=[
+    EnumMember("Off", 0),
+    EnumMember("Stream", 1),
+    EnumMember("SingleShot", 2),
+])
+MOTOR_ID = Enum("MotorID", members=[
+    EnumMember("MOTOR_LEFT_WHEEL", 0),
+    EnumMember("MOTOR_RIGHT_WHEEL", 1),
+    EnumMember("MOTOR_LIFT", 2),
+    EnumMember("MOTOR_HEAD", 3),
+])
+PATH_EVENT_TYPE = Enum("PathEventType", members=[
+    EnumMember("PATH_STARTED", 0),
+    EnumMember("PATH_INTERRUPTED", 1),
+    EnumMember("PATH_COMPLETED", 2),
+])
+DOCK_ACTION = Enum("DockAction", members=[
+    EnumMember("DA_PICKUP_LOW", 0),
+    EnumMember("DA_PICKUP_HIGH", 1),
+    EnumMember("DA_PLACE_HIGH", 2),
+    EnumMember("DA_PLACE_LOW", 3),
+    EnumMember("DA_PLACE_LOW_BLIND", 4),
+    EnumMember("DA_ROLL_LOW", 5),
+    EnumMember("DA_DEEP_ROLL_LOW", 6),
+    EnumMember("DA_POST_DOCK_ROLL", 7),
+    EnumMember("DA_FACE_PLANT", 8),
+    EnumMember("DA_POP_A_WHEELIE", 9),
+    EnumMember("DA_ALIGN", 10),
+    EnumMember("DA_ALIGN_SPECIAL", 11),
+    EnumMember("DA_RAMP_ASCEND", 12),
+    EnumMember("DA_RAMP_DESCEND", 13),
+    EnumMember("DA_CROSS_BRIDGE", 14),
+])
+DOCKING_METHOD = Enum("DockingMethod", members=[
+    EnumMember("BLIND_DOCKING", 0),
+    EnumMember("TRACKER_DOCKING", 1),
+    EnumMember("HYBRID_DOCKING", 2),
+    EnumMember("EVEN_BLINDER_DOCKING", 3),
+])
+DOCKING_RESULT = Enum("DockingResult", members=[
+    EnumMember("DOCK_UNKNOWN", 0),
+    EnumMember("DOCK_INTERRUPTED", 1),
+    EnumMember("DOCK_SUCCESS", 2),
+    EnumMember("DOCK_SUCCESS_RETRY", 3),
+    EnumMember("DOCK_SUCCESS_HANNS_MANEUVER", 4),
+    EnumMember("DOCK_FAILURE", 5),
+    EnumMember("DOCK_FAILURE_TOO_LONG_WITHOUT_BLOCKPOSE", 6),
+    EnumMember("DOCK_FAILURE_TOO_HIGH", 7),
+    EnumMember("DOCK_FAILURE_RETRY", 8),
+])
+CARRY_STATE = Enum("CarryState", members=[
+    EnumMember("CARRY_NONE", 0),
+    EnumMember("CARRY_1_BLOCK", 1),
+    EnumMember("CARRY_2_BLOCK", 2),
+])
+
+LIGHT_STATE = Struct("LightState", arguments=[
+    UInt16Argument("on_color"),
+    UInt16Argument("off_color"),
+    UInt8Argument("on_frames"),
+    UInt8Argument("off_frames"),
+    UInt8Argument("transition_on_frames"),
+    UInt8Argument("transition_off_frames"),
+    Int16Argument("offset"),
+])
+PATH_SEGMENT_SPEED = Struct("PathSegmentSpeed", arguments=[
+    FloatArgument("speed_mmps", description="Speed in millimeters per second."),
+    FloatArgument("accel_mmps2", description="Acceleration in millimeters per second squared."),
+    FloatArgument("decel_mmps2", description="Deceleration in millimeters per second squared."),
+])
+
+
+#: Cozmo protocol declaration.
+PROTOCOL = Protocol(
+
+    enums=[
+        BODY_COLOR,
+        NV_ENTRY_TAG,
+        NV_OPERATION,
+        NV_RESULT,
+        ANIM_EVENT,
+        UP_AXIS,
+        OBJECT_TYPE,
+        IMAGE_ENCODING,
+        IMAGE_RESOLUTION,
+        IMAGE_SEND_MODE,
+        MOTOR_ID,
+        DOCK_ACTION,
+        DOCKING_METHOD,
+        DOCKING_RESULT,
+        CARRY_STATE,
+        PATH_EVENT_TYPE,
+    ],
+
+    structs=[
+        LIGHT_STATE,
+        PATH_SEGMENT_SPEED,
+    ],
+
+    packets=[
+        Connect(),
+        Disconnect(),
+        Ping(),
+        Keyframe(),
+
+        Command(0x03, "LightStateCenter", group="lights", arguments=[
+            FArrayArgument("states", data_type=LIGHT_STATE, length=3,
+                           description="Top, middle, and bottom light state."),
+            UInt8Argument("unknown"),
+        ]),
+        Command(0x04, "CubeLights", group="objects", arguments=[
+            FArrayArgument("states", data_type=LIGHT_STATE, length=4)
+        ]),
+        Command(0x05, "ObjectConnect", group="objects", arguments=[
+            UInt32Argument("factory_id"),
+            BoolArgument("connect"),
+        ]),
+        Command(0x08, "StreamObjectAccel", group="objects", arguments=[
+            UInt32Argument("object_id"),
+            BoolArgument("enable"),
+        ]),
+        Command(0x0a, "SetAccessoryDiscovery", group="objects", arguments=[
+            BoolArgument("enable")
+        ]),
+        Command(0x0b, "SetHeadLight", group="camera", arguments=[
+            BoolArgument("enable")
+        ]),
+        Command(0x0c, "SetCubeGamma", group="objects", arguments=[
+            UInt8Argument("gamma", description="Gamma of the cube LEDs; the original application sets 0x80."),
+        ]),
+        Command(0x10, "CubeId", group="objects", arguments=[
+            UInt32Argument("object_id"),
+            UInt8Argument("rotation_period_frames"),
+        ]),
+        Command(0x11, "LightStateSide", group="lights", arguments=[
+            FArrayArgument("states", data_type=LIGHT_STATE, length=2,
+                           description="Left and right light state."),
+            UInt8Argument("unknown"),
+        ]),
+        Command(0x25, "Enable", group="system"),
+        Command(0x32, "DriveWheels", group="motors", arguments=[
+            FloatArgument("lwheel_speed_mmps"),
+            FloatArgument("rwheel_speed_mmps"),
+            FloatArgument("lwheel_accel_mmps2"),
+            FloatArgument("rwheel_accel_mmps2"),
+        ]),
+        Command(0x33, "TurnInPlaceAtSpeed", group="motors", arguments=[
+            FloatArgument("wheel_speed_mmps"),
+            FloatArgument("wheel_accel_mmps2"),
+            Int16Argument("direction"),
+        ]),
+        Command(0x34, "MoveLift", group="motors", arguments=[
+            FloatArgument("speed_rad_per_sec"),
+        ]),
+        Command(0x35, "MoveHead", group="motors", arguments=[
+            FloatArgument("speed_rad_per_sec"),
+        ]),
+        Command(0x36, "SetLiftHeight", group="motors", arguments=[
+            FloatArgument("height_mm"),
+            FloatArgument("max_speed_rad_per_sec", default=3.0),
+            FloatArgument("accel_rad_per_sec2", default=20.0),
+            FloatArgument("duration_sec"),
+            UInt8Argument("action_id", description="Not present in v2214 and older."),
+        ]),
+        Command(0x37, "SetHeadAngle", group="motors", arguments=[
+            FloatArgument("angle_rad"),
+            FloatArgument("max_speed_rad_per_sec", default=15.0),
+            FloatArgument("accel_rad_per_sec2", default=20.0),
+            FloatArgument("duration_sec"),
+            UInt8Argument("action_id", description="Not present in v2214 and older."),
+        ]),
+        Command(0x39, "TurnInPlace", group="motors", arguments=[
+            FloatArgument("angle_rad"),
+            FloatArgument("speed_rad_per_sec"),
+            FloatArgument("accel_rad_per_sec2"),
+            FloatArgument("angle_tolerance_rad"),
+            UInt16Argument("num_half_revolutions"),
+            BoolArgument("is_absolute"),
+            UInt8Argument("action_id"),
+        ]),
+        Command(0x3b, "StopAllMotors", group="motors"),
+        Command(0x3c, "ClearPath", group="motors", arguments=[
+            UInt16Argument("unknown"),
+        ]),
+        Command(0x3d, "AppendPathSegLine", group="motors", arguments=[
+            FloatArgument("from_x"),
+            FloatArgument("from_y"),
+            FloatArgument("to_x"),
+            FloatArgument("to_y"),
+            FloatArgument("speed_mmps"),        # TODO: PathSegmentSpeed
+            FloatArgument("accel_mmps2"),
+            FloatArgument("decel_mmps2"),
+        ]),
+        Command(0x3e, "AppendPathSegArc", group="motors", arguments=[
+            FloatArgument("center_x"),
+            FloatArgument("center_y"),
+            FloatArgument("radius_mm"),
+            FloatArgument("start_angle_rad"),
+            FloatArgument("sweep_rad"),
+            FloatArgument("speed_mmps"),        # TODO: PathSegmentSpeed
+            FloatArgument("accel_mmps2"),
+            FloatArgument("decel_mmps2"),
+        ]),
+        Command(0x3f, "AppendPathSegPointTurn", group="motors", arguments=[
+            FloatArgument("x"),
+            FloatArgument("y"),
+            FloatArgument("angle_rad"),
+            FloatArgument("angle_tolerance_rad"),
+            FloatArgument("speed_mmps"),        # TODO: PathSegmentSpeed
+            FloatArgument("accel_mmps2"),
+            FloatArgument("decel_mmps2"),
+            BoolArgument("use_shortest_direction")
+        ]),
+        Command(0x40, "TrimPath", group="motors", arguments=[
+            UInt8Argument("head"),
+            UInt8Argument("tail"),
+        ]),
+        Command(0x41, "ExecutePath", group="motors", arguments=[
+            UInt16Argument("event_id"),
+            BoolArgument("unknown"),
+        ]),
+        # Docking: the robot's own controller drives to a marker reported each frame by
+        # DockingErrorSignal, then lifts, places or rolls (layouts recovered for firmware 2381,
+        # not yet validated on hardware).
+        Command(0x42, "DockWithObject", group="docking", arguments=[
+            UInt32Argument("reserved", description="Observed as 0."),
+            FloatArgument("speed_mmps", default=60.0),
+            FloatArgument("accel_mmps2", default=200.0),
+            FloatArgument("decel_mmps2", default=500.0),
+            EnumArgument("action", DOCK_ACTION),
+            BoolArgument("do_lift_load_check"),
+            UInt8Argument("num_retries"),
+            EnumArgument("docking_method", DOCKING_METHOD),
+            BoolArgument("back_up_while_lifting_cube"),
+        ]),
+        Command(0x43, "AbortDocking", group="docking"),
+        Command(0x45, "SetOrigin", group="localization", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("pose_frame_id"),
+            UInt32Argument("pose_origin_id", default=1),
+            FloatArgument("pose_x"),
+            FloatArgument("pose_y"),
+            FloatArgument("pose_angle_rad", default=-0.0),
+        ]),
+        Command(0x48, "DockingErrorSignal", group="docking", arguments=[
+            UInt32Argument("timestamp", description="Robot timestamp of the image the marker was seen in."),
+            FloatArgument("x_dist_err_mm",
+                          description="Marker distance ahead of the robot, minus a placement offset."),
+            FloatArgument("y_hor_err_mm",
+                          description="Marker lateral offset (left positive), plus a placement offset."),
+            FloatArgument("z_height_mm", description="Marker height."),
+            FloatArgument("angle_err_rad", description="Marker yaw error; 0 when facing it squarely."),
+            BoolArgument("is_approximate"),
+            BoolArgument("did_tracking_succeed"),
+        ]),
+        Command(0x49, "SetCarryState", group="docking", arguments=[
+            EnumArgument("state", CARRY_STATE),
+        ]),
+        Command(0x4b, "SyncTime", group="system", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("unknown"),
+            # UInt32Argument("unknown2"),             # Available in v2214.
+        ]),
+        Command(0x4c, "EnableCamera", group="camera", arguments=[
+            EnumArgument("image_send_mode", IMAGE_SEND_MODE, default=1),
+            EnumArgument("image_resolution", IMAGE_RESOLUTION, default=4),
+        ]),
+        Command(0x4f, "CheckLiftLoad", group="docking"),
+        Command(0x57, "SetCameraParams", group="camera", arguments=[
+            FloatArgument("gain"),
+            UInt16Argument("exposure_ms"),
+            BoolArgument("auto_exposure_enabled"),
+        ]),
+        Command(0x58, "StartMotorCalibration", group="motors", arguments=[
+            BoolArgument("head"),
+            BoolArgument("lift"),
+        ]),
+        Command(0x60, "EnableStopOnCliff", group="motors", arguments=[
+            BoolArgument("enable"),
+        ]),
+        Command(0x64, "SetRobotVolume", group="audio", arguments=[
+            UInt16Argument("level"),
+        ]),
+        Command(0x66, "EnableColorImages", group="camera", arguments=[
+            BoolArgument("enable"),
+        ]),
+        Command(0x81, "NvStorageOp", group="nv", arguments=[
+            EnumArgument("tag", NV_ENTRY_TAG, data_type=UInt32Argument(), default=0xffffffff),
+            Int32Argument("length"),
+            EnumArgument("op", NV_OPERATION, data_type=UInt8Argument()),
+            UInt8Argument("unknown"),
+            VArrayArgument("data"),
+        ]),
+        Command(0x8d, "AbortAnimation", group="anim"),
+        Command(0x8e, "OutputAudio", group="audio", arguments=[
+            FArrayArgument("samples", length=744),
+        ]),
+        Command(0x8f, "OutputSilence", group="audio"),
+        Command(0x91, "RecordHeading", group="anim"),
+        Command(0x92, "TurnToRecordedHeading", group="anim"),
+        Command(0x93, "AnimHead", group="anim", arguments=[
+            UInt16Argument("duration_ms", description="Time to reach the angle. Up to 65535 ms."),
+            Int8Argument("angle_deg"),
+        ]),
+        Command(0x94, "AnimLift", group="anim", arguments=[
+            UInt16Argument("duration_ms", description="Time to reach the height. Up to 65535 ms."),
+            UInt8Argument("height_mm"),
+        ]),
+        Command(0x95, "AnimEvent", group="anim", arguments=[
+            EnumArgument("event_id", ANIM_EVENT, data_type=UInt8Argument(),
+                         description="Echoed back by the robot in AnimationEvent when played."),
+        ]),
+        Command(0x97, "DisplayImage", group="display", arguments=[
+            VArrayArgument("image"),
+        ]),
+        Command(0x98, "AnimBackpackLights", group="anim", arguments=[
+            FArrayArgument("colors", data_type=UInt16Argument(), length=5,
+                           description="Left, front, middle, back, and right."),
+        ]),
+        Command(0x99, "AnimBody", group="anim", arguments=[
+            Int16Argument("speed", description="mm/s, or deg/s when turning in place."),
+            Int16Argument("curvature_radius_mm", default=0x7fff,
+                          description="0x7fff drives straight, 0 turns in place, any other value drives an arc."),
+        ]),
+        Command(0x9a, "EndAnimation", group="anim"),
+        Command(0x9b, "StartAnimation", group="anim", arguments=[
+            UInt8Argument("anim_id")
+        ]),
+        Command(0x9f, "EnableAnimationState", group="system"),
+        Command(0xa9, "ShutdownRobot", group="system"),
+        Command(0xae, "WifiOff", group="system", arguments=[
+            BoolArgument("enable"),
+        ]),
+        Command(0xaf, "FirmwareUpdate", group="firmware", arguments=[
+            UInt16Argument("chunk_id"),
+            FArrayArgument("data", length=1024)
+        ]),
+
+        Command(0xb0, "DebugData", group="debug", arguments=[
+            UInt16Argument("format_id", description="AnkiLogStringTables.json formatTable key."),
+            UInt16Argument("unused", description="Always 0."),
+            UInt16Argument("name_id", description="AnkiLogStringTables.json nameTable key."),
+            Int8Argument("level", description="Log level. Observed: -1, 1, 2, 3, 5."),
+            VArrayArgument("args", data_type=UInt32Argument(), length_type=UInt8Argument())
+        ]),
+        Command(0xb4, "ObjectMoved", group="objects", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("object_id"),
+            FloatArgument("active_accel_x"),
+            FloatArgument("active_accel_y"),
+            FloatArgument("active_accel_z"),
+            EnumArgument("axis_of_accel", UP_AXIS, data_type=UInt8Argument(), default=7),
+        ]),
+        Command(0xb5, "ObjectStoppedMoving", group="objects", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("object_id"),
+        ]),
+        Command(0xb6, "ObjectTapped", group="objects", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("object_id"),
+            UInt8Argument("num_taps"),
+            UInt8Argument("tap_time"),
+            Int8Argument("tap_neg"),
+            Int8Argument("tap_pos"),
+        ]),
+        Command(0xb8, "PickAndPlaceResult", group="docking", arguments=[
+            UInt32Argument("timestamp"),
+            BoolArgument("did_succeed"),
+            EnumArgument("result", DOCKING_RESULT),
+            UInt8Argument("block_status"),
+        ]),
+        Command(0xb9, "ObjectTapFiltered", group="objects", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("object_id"),
+            UInt8Argument("time"),
+            UInt8Argument("intensity"),
+        ]),
+        Command(0xc4, "AcknowledgeAction", group="motors", arguments=[
+            UInt8Argument("action_id"),
+        ]),
+        Command(0xc2, "RobotDelocalized", group="localization"),
+        Command(0xc3, "RobotPoked", group="localization"),
+        Command(0xc5, "MovingLiftPostDock", group="docking", arguments=[
+            UInt8Argument("value"),
+        ]),
+        Command(0xc6, "PathFollowingEvent", group="motors", arguments=[
+            UInt16Argument("event_id"),
+            EnumArgument("event_type", PATH_EVENT_TYPE, data_type=UInt8Argument()),
+        ]),
+        Command(0xc9, "HardwareInfo", group="system", arguments=[
+            UInt32Argument("serial_number_head"),
+            UInt16Argument("hw_version"),
+        ]),
+        Command(0xca, "AnimationStarted", group="anim", arguments=[
+            UInt8Argument("anim_id")
+        ]),
+        Command(0xcb, "AnimationEnded", group="anim", arguments=[
+            UInt8Argument("anim_id")
+        ]),
+        Command(0xcd, "NvStorageOpResult", group="nv", arguments=[
+            EnumArgument("tag", NV_ENTRY_TAG, data_type=UInt32Argument(), default=0xffffffff),
+            Int32Argument("length"),
+            EnumArgument("op", NV_OPERATION, data_type=UInt8Argument()),
+            EnumArgument("result", NV_RESULT, data_type=Int8Argument()),
+            VArrayArgument("data"),
+        ]),
+        Command(0xce, "ObjectPowerLevel", group="objects", arguments=[
+            UInt32Argument("object_id"),
+            UInt32Argument("missed_packets"),
+            UInt8Argument("battery_level"),
+        ]),
+        Command(0xd0, "ObjectConnectionState", group="objects", arguments=[
+            UInt32Argument("object_id"),
+            UInt32Argument("factory_id"),
+            EnumArgument("object_type", OBJECT_TYPE, data_type=Int32Argument(), default=-1),
+            BoolArgument("connected"),
+        ]),
+        Command(0xd1, "MotorCalibration", group="motors", arguments=[
+            EnumArgument("motor_id", MOTOR_ID, data_type=UInt8Argument()),
+            BoolArgument("calib_started"),
+            BoolArgument("auto_started"),
+        ]),
+        Command(0xd3, "DockingStatus", group="docking", arguments=[
+            UInt32Argument("timestamp"),
+            UInt8Argument("status"),
+        ]),
+        Command(0xd5, "AnimationEvent", group="anim", arguments=[
+            UInt32Argument("timestamp", description="Robot time in ms when the event was played."),
+            UInt8Argument("anim_id", description="Tag of the animation, as sent with StartAnimation."),
+            EnumArgument("event_id", ANIM_EVENT, data_type=UInt8Argument()),
+        ]),
+        Command(0xd7, "ObjectUpAxisChanged", group="objects", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("object_id"),
+            EnumArgument("axis", UP_AXIS, data_type=UInt8Argument(), default=7),
+        ]),
+        Command(0xda, "LiftLoad", group="docking", arguments=[
+            BoolArgument("has_load"),
+        ]),
+        Command(0xdb, "ButtonPressed", group="system", arguments=[
+            BoolArgument("pressed"),
+        ]),
+        Command(0xdd, "FallingStarted", group="localization", arguments=[
+            UInt32Argument("unknown"),
+        ]),
+        Command(0xde, "FallingStopped", group="localization", arguments=[
+            UInt32Argument("unknown"),
+            UInt32Argument("duration_ms"),
+            FloatArgument("impact_intensity"),
+        ]),
+        Command(0xed, "BodyInfo", group="system", arguments=[
+            UInt32Argument("serial_number"),
+            UInt32Argument("body_hw_version", description="Production units report 5. Development units report 7."),
+            EnumArgument("body_color", BODY_COLOR, data_type=Int32Argument(), default=-1),
+        ]),
+        Command(0xee, "FirmwareSignature", group="system", arguments=[
+            UInt16Argument("robot_id", description="Last 2 bytes of head s/n?"),
+            StringArgument("signature"),
+        ]),
+        Command(0xef, "FirmwareUpdateResult", group="firmware", arguments=[
+            UInt32Argument("byte_count"),
+            UInt16Argument("chunk_id"),
+            UInt8Argument("status", description="0=OK; 0x0a=complete?"),
+        ]),
+
+        Event(0xf0, "RobotState", group="state", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("pose_frame_id"),
+            UInt32Argument("pose_origin_id"),
+            FloatArgument("pose_x"),
+            FloatArgument("pose_y"),
+            FloatArgument("pose_z"),
+            FloatArgument("pose_angle_rad"),
+            FloatArgument("pose_pitch_rad"),
+            FloatArgument("lwheel_speed_mmps"),
+            FloatArgument("rwheel_speed_mmps"),
+            FloatArgument("head_angle_rad"),
+            FloatArgument("lift_height_rad"),
+            FloatArgument("accel_x"),
+            FloatArgument("accel_y"),
+            FloatArgument("accel_z"),
+            FloatArgument("gyro_x"),
+            FloatArgument("gyro_y"),
+            FloatArgument("gyro_z"),
+            FloatArgument("battery_voltage"),
+            UInt32Argument("status"),
+            FArrayArgument("cliff_data_raw", data_type=UInt16Argument(), length=4),
+            UInt16Argument("backpack_touch_sensor_raw"),
+            UInt8Argument("curr_path_segment"),
+        ]),
+        Event(0xf1, "AnimationState", group="state", arguments=[
+            UInt32Argument("timestamp"),
+            Int32Argument("num_anim_bytes_played"),
+            Int32Argument("num_audio_frames_played"),
+            UInt8Argument("enabled_anim_tracks"),
+            UInt8Argument("tag"),
+            UInt8Argument("client_drop_count", description="Not present in v2214 and older."),
+        ]),
+        Event(0xf2, "ImageChunk", group="state", arguments=[
+            UInt32Argument("frame_timestamp"),
+            UInt32Argument("image_id"),
+            UInt32Argument("chunk_debug"),
+            EnumArgument("image_encoding", IMAGE_ENCODING),
+            EnumArgument("image_resolution", IMAGE_RESOLUTION),
+            UInt8Argument("image_chunk_count"),
+            UInt8Argument("chunk_id"),
+            UInt16Argument("status"),
+            VArrayArgument("data"),
+        ]),
+        Event(0xf3, "ObjectAvailable", group="state", arguments=[
+            UInt32Argument("factory_id"),
+            EnumArgument("object_type", OBJECT_TYPE, data_type=Int32Argument(), default=-1),
+            Int8Argument("rssi"),
+        ]),
+        Event(0xf4, "ImageImuData", group="state", arguments=[
+            UInt32Argument("image_id"),
+            FloatArgument("rate_x"),
+            FloatArgument("rate_y"),
+            FloatArgument("rate_z"),
+            UInt8Argument("line_2_number"),
+        ]),
+        Event(0xf5, "ObjectAccel", group="state", arguments=[
+            UInt32Argument("timestamp"),
+            UInt32Argument("object_id"),
+            FloatArgument("accel_x"),
+            FloatArgument("accel_y"),
+            FloatArgument("accel_z"),
+        ]),
+
+        # Messages of the original application that PyCozmo did not declare (docs/specs/protocol-gaps.md). The layout
+        # comes from the original application; the fields are named only where the name of the message says what they
+        # are, and the others are unknown. The meaning of these messages was not validated: some are for the factory
+        # or for tests and must not be sent to a robot.
+        Command(0x01, "AdjustTimestamp", group="system", arguments=[
+            UInt32Argument("timestamp"),
+        ]),
+        Command(0x02, "BackpackSetLayer", group="lights", arguments=[
+            UInt8Argument("layer"),
+        ]),
+        Command(0x06, "KillBodyCode", group="factory"),
+        Command(0x07, "SetBodyRadioMode", group="factory", arguments=[
+            UInt8Argument("radio_mode"),
+            UInt8Argument("wifi_channel"),
+        ]),
+        Command(0x0e, "ReadBodyStorage", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            UInt8Argument("unknown1"),
+        ]),
+        Command(0x12, "SendDTMCommand", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            Int32Argument("unknown3"),
+        ]),
+        Command(0x24, "GetBodySerialNumber", group="factory"),
+        Command(0x38, "HeadAngleUpdate", group="motors", arguments=[
+            FloatArgument("angle_rad"),
+        ]),
+        Command(0x3a, "TurnInPlaceAtAngularSpeed", group="motors", arguments=[
+            FloatArgument("speed_rad_per_sec"),
+            FloatArgument("accel_rad_per_sec2"),
+        ]),
+        Command(0x44, "PlaceObjectOnGround", group="docking", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            FloatArgument("unknown2"),
+            FloatArgument("unknown3"),
+            FloatArgument("unknown4"),
+            FloatArgument("unknown5"),
+            BoolArgument("unknown6"),
+        ]),
+        Command(0x46, "StartControllerTestMode", group="factory", arguments=[
+            Int32Argument("p1"),
+            Int32Argument("p2"),
+            Int32Argument("p3"),
+            UInt8Argument("mode"),
+        ]),
+        Command(0x47, "ControllerGains", group="factory", arguments=[
+            FloatArgument("kp"),
+            FloatArgument("ki"),
+            FloatArgument("kd"),
+            FloatArgument("max_integral_error"),
+            UInt8Argument("controller"),
+        ]),
+        Command(0x4a, "IMURequest", group="system", arguments=[
+            UInt32Argument("length_ms", description="Duration of the stream of IMURawDataChunk, in milliseconds."),
+        ]),
+        Command(0x4e, "ObjectBeingCarried", group="localization", arguments=[
+            UInt32Argument("object_id"),
+            BoolArgument("carried"),
+        ]),
+        Command(0x50, "EnableMotorPower", group="motors", arguments=[
+            EnumArgument("motor_id", MOTOR_ID, data_type=UInt8Argument()),
+            BoolArgument("enable"),
+        ]),
+        Command(0x51, "SetMotionModelParams", group="motors", arguments=[
+            FloatArgument("slip_factor"),
+        ]),
+        Command(0x52, "EnterSleepMode", group="system"),
+        Command(0x53, "PowerState", group="system", arguments=[
+            Int32Argument("v_bat_fixed"),
+            Int32Argument("v_ext_fixed"),
+            Int32Argument("unused"),
+            UInt8Argument("battery_level"),
+            BoolArgument("on_charger"),
+            BoolArgument("is_charging"),
+            UInt8Argument("operating_mode"),
+            BoolArgument("charger_oos"),
+        ]),
+        Command(0x54, "SetCliffDetectThreshold", group="system", arguments=[
+            UInt16Argument("threshold"),
+        ]),
+        Command(0x55, "EnableReadToolCodeMode", group="docking", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            BoolArgument("unknown2"),
+        ]),
+        Command(0x59, "RollActionParams", group="docking", arguments=[
+            FloatArgument("lift_height_mm"),
+            FloatArgument("drive_speed_mmps"),
+            FloatArgument("drive_accel_mmps2"),
+            UInt32Argument("drive_duration_ms"),
+            FloatArgument("back_up_dist_mm"),
+        ]),
+        Command(0x5a, "CameraFOVInfo", group="camera", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+        ]),
+        Command(0x61, "ForceDelocalizeSimulatedRobot", group="localization"),
+        Command(0x62, "ObjectConnectionStateToRobot", group="objects", arguments=[
+            UInt32Argument("object_id"),
+            UInt32Argument("factory_id"),
+            Int32Argument("object_type"),
+            BoolArgument("connected"),
+        ]),
+        Command(0x63, "EnableBraceWhenFalling", group="system", arguments=[
+            BoolArgument("enable"),
+        ]),
+        Command(0x65, "GenerateTestTone", group="system"),
+        Command(0x80, "RequestCrashReports", group="system", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0x82, "EnableWiFiTelemetry", group="system"),
+        Command(0x89, "DebugSetRTTO", group="system", arguments=[
+            UInt16Argument("unknown0"),
+        ]),
+        Command(0x96, "AnimEventToRTIP", group="anim", arguments=[
+            UInt8Argument("unknown0"),
+            UInt8Argument("unknown1"),
+        ]),
+        Command(0xa2, "EnterFactoryTestMode", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+        ]),
+        Command(0xa3, "DisplayNumber", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            UInt8Argument("unknown1"),
+            UInt8Argument("unknown2"),
+            UInt8Argument("unknown3"),
+        ]),
+        Command(0xa5, "BodySerialNumber", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xab, "AppConnectConfigFlags", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int16Argument("unknown2"),
+            UInt8Argument("unknown3"),
+            UInt8Argument("unknown4"),
+            UInt8Argument("unknown5"),
+            UInt8Argument("unknown6"),
+            UInt8Argument("unknown7"),
+            UInt8Argument("unknown8"),
+            UInt8Argument("unknown9"),
+        ]),
+        Command(0xac, "AppConnectConfigIPInfo", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            UInt8Argument("unknown3"),
+        ]),
+        Command(0xad, "AppConnectGetRobotIP", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+        ]),
+        Command(0xb2, "MainCycleTimeError", group="debug", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            Int32Argument("unknown3"),
+        ]),
+        Command(0xba, "RampTraverseStart", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xbb, "RampTraverseComplete", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+            BoolArgument("unknown1"),
+        ]),
+        Command(0xbc, "BridgeTraverseStart", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xbd, "BridgeTraverseComplete", group="docking", arguments=[
+            UInt32Argument("unknown0"),
+            BoolArgument("unknown1"),
+        ]),
+        Command(0xc0, "CliffEvent", group="state", arguments=[
+            UInt32Argument("timestamp"),
+            UInt8Argument("detected_flags"),
+            BoolArgument("did_stop_for_cliff"),
+        ]),
+        Command(0xc1, "PotentialCliff", group="state"),
+        Command(0xd4, "RobotStopped", group="state", arguments=[
+            UInt8Argument("unknown0"),
+        ]),
+        Command(0xd6, "FactoryTestParameter", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xd8, "MotorAutoEnabled", group="motors", arguments=[
+            EnumArgument("motor_id", MOTOR_ID, data_type=UInt8Argument()),
+            BoolArgument("enabled"),
+        ]),
+        Command(0xd9, "RobotErrorReport", group="state", arguments=[
+            UInt32Argument("unknown0"),
+            BoolArgument("unknown1"),
+        ]),
+        Command(0xdc, "IMUTemperature", group="state", arguments=[
+            FloatArgument("temperature_degc"),
+        ]),
+        Command(0xec, "WiFiFlashID", group="factory", arguments=[
+            UInt32Argument("unknown0"),
+        ]),
+        Command(0xc7, "IMURawDataChunk", group="state", arguments=[
+            Int16Argument("gyro_x", description="Raw value."),
+            Int16Argument("gyro_y", description="Raw value."),
+            Int16Argument("gyro_z", description="Raw value."),
+            Int16Argument("accel_x", description="Raw value, about 10450 for 1 g."),
+            Int16Argument("accel_y", description="Raw value, about 10450 for 1 g."),
+            Int16Argument("accel_z", description="Raw value, about 10450 for 1 g."),
+            UInt8Argument("order"),
+            UInt8Argument("timestamp"),
+        ]),
+        # Messages with arrays and strings, read from the unpacking functions of the original application
+        # (docs/specs/protocol-gaps.md). Arrays and strings have a length on 1 byte.
+        Command(0x0f, "WriteBodyStorage", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            VArrayArgument("data", data_type=UInt8Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xa0, "SetAppRunID", group="system", arguments=[
+            FArrayArgument("unknown0", data_type=UInt32Argument(), length=4),
+        ]),
+        Command(0xa1, "TestState", group="factory", arguments=[
+            FArrayArgument("unknown0", data_type=UInt32Argument(), length=4),
+            FArrayArgument("unknown1", data_type=UInt32Argument(), length=4),
+            Int16Argument("unknown2"),
+            FArrayArgument("unknown3", data_type=UInt16Argument(), length=3),
+            FArrayArgument("unknown4", data_type=UInt16Argument(), length=3),
+            UInt8Argument("unknown5"),
+            UInt8Argument("unknown6"),
+            UInt8Argument("unknown7"),
+        ]),
+        Command(0xa4, "BodyStorageContents", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            UInt8Argument("unknown1"),
+            VArrayArgument("data", data_type=UInt8Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xaa, "AppConnectConfigString", group="factory", arguments=[
+            UInt8Argument("unknown0"),
+            FArrayArgument("unknown1", data_type=UInt8Argument(), length=16),
+        ]),
+        Command(0xb1, "PrintText", group="debug", arguments=[
+            UInt8Argument("unknown0"),
+            StringArgument("text", length_type=UInt8Argument()),
+        ]),
+        Command(0xb3, "GoalPose", group="state", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            FloatArgument("unknown2"),
+            FloatArgument("unknown3"),
+            UInt32Argument("unknown4"),
+            BoolArgument("unknown5"),
+        ]),
+        Command(0xb7, "DataDump", group="debug", arguments=[
+            UInt32Argument("unknown0"),
+            VArrayArgument("data", data_type=UInt8Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xbe, "TimeProfileStat", group="debug", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            BoolArgument("unknown2"),
+            StringArgument("name", length_type=UInt8Argument()),
+        ]),
+        Command(0xbf, "IMUDataChunk", group="state", arguments=[
+            FArrayArgument("a_x", data_type=FloatArgument(), length=8),
+            FArrayArgument("a_y", data_type=FloatArgument(), length=8),
+            FArrayArgument("a_z", data_type=FloatArgument(), length=8),
+            FArrayArgument("g_x", data_type=FloatArgument(), length=8),
+            FArrayArgument("g_y", data_type=FloatArgument(), length=8),
+            FArrayArgument("g_z", data_type=FloatArgument(), length=8),
+            UInt8Argument("seq_id"),
+            UInt8Argument("chunk_id"),
+            UInt8Argument("total_num_chunks"),
+        ]),
+        Command(0xc8, "DefaultCameraParams", group="camera", arguments=[
+            FloatArgument("unknown0"),
+            FloatArgument("unknown1"),
+            UInt16Argument("unknown2"),
+            Int16Argument("unknown3"),
+            FArrayArgument("unknown4", data_type=UInt8Argument(), length=17),
+        ]),
+        Command(0xcf, "CrashReport", group="system", arguments=[
+            UInt32Argument("unknown0"),
+            Int16Argument("unknown1"),
+            UInt8Argument("unknown2"),
+            VArrayArgument("dump", data_type=UInt32Argument(), length_type=UInt8Argument()),
+        ]),
+        Command(0xd2, "FWVersionInfo", group="system", arguments=[
+            UInt32Argument("unknown0"),
+            Int32Argument("unknown1"),
+            Int32Argument("unknown2"),
+            FArrayArgument("unknown3", data_type=UInt8Argument(), length=16),
+            FArrayArgument("unknown4", data_type=UInt8Argument(), length=16),
+        ]),
+    ]
+
+)
