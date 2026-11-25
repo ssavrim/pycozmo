@@ -1,80 +1,80 @@
 [
  {
   "name": "protocol: construct 5 messages",
-  "baseline_s": 1.746403063968005e-06,
-  "candidate_s": 4.4536409912060426e-07,
-  "ratio": 3.921292864459379
+  "baseline_s": 1.6865303222701745e-06,
+  "candidate_s": 3.868168151857643e-07,
+  "ratio": 4.36002328766457
  },
  {
   "name": "protocol: encode 10 messages",
-  "baseline_s": 2.3717886352525584e-06,
-  "candidate_s": 2.1650412139889718e-07,
-  "ratio": 10.954935268334525
+  "baseline_s": 2.342152868650693e-06,
+  "candidate_s": 2.3208869934093767e-07,
+  "ratio": 10.091628223613236
  },
  {
   "name": "protocol: decode 10 messages",
-  "baseline_s": 4.998085546858988e-06,
-  "candidate_s": 4.6212303771997474e-07,
-  "ratio": 10.81548665376773
+  "baseline_s": 4.817860302730459e-06,
+  "candidate_s": 4.931342895503343e-07,
+  "ratio": 9.769874869426816
  },
  {
   "name": "frame: pack 5 packets",
-  "baseline_s": 1.2427564697270466e-05,
-  "candidate_s": 1.3338245391826542e-06,
-  "ratio": 9.317241010489935
+  "baseline_s": 1.2561131591815045e-05,
+  "candidate_s": 1.4231012268051124e-06,
+  "ratio": 8.826590375454183
  },
  {
   "name": "frame: unpack robot frame (3 packets)",
-  "baseline_s": 3.201284179688013e-05,
-  "candidate_s": 1.6083223876930952e-06,
-  "ratio": 19.904493055523464
+  "baseline_s": 3.2621698730417314e-05,
+  "candidate_s": 1.6115751800549472e-06,
+  "ratio": 20.242120339247883
  },
  {
   "name": "window: 60 packets through send/receive windows",
-  "baseline_s": 3.4700543457000244e-05,
-  "candidate_s": 7.366899353045131e-06,
-  "ratio": 4.710332229889453
+  "baseline_s": 3.497017114251211e-05,
+  "candidate_s": 7.111210205079654e-06,
+  "ratio": 4.917611789556205
  },
  {
   "name": "image: encode 20 display images",
-  "baseline_s": 0.0005411002343748805,
-  "candidate_s": 2.329101074218798e-05,
-  "ratio": 23.23214910526674
+  "baseline_s": 0.00046476412500027207,
+  "candidate_s": 2.006249492190193e-05,
+  "ratio": 23.165818947717014
  },
  {
   "name": "image: decode 20 display images",
-  "baseline_s": 0.00017171231249974995,
-  "candidate_s": 3.878174926763567e-06,
-  "ratio": 44.27657744748717
+  "baseline_s": 0.00017195053281255924,
+  "candidate_s": 3.9366944824203994e-06,
+  "ratio": 43.67891223980349
  },
  {
   "name": "anim: encode 20 clips (FlatBuffers)",
-  "baseline_s": 0.06721188649999021,
-  "candidate_s": 0.007638581187507043,
-  "ratio": 8.799001391765758
+  "baseline_s": 0.06545916400000351,
+  "candidate_s": 0.007258841187478993,
+  "ratio": 9.01785316820488
  },
  {
   "name": "anim: decode 20 clips (FlatBuffers)",
-  "baseline_s": 0.16042575100027534,
-  "candidate_s": 0.006364207312515191,
-  "ratio": 25.207499241075737
+  "baseline_s": 0.17478164299973287,
+  "candidate_s": 0.006936277562488158,
+  "ratio": 25.19819044511186
  },
  {
   "name": "procedural face: render 10 faces",
-  "baseline_s": 0.0002908785640627798,
-  "candidate_s": 0.000216373240625245,
-  "ratio": 1.344337050285145
+  "baseline_s": 0.00029415280156257494,
+  "candidate_s": 0.00015834117656225998,
+  "ratio": 1.857715143646881
  },
  {
   "name": "mood: decay of 9 emotions",
-  "baseline_s": 4.885051293945786e-05,
-  "candidate_s": 7.432510719298374e-07,
-  "ratio": 65.72545238665909
+  "baseline_s": 5.151058789065743e-05,
+  "candidate_s": 7.472061653145817e-07,
+  "ratio": 68.93758413913906
  },
  {
   "name": "decay graph: 5 evaluations",
-  "baseline_s": 1.3833867553714185e-06,
-  "candidate_s": 6.878239097590776e-08,
-  "ratio": 20.112513329988396
+  "baseline_s": 1.2475449584936626e-06,
+  "candidate_s": 5.490468025209222e-08,
+  "ratio": 22.722014822153948
  }
 ]
