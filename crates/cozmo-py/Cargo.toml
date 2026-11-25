@@ -1,0 +1,16 @@
+[package]
+name = "cozmo-py"
+description = "Python binding (PyO3) of cozmo-core, imported as pycozmo._cozmo."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "_cozmo"
+crate-type = ["cdylib"]
+
+[dependencies]
+cozmo-core = { path = "../cozmo-core" }
+pyo3 = { version = "=0.25.1", features = ["extension-module"] }
