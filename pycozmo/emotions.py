@@ -8,8 +8,6 @@ import os
 import time
 from typing import Any, Callable, Self
 
-import numpy as np
-
 from .logger import logger
 from .json_loader import get_json_files, load_json_file
 
@@ -40,86 +38,11 @@ class Node:
         self.y = float(y)
 
 
-class DecayGraph:
-    __slots__ = [
-        "nodes_x",
-        "nodes_y",
-    ]
-
-    def __init__(self, nodes: list[Node]) -> None:
-        self.nodes_x = [node.x for node in nodes]
-        self.nodes_y = [node.y for node in nodes]
-
-    def evaluate(self, x: float) -> float:
-        y = np.interp(x, self.nodes_x, self.nodes_y)
-        return y
-
-
-class EmotionType:
-    """
-    Emotion type class (docs/specs/mood.md).
-
-    The value stays in [-1, 1]. It decays along the decay graph of the emotion, evaluated on the time since the
-    value was last strengthened.
-    """
-
-    __slots__ = [
-        "clock",
-        "name",
-        "decay_graph",
-        "repetition_penalty",
-        "min",
-        "max",
-        "age",
-        "last_update",
-        "value",
-    ]
-
-    def __init__(
-            self, name: str,
-            decay_graph: DecayGraph,
-            repetition_penalty: DecayGraph,
-            default_value: float = 0.0,
-            min_value: float = -1.0,
-            max_value: float = 1.0,
-            clock: Callable[[], float] = time.perf_counter) -> None:
-        self.clock = clock
-        self.name = str(name)
-        self.decay_graph = decay_graph
-        self.repetition_penalty = repetition_penalty
-        self.min = float(min_value)
-        self.max = float(max_value)
-        self.age = 0.0
-        self.last_update = clock()
-        self.value = float(default_value)
-
-    def set(self, value: float) -> None:
-        self.update()
-        self.age = 0.0
-        self.value = float(np.clip(value, self.min, self.max))
-
-    def add(self, delta: float) -> None:
-        """ Add to the value. The decay restarts when the value changes sign or is strengthened by a delta > 0.05. """
-        self.update()
-        previous = self.value
-        self.value = float(np.clip(previous + delta, self.min, self.max))
-        if (previous >= 0.0) != (self.value >= 0.0):
-            self.age = 0.0
-        elif abs(delta) > STRENGTHEN_THRESHOLD and (previous >= 0.0) == (delta >= 0.0):
-            self.age = 0.0
-
-    def update(self) -> None:
-        """ Decay the value over the time since the last update. """
-        now = self.clock()
-        dt = max(now - self.last_update, 0.0)
-        self.last_update = now
-        if dt == 0.0:
-            return
-        before = self.decay_graph.evaluate(self.age)
-        self.age += dt
-        after = self.decay_graph.evaluate(self.age)
-        ratio = after / before if before > DECAY_EPSILON else after
-        self.value = float(np.clip(self.value * ratio, self.min, self.max))
+# DecayGraph and EmotionType are implemented in Rust (crates/cozmo-core/src/emotions.rs,
+# crates/cozmo-py/src/emotions.rs): DecayGraph(nodes) and EmotionType(name, decay_graph, repetition_penalty,
+# default_value=0.0, min_value=-1.0, max_value=1.0, clock=time.perf_counter), with the attributes and the set(),
+# add() and update() methods of the Python classes.
+from ._cozmo import DecayGraph, EmotionType  # noqa: E402
 
 
 class EmotionEvent:

@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
 
 mod conv;
+mod emotions;
 mod enums;
 mod errors;
 mod frame;
@@ -32,6 +33,8 @@ fn _cozmo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<window::SendWindow>()?;
     m.add_class::<image::ImageDecoder>()?;
     m.add_class::<image::ImageEncoder>()?;
+    m.add_class::<emotions::DecayGraph>()?;
+    m.add_class::<emotions::EmotionType>()?;
 
     use cozmo_core::protocol as p;
     m.add("PACKETS_BY_ID", PyList::new(py, p::PACKETS_BY_ID)?)?;
