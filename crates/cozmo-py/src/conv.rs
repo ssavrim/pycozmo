@@ -3,7 +3,7 @@
 
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyByteArray, PyBytes, PyFloat, PyInt, PyList, PyString, PyTuple};
+use pyo3::types::{PyByteArray, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
 
 /// How an array field was given, so that it is returned the same way: PyCozmo keeps `bytes` and `bytearray` values
 /// as they are and turns other sequences into lists.
@@ -256,4 +256,46 @@ pub fn prim_list<T: Elem>(py: Python<'_>, v: &[T], kind: ArrKind) -> PyResult<Py
             Ok(PyList::new(py, items)?.into_any().unbind())
         }
     }
+}
+
+/// Matches constructor arguments to fields like a Python `__init__(self, field1=..., field2=...)`: positional or
+/// keyword arguments, with the error messages of Python. Missing arguments are `None` (the declared default).
+pub fn parse_args<'py>(
+    cls: &str,
+    args: &Bound<'py, PyTuple>,
+    kwargs: Option<&Bound<'py, PyDict>>,
+    fields: &[&str],
+) -> PyResult<Vec<Option<Bound<'py, PyAny>>>> {
+    let n = fields.len();
+    if args.len() > n {
+        let msg = if n == 0 {
+            format!("{cls}.__init__() takes 1 positional argument but {} were given", args.len() + 1)
+        } else {
+            format!("{cls}.__init__() takes from 1 to {} positional arguments but {} were given", n + 1, args.len() + 1)
+        };
+        return Err(PyTypeError::new_err(msg));
+    }
+    let mut out: Vec<Option<Bound<'py, PyAny>>> = vec![None; n];
+    for (i, a) in args.iter().enumerate() {
+        out[i] = Some(a);
+    }
+    if let Some(kw) = kwargs {
+        for (k, v) in kw.iter() {
+            let key = k.downcast::<PyString>()?.to_str()?.to_owned();
+            match fields.iter().position(|f| *f == key) {
+                Some(i) if out[i].is_some() => {
+                    return Err(PyTypeError::new_err(format!(
+                        "{cls}.__init__() got multiple values for argument '{key}'"
+                    )))
+                }
+                Some(i) => out[i] = Some(v),
+                None => {
+                    return Err(PyTypeError::new_err(format!(
+                        "{cls}.__init__() got an unexpected keyword argument '{key}'"
+                    )))
+                }
+            }
+        }
+    }
+    Ok(out)
 }

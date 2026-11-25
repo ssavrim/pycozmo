@@ -2382,11 +2382,13 @@ impl DockWithObject {
         let speed_mmps = f64::from(r.read_f32()?);
         let accel_mmps2 = f64::from(r.read_f32()?);
         let decel_mmps2 = f64::from(r.read_f32()?);
-        let action = DockAction::from_value(i64::from(r.read_i8()?))?;
+        let action = i64::from(r.read_i8()?);
         let do_lift_load_check = r.read_bool()?;
         let num_retries = r.read_u8()?;
-        let docking_method = DockingMethod::from_value(i64::from(r.read_i8()?))?;
+        let docking_method = i64::from(r.read_i8()?);
         let back_up_while_lifting_cube = r.read_bool()?;
+        let action = DockAction::from_value(action)?;
+        let docking_method = DockingMethod::from_value(docking_method)?;
         Ok(Self {
             reserved,
             speed_mmps,
@@ -2588,7 +2590,8 @@ impl SetCarryState {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let state = CarryState::from_value(i64::from(r.read_i8()?))?;
+        let state = i64::from(r.read_i8()?);
+        let state = CarryState::from_value(state)?;
         Ok(Self { state })
     }
 }
@@ -2655,8 +2658,10 @@ impl EnableCamera {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let image_send_mode = ImageSendMode::from_value(i64::from(r.read_i8()?))?;
-        let image_resolution = ImageResolution::from_value(i64::from(r.read_i8()?))?;
+        let image_send_mode = i64::from(r.read_i8()?);
+        let image_resolution = i64::from(r.read_i8()?);
+        let image_send_mode = ImageSendMode::from_value(image_send_mode)?;
+        let image_resolution = ImageResolution::from_value(image_resolution)?;
         Ok(Self { image_send_mode, image_resolution })
     }
 }
@@ -2897,14 +2902,16 @@ impl NvStorageOp {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let tag = NvEntryTag::from_value(i64::from(r.read_u32()?))?;
+        let tag = i64::from(r.read_u32()?);
         let length = r.read_i32()?;
-        let op = NvOperation::from_value(i64::from(r.read_u8()?))?;
+        let op = i64::from(r.read_u8()?);
         let unknown = r.read_u8()?;
         let data = {
             let n = r.read_u16()?;
             (0..n).map(|_| Ok(r.read_u8()?)).collect::<Result<Vec<_>>>()?
         };
+        let tag = NvEntryTag::from_value(tag)?;
+        let op = NvOperation::from_value(op)?;
         Ok(Self { tag, length, op, unknown, data })
     }
 }
@@ -3156,7 +3163,8 @@ impl AnimEvent {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let event_id = AnimEventType::from_value(i64::from(r.read_u8()?))?;
+        let event_id = i64::from(r.read_u8()?);
+        let event_id = AnimEventType::from_value(event_id)?;
         Ok(Self { event_id })
     }
 }
@@ -3557,7 +3565,8 @@ impl ObjectMoved {
         let active_accel_x = f64::from(r.read_f32()?);
         let active_accel_y = f64::from(r.read_f32()?);
         let active_accel_z = f64::from(r.read_f32()?);
-        let axis_of_accel = UpAxis::from_value(i64::from(r.read_u8()?))?;
+        let axis_of_accel = i64::from(r.read_u8()?);
+        let axis_of_accel = UpAxis::from_value(axis_of_accel)?;
         Ok(Self { timestamp, object_id, active_accel_x, active_accel_y, active_accel_z, axis_of_accel })
     }
 }
@@ -3677,8 +3686,9 @@ impl PickAndPlaceResult {
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
         let timestamp = r.read_u32()?;
         let did_succeed = r.read_bool()?;
-        let result = DockingResult::from_value(i64::from(r.read_i8()?))?;
+        let result = i64::from(r.read_i8()?);
         let block_status = r.read_u8()?;
+        let result = DockingResult::from_value(result)?;
         Ok(Self { timestamp, did_succeed, result, block_status })
     }
 }
@@ -3872,7 +3882,8 @@ impl PathFollowingEvent {
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
         let event_id = r.read_u16()?;
-        let event_type = PathEventType::from_value(i64::from(r.read_u8()?))?;
+        let event_type = i64::from(r.read_u8()?);
+        let event_type = PathEventType::from_value(event_type)?;
         Ok(Self { event_id, event_type })
     }
 }
@@ -4016,14 +4027,17 @@ impl NvStorageOpResult {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let tag = NvEntryTag::from_value(i64::from(r.read_u32()?))?;
+        let tag = i64::from(r.read_u32()?);
         let length = r.read_i32()?;
-        let op = NvOperation::from_value(i64::from(r.read_u8()?))?;
-        let result = NvResult::from_value(i64::from(r.read_i8()?))?;
+        let op = i64::from(r.read_u8()?);
+        let result = i64::from(r.read_i8()?);
         let data = {
             let n = r.read_u16()?;
             (0..n).map(|_| Ok(r.read_u8()?)).collect::<Result<Vec<_>>>()?
         };
+        let tag = NvEntryTag::from_value(tag)?;
+        let op = NvOperation::from_value(op)?;
+        let result = NvResult::from_value(result)?;
         Ok(Self { tag, length, op, result, data })
     }
 }
@@ -4099,8 +4113,9 @@ impl ObjectConnectionState {
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
         let object_id = r.read_u32()?;
         let factory_id = r.read_u32()?;
-        let object_type = ObjectType::from_value(i64::from(r.read_i32()?))?;
+        let object_type = i64::from(r.read_i32()?);
         let connected = r.read_bool()?;
+        let object_type = ObjectType::from_value(object_type)?;
         Ok(Self { object_id, factory_id, object_type, connected })
     }
 }
@@ -4135,9 +4150,10 @@ impl MotorCalibration {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let motor_id = MotorID::from_value(i64::from(r.read_u8()?))?;
+        let motor_id = i64::from(r.read_u8()?);
         let calib_started = r.read_bool()?;
         let auto_started = r.read_bool()?;
+        let motor_id = MotorID::from_value(motor_id)?;
         Ok(Self { motor_id, calib_started, auto_started })
     }
 }
@@ -4210,7 +4226,8 @@ impl AnimationEvent {
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
         let timestamp = r.read_u32()?;
         let anim_id = r.read_u8()?;
-        let event_id = AnimEventType::from_value(i64::from(r.read_u8()?))?;
+        let event_id = i64::from(r.read_u8()?);
+        let event_id = AnimEventType::from_value(event_id)?;
         Ok(Self { timestamp, anim_id, event_id })
     }
 }
@@ -4247,7 +4264,8 @@ impl ObjectUpAxisChanged {
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
         let timestamp = r.read_u32()?;
         let object_id = r.read_u32()?;
-        let axis = UpAxis::from_value(i64::from(r.read_u8()?))?;
+        let axis = i64::from(r.read_u8()?);
+        let axis = UpAxis::from_value(axis)?;
         Ok(Self { timestamp, object_id, axis })
     }
 }
@@ -4415,7 +4433,8 @@ impl BodyInfo {
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
         let serial_number = r.read_u32()?;
         let body_hw_version = r.read_u32()?;
-        let body_color = BodyColor::from_value(i64::from(r.read_i32()?))?;
+        let body_color = i64::from(r.read_i32()?);
+        let body_color = BodyColor::from_value(body_color)?;
         Ok(Self { serial_number, body_hw_version, body_color })
     }
 }
@@ -4781,8 +4800,8 @@ impl ImageChunk {
         let frame_timestamp = r.read_u32()?;
         let image_id = r.read_u32()?;
         let chunk_debug = r.read_u32()?;
-        let image_encoding = ImageEncoding::from_value(i64::from(r.read_i8()?))?;
-        let image_resolution = ImageResolution::from_value(i64::from(r.read_i8()?))?;
+        let image_encoding = i64::from(r.read_i8()?);
+        let image_resolution = i64::from(r.read_i8()?);
         let image_chunk_count = r.read_u8()?;
         let chunk_id = r.read_u8()?;
         let status = r.read_u16()?;
@@ -4790,6 +4809,8 @@ impl ImageChunk {
             let n = r.read_u16()?;
             (0..n).map(|_| Ok(r.read_u8()?)).collect::<Result<Vec<_>>>()?
         };
+        let image_encoding = ImageEncoding::from_value(image_encoding)?;
+        let image_resolution = ImageResolution::from_value(image_resolution)?;
         Ok(Self {
             frame_timestamp,
             image_id,
@@ -4835,8 +4856,9 @@ impl ObjectAvailable {
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
         let factory_id = r.read_u32()?;
-        let object_type = ObjectType::from_value(i64::from(r.read_i32()?))?;
+        let object_type = i64::from(r.read_i32()?);
         let rssi = r.read_i8()?;
+        let object_type = ObjectType::from_value(object_type)?;
         Ok(Self { factory_id, object_type, rssi })
     }
 }
@@ -5455,8 +5477,9 @@ impl EnableMotorPower {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let motor_id = MotorID::from_value(i64::from(r.read_u8()?))?;
+        let motor_id = i64::from(r.read_u8()?);
         let enable = r.read_bool()?;
+        let motor_id = MotorID::from_value(motor_id)?;
         Ok(Self { motor_id, enable })
     }
 }
@@ -6580,8 +6603,9 @@ impl MotorAutoEnabled {
     }
     /// Decodes the message.
     pub fn decode(r: &mut Reader<'_>) -> Result<Self> {
-        let motor_id = MotorID::from_value(i64::from(r.read_u8()?))?;
+        let motor_id = i64::from(r.read_u8()?);
         let enabled = r.read_bool()?;
+        let motor_id = MotorID::from_value(motor_id)?;
         Ok(Self { motor_id, enabled })
     }
 }

@@ -4,7 +4,7 @@
 
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedBytes;
-use pyo3::types::PyType;
+use pyo3::types::{PyDict, PyTuple, PyType};
 
 use cozmo_core::protocol::*;
 use cozmo_core::protocol::{self as core, Body, Message};
@@ -39,17 +39,16 @@ impl conv::Wrapped for PyLightState {
 #[pymethods]
 impl PyLightState {
     #[new]
-    #[pyo3(signature = (on_color=None, off_color=None, on_frames=None, off_frames=None, transition_on_frames=None, transition_off_frames=None, offset=None))]
-    fn new(
-        py: Python<'_>,
-        on_color: Option<&Bound<'_, PyAny>>,
-        off_color: Option<&Bound<'_, PyAny>>,
-        on_frames: Option<&Bound<'_, PyAny>>,
-        off_frames: Option<&Bound<'_, PyAny>>,
-        transition_on_frames: Option<&Bound<'_, PyAny>>,
-        transition_off_frames: Option<&Bound<'_, PyAny>>,
-        offset: Option<&Bound<'_, PyAny>>,
-    ) -> PyResult<(Self, Struct)> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(py: Python<'_>, args: &Bound<'_, PyTuple>, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<(Self, Struct)> {
+        let a = conv::parse_args("LightState", args, kwargs, core::LightState::FIELDS)?;
+        let on_color: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let off_color: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let on_frames: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let off_frames: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let transition_on_frames: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let transition_off_frames: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let offset: Option<&Bound<'_, PyAny>> = a[6].as_ref();
         let kinds = [ArrKind::List; 8];
         let on_color = match on_color {
             Some(o) => {
@@ -241,13 +240,12 @@ impl conv::Wrapped for PyPathSegmentSpeed {
 #[pymethods]
 impl PyPathSegmentSpeed {
     #[new]
-    #[pyo3(signature = (speed_mmps=None, accel_mmps2=None, decel_mmps2=None))]
-    fn new(
-        py: Python<'_>,
-        speed_mmps: Option<&Bound<'_, PyAny>>,
-        accel_mmps2: Option<&Bound<'_, PyAny>>,
-        decel_mmps2: Option<&Bound<'_, PyAny>>,
-    ) -> PyResult<(Self, Struct)> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(py: Python<'_>, args: &Bound<'_, PyTuple>, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<(Self, Struct)> {
+        let a = conv::parse_args("PathSegmentSpeed", args, kwargs, core::PathSegmentSpeed::FIELDS)?;
+        let speed_mmps: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let accel_mmps2: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let decel_mmps2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let kinds = [ArrKind::List; 8];
         let speed_mmps = match speed_mmps {
             Some(o) => {
@@ -337,8 +335,13 @@ pub struct PyConnect;
 #[pymethods]
 impl PyConnect {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("Connect", args, kwargs, core::Connect::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::Connect {};
         let mut pkt = Packet::from_message(Message::Connect(m), kinds);
@@ -362,8 +365,13 @@ pub struct PyDisconnect;
 #[pymethods]
 impl PyDisconnect {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("Disconnect", args, kwargs, core::Disconnect::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::Disconnect {};
         let mut pkt = Packet::from_message(Message::Disconnect(m), kinds);
@@ -387,14 +395,17 @@ pub struct PyPing;
 #[pymethods]
 impl PyPing {
     #[new]
-    #[pyo3(signature = (time_sent_ms=None, counter=None, last=None, unknown=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        time_sent_ms: Option<&Bound<'_, PyAny>>,
-        counter: Option<&Bound<'_, PyAny>>,
-        last: Option<&Bound<'_, PyAny>>,
-        unknown: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("Ping", args, kwargs, core::Ping::FIELDS)?;
+        let time_sent_ms: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let counter: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let last: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let time_sent_ms = match time_sent_ms {
             Some(o) => {
@@ -526,8 +537,13 @@ pub struct PyKeyframe;
 #[pymethods]
 impl PyKeyframe {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("Keyframe", args, kwargs, core::Keyframe::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::Keyframe {};
         let mut pkt = Packet::from_message(Message::Keyframe(m), kinds);
@@ -551,12 +567,15 @@ pub struct PyLightStateCenter;
 #[pymethods]
 impl PyLightStateCenter {
     #[new]
-    #[pyo3(signature = (states=None, unknown=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        states: Option<&Bound<'_, PyAny>>,
-        unknown: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("LightStateCenter", args, kwargs, core::LightStateCenter::FIELDS)?;
+        let states: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let (states, struct_objs) = match states {
             Some(o) => {
@@ -651,8 +670,14 @@ pub struct PyCubeLights;
 #[pymethods]
 impl PyCubeLights {
     #[new]
-    #[pyo3(signature = (states=None))]
-    fn new(py: Python<'_>, states: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("CubeLights", args, kwargs, core::CubeLights::FIELDS)?;
+        let states: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let (states, struct_objs) = match states {
             Some(o) => {
@@ -717,12 +742,15 @@ pub struct PyObjectConnect;
 #[pymethods]
 impl PyObjectConnect {
     #[new]
-    #[pyo3(signature = (factory_id=None, connect=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        factory_id: Option<&Bound<'_, PyAny>>,
-        connect: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectConnect", args, kwargs, core::ObjectConnect::FIELDS)?;
+        let factory_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let connect: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let factory_id = match factory_id {
             Some(o) => {
@@ -800,12 +828,15 @@ pub struct PyStreamObjectAccel;
 #[pymethods]
 impl PyStreamObjectAccel {
     #[new]
-    #[pyo3(signature = (object_id=None, enable=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        enable: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("StreamObjectAccel", args, kwargs, core::StreamObjectAccel::FIELDS)?;
+        let object_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let enable: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let object_id = match object_id {
             Some(o) => {
@@ -886,8 +917,14 @@ pub struct PySetAccessoryDiscovery;
 #[pymethods]
 impl PySetAccessoryDiscovery {
     #[new]
-    #[pyo3(signature = (enable=None))]
-    fn new(py: Python<'_>, enable: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetAccessoryDiscovery", args, kwargs, core::SetAccessoryDiscovery::FIELDS)?;
+        let enable: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let enable = match enable {
             Some(o) => {
@@ -943,8 +980,14 @@ pub struct PySetHeadLight;
 #[pymethods]
 impl PySetHeadLight {
     #[new]
-    #[pyo3(signature = (enable=None))]
-    fn new(py: Python<'_>, enable: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetHeadLight", args, kwargs, core::SetHeadLight::FIELDS)?;
+        let enable: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let enable = match enable {
             Some(o) => {
@@ -995,8 +1038,14 @@ pub struct PySetCubeGamma;
 #[pymethods]
 impl PySetCubeGamma {
     #[new]
-    #[pyo3(signature = (gamma=None))]
-    fn new(py: Python<'_>, gamma: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetCubeGamma", args, kwargs, core::SetCubeGamma::FIELDS)?;
+        let gamma: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let gamma = match gamma {
             Some(o) => {
@@ -1047,12 +1096,15 @@ pub struct PyCubeId;
 #[pymethods]
 impl PyCubeId {
     #[new]
-    #[pyo3(signature = (object_id=None, rotation_period_frames=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        rotation_period_frames: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("CubeId", args, kwargs, core::CubeId::FIELDS)?;
+        let object_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let rotation_period_frames: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let object_id = match object_id {
             Some(o) => {
@@ -1130,12 +1182,15 @@ pub struct PyLightStateSide;
 #[pymethods]
 impl PyLightStateSide {
     #[new]
-    #[pyo3(signature = (states=None, unknown=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        states: Option<&Bound<'_, PyAny>>,
-        unknown: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("LightStateSide", args, kwargs, core::LightStateSide::FIELDS)?;
+        let states: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let (states, struct_objs) = match states {
             Some(o) => {
@@ -1227,8 +1282,13 @@ pub struct PyEnable;
 #[pymethods]
 impl PyEnable {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("Enable", args, kwargs, core::Enable::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::Enable {};
         let mut pkt = Packet::from_message(Message::Enable(m), kinds);
@@ -1252,14 +1312,17 @@ pub struct PyDriveWheels;
 #[pymethods]
 impl PyDriveWheels {
     #[new]
-    #[pyo3(signature = (lwheel_speed_mmps=None, rwheel_speed_mmps=None, lwheel_accel_mmps2=None, rwheel_accel_mmps2=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        lwheel_speed_mmps: Option<&Bound<'_, PyAny>>,
-        rwheel_speed_mmps: Option<&Bound<'_, PyAny>>,
-        lwheel_accel_mmps2: Option<&Bound<'_, PyAny>>,
-        rwheel_accel_mmps2: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DriveWheels", args, kwargs, core::DriveWheels::FIELDS)?;
+        let lwheel_speed_mmps: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let rwheel_speed_mmps: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let lwheel_accel_mmps2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let rwheel_accel_mmps2: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let lwheel_speed_mmps = match lwheel_speed_mmps {
             Some(o) => {
@@ -1391,13 +1454,16 @@ pub struct PyTurnInPlaceAtSpeed;
 #[pymethods]
 impl PyTurnInPlaceAtSpeed {
     #[new]
-    #[pyo3(signature = (wheel_speed_mmps=None, wheel_accel_mmps2=None, direction=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        wheel_speed_mmps: Option<&Bound<'_, PyAny>>,
-        wheel_accel_mmps2: Option<&Bound<'_, PyAny>>,
-        direction: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("TurnInPlaceAtSpeed", args, kwargs, core::TurnInPlaceAtSpeed::FIELDS)?;
+        let wheel_speed_mmps: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let wheel_accel_mmps2: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let direction: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let wheel_speed_mmps = match wheel_speed_mmps {
             Some(o) => {
@@ -1505,8 +1571,14 @@ pub struct PyMoveLift;
 #[pymethods]
 impl PyMoveLift {
     #[new]
-    #[pyo3(signature = (speed_rad_per_sec=None))]
-    fn new(py: Python<'_>, speed_rad_per_sec: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("MoveLift", args, kwargs, core::MoveLift::FIELDS)?;
+        let speed_rad_per_sec: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let speed_rad_per_sec = match speed_rad_per_sec {
             Some(o) => {
@@ -1557,8 +1629,14 @@ pub struct PyMoveHead;
 #[pymethods]
 impl PyMoveHead {
     #[new]
-    #[pyo3(signature = (speed_rad_per_sec=None))]
-    fn new(py: Python<'_>, speed_rad_per_sec: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("MoveHead", args, kwargs, core::MoveHead::FIELDS)?;
+        let speed_rad_per_sec: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let speed_rad_per_sec = match speed_rad_per_sec {
             Some(o) => {
@@ -1609,15 +1687,18 @@ pub struct PySetLiftHeight;
 #[pymethods]
 impl PySetLiftHeight {
     #[new]
-    #[pyo3(signature = (height_mm=None, max_speed_rad_per_sec=None, accel_rad_per_sec2=None, duration_sec=None, action_id=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        height_mm: Option<&Bound<'_, PyAny>>,
-        max_speed_rad_per_sec: Option<&Bound<'_, PyAny>>,
-        accel_rad_per_sec2: Option<&Bound<'_, PyAny>>,
-        duration_sec: Option<&Bound<'_, PyAny>>,
-        action_id: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetLiftHeight", args, kwargs, core::SetLiftHeight::FIELDS)?;
+        let height_mm: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let max_speed_rad_per_sec: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let accel_rad_per_sec2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let duration_sec: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let action_id: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let height_mm = match height_mm {
             Some(o) => {
@@ -1776,15 +1857,18 @@ pub struct PySetHeadAngle;
 #[pymethods]
 impl PySetHeadAngle {
     #[new]
-    #[pyo3(signature = (angle_rad=None, max_speed_rad_per_sec=None, accel_rad_per_sec2=None, duration_sec=None, action_id=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        angle_rad: Option<&Bound<'_, PyAny>>,
-        max_speed_rad_per_sec: Option<&Bound<'_, PyAny>>,
-        accel_rad_per_sec2: Option<&Bound<'_, PyAny>>,
-        duration_sec: Option<&Bound<'_, PyAny>>,
-        action_id: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetHeadAngle", args, kwargs, core::SetHeadAngle::FIELDS)?;
+        let angle_rad: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let max_speed_rad_per_sec: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let accel_rad_per_sec2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let duration_sec: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let action_id: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let angle_rad = match angle_rad {
             Some(o) => {
@@ -1943,17 +2027,20 @@ pub struct PyTurnInPlace;
 #[pymethods]
 impl PyTurnInPlace {
     #[new]
-    #[pyo3(signature = (angle_rad=None, speed_rad_per_sec=None, accel_rad_per_sec2=None, angle_tolerance_rad=None, num_half_revolutions=None, is_absolute=None, action_id=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        angle_rad: Option<&Bound<'_, PyAny>>,
-        speed_rad_per_sec: Option<&Bound<'_, PyAny>>,
-        accel_rad_per_sec2: Option<&Bound<'_, PyAny>>,
-        angle_tolerance_rad: Option<&Bound<'_, PyAny>>,
-        num_half_revolutions: Option<&Bound<'_, PyAny>>,
-        is_absolute: Option<&Bound<'_, PyAny>>,
-        action_id: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("TurnInPlace", args, kwargs, core::TurnInPlace::FIELDS)?;
+        let angle_rad: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let speed_rad_per_sec: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let accel_rad_per_sec2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let angle_tolerance_rad: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let num_half_revolutions: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let is_absolute: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let action_id: Option<&Bound<'_, PyAny>> = a[6].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let angle_rad = match angle_rad {
             Some(o) => {
@@ -2174,8 +2261,13 @@ pub struct PyStopAllMotors;
 #[pymethods]
 impl PyStopAllMotors {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("StopAllMotors", args, kwargs, core::StopAllMotors::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::StopAllMotors {};
         let mut pkt = Packet::from_message(Message::StopAllMotors(m), kinds);
@@ -2199,8 +2291,14 @@ pub struct PyClearPath;
 #[pymethods]
 impl PyClearPath {
     #[new]
-    #[pyo3(signature = (unknown=None))]
-    fn new(py: Python<'_>, unknown: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ClearPath", args, kwargs, core::ClearPath::FIELDS)?;
+        let unknown: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown = match unknown {
             Some(o) => {
@@ -2251,17 +2349,20 @@ pub struct PyAppendPathSegLine;
 #[pymethods]
 impl PyAppendPathSegLine {
     #[new]
-    #[pyo3(signature = (from_x=None, from_y=None, to_x=None, to_y=None, speed_mmps=None, accel_mmps2=None, decel_mmps2=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        from_x: Option<&Bound<'_, PyAny>>,
-        from_y: Option<&Bound<'_, PyAny>>,
-        to_x: Option<&Bound<'_, PyAny>>,
-        to_y: Option<&Bound<'_, PyAny>>,
-        speed_mmps: Option<&Bound<'_, PyAny>>,
-        accel_mmps2: Option<&Bound<'_, PyAny>>,
-        decel_mmps2: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AppendPathSegLine", args, kwargs, core::AppendPathSegLine::FIELDS)?;
+        let from_x: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let from_y: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let to_x: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let to_y: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let speed_mmps: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let accel_mmps2: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let decel_mmps2: Option<&Bound<'_, PyAny>> = a[6].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let from_x = match from_x {
             Some(o) => {
@@ -2477,18 +2578,21 @@ pub struct PyAppendPathSegArc;
 #[pymethods]
 impl PyAppendPathSegArc {
     #[new]
-    #[pyo3(signature = (center_x=None, center_y=None, radius_mm=None, start_angle_rad=None, sweep_rad=None, speed_mmps=None, accel_mmps2=None, decel_mmps2=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        center_x: Option<&Bound<'_, PyAny>>,
-        center_y: Option<&Bound<'_, PyAny>>,
-        radius_mm: Option<&Bound<'_, PyAny>>,
-        start_angle_rad: Option<&Bound<'_, PyAny>>,
-        sweep_rad: Option<&Bound<'_, PyAny>>,
-        speed_mmps: Option<&Bound<'_, PyAny>>,
-        accel_mmps2: Option<&Bound<'_, PyAny>>,
-        decel_mmps2: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AppendPathSegArc", args, kwargs, core::AppendPathSegArc::FIELDS)?;
+        let center_x: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let center_y: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let radius_mm: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let start_angle_rad: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let sweep_rad: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let speed_mmps: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let accel_mmps2: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let decel_mmps2: Option<&Bound<'_, PyAny>> = a[7].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let center_x = match center_x {
             Some(o) => {
@@ -2740,18 +2844,21 @@ pub struct PyAppendPathSegPointTurn;
 #[pymethods]
 impl PyAppendPathSegPointTurn {
     #[new]
-    #[pyo3(signature = (x=None, y=None, angle_rad=None, angle_tolerance_rad=None, speed_mmps=None, accel_mmps2=None, decel_mmps2=None, use_shortest_direction=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        x: Option<&Bound<'_, PyAny>>,
-        y: Option<&Bound<'_, PyAny>>,
-        angle_rad: Option<&Bound<'_, PyAny>>,
-        angle_tolerance_rad: Option<&Bound<'_, PyAny>>,
-        speed_mmps: Option<&Bound<'_, PyAny>>,
-        accel_mmps2: Option<&Bound<'_, PyAny>>,
-        decel_mmps2: Option<&Bound<'_, PyAny>>,
-        use_shortest_direction: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AppendPathSegPointTurn", args, kwargs, core::AppendPathSegPointTurn::FIELDS)?;
+        let x: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let y: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let angle_rad: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let angle_tolerance_rad: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let speed_mmps: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let accel_mmps2: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let decel_mmps2: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let use_shortest_direction: Option<&Bound<'_, PyAny>> = a[7].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let x = match x {
             Some(o) => {
@@ -3005,12 +3112,15 @@ pub struct PyTrimPath;
 #[pymethods]
 impl PyTrimPath {
     #[new]
-    #[pyo3(signature = (head=None, tail=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        head: Option<&Bound<'_, PyAny>>,
-        tail: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("TrimPath", args, kwargs, core::TrimPath::FIELDS)?;
+        let head: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let tail: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let head = match head {
             Some(o) => {
@@ -3088,12 +3198,15 @@ pub struct PyExecutePath;
 #[pymethods]
 impl PyExecutePath {
     #[new]
-    #[pyo3(signature = (event_id=None, unknown=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        event_id: Option<&Bound<'_, PyAny>>,
-        unknown: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ExecutePath", args, kwargs, core::ExecutePath::FIELDS)?;
+        let event_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let event_id = match event_id {
             Some(o) => {
@@ -3171,19 +3284,22 @@ pub struct PyDockWithObject;
 #[pymethods]
 impl PyDockWithObject {
     #[new]
-    #[pyo3(signature = (reserved=None, speed_mmps=None, accel_mmps2=None, decel_mmps2=None, action=None, do_lift_load_check=None, num_retries=None, docking_method=None, back_up_while_lifting_cube=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        reserved: Option<&Bound<'_, PyAny>>,
-        speed_mmps: Option<&Bound<'_, PyAny>>,
-        accel_mmps2: Option<&Bound<'_, PyAny>>,
-        decel_mmps2: Option<&Bound<'_, PyAny>>,
-        action: Option<&Bound<'_, PyAny>>,
-        do_lift_load_check: Option<&Bound<'_, PyAny>>,
-        num_retries: Option<&Bound<'_, PyAny>>,
-        docking_method: Option<&Bound<'_, PyAny>>,
-        back_up_while_lifting_cube: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DockWithObject", args, kwargs, core::DockWithObject::FIELDS)?;
+        let reserved: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let speed_mmps: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let accel_mmps2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let decel_mmps2: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let action: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let do_lift_load_check: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let num_retries: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let docking_method: Option<&Bound<'_, PyAny>> = a[7].as_ref();
+        let back_up_while_lifting_cube: Option<&Bound<'_, PyAny>> = a[8].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let reserved = match reserved {
             Some(o) => {
@@ -3461,8 +3577,13 @@ pub struct PyAbortDocking;
 #[pymethods]
 impl PyAbortDocking {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AbortDocking", args, kwargs, core::AbortDocking::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::AbortDocking {};
         let mut pkt = Packet::from_message(Message::AbortDocking(m), kinds);
@@ -3486,16 +3607,19 @@ pub struct PySetOrigin;
 #[pymethods]
 impl PySetOrigin {
     #[new]
-    #[pyo3(signature = (timestamp=None, pose_frame_id=None, pose_origin_id=None, pose_x=None, pose_y=None, pose_angle_rad=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        pose_frame_id: Option<&Bound<'_, PyAny>>,
-        pose_origin_id: Option<&Bound<'_, PyAny>>,
-        pose_x: Option<&Bound<'_, PyAny>>,
-        pose_y: Option<&Bound<'_, PyAny>>,
-        pose_angle_rad: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetOrigin", args, kwargs, core::SetOrigin::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let pose_frame_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let pose_origin_id: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let pose_x: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let pose_y: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let pose_angle_rad: Option<&Bound<'_, PyAny>> = a[5].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -3681,17 +3805,20 @@ pub struct PyDockingErrorSignal;
 #[pymethods]
 impl PyDockingErrorSignal {
     #[new]
-    #[pyo3(signature = (timestamp=None, x_dist_err_mm=None, y_hor_err_mm=None, z_height_mm=None, angle_err_rad=None, is_approximate=None, did_tracking_succeed=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        x_dist_err_mm: Option<&Bound<'_, PyAny>>,
-        y_hor_err_mm: Option<&Bound<'_, PyAny>>,
-        z_height_mm: Option<&Bound<'_, PyAny>>,
-        angle_err_rad: Option<&Bound<'_, PyAny>>,
-        is_approximate: Option<&Bound<'_, PyAny>>,
-        did_tracking_succeed: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DockingErrorSignal", args, kwargs, core::DockingErrorSignal::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let x_dist_err_mm: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let y_hor_err_mm: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let z_height_mm: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let angle_err_rad: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let is_approximate: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let did_tracking_succeed: Option<&Bound<'_, PyAny>> = a[6].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -3915,8 +4042,14 @@ pub struct PySetCarryState;
 #[pymethods]
 impl PySetCarryState {
     #[new]
-    #[pyo3(signature = (state=None))]
-    fn new(py: Python<'_>, state: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetCarryState", args, kwargs, core::SetCarryState::FIELDS)?;
+        let state: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let state = match state {
             Some(o) => {
@@ -3967,12 +4100,15 @@ pub struct PySyncTime;
 #[pymethods]
 impl PySyncTime {
     #[new]
-    #[pyo3(signature = (timestamp=None, unknown=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        unknown: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SyncTime", args, kwargs, core::SyncTime::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -4050,12 +4186,15 @@ pub struct PyEnableCamera;
 #[pymethods]
 impl PyEnableCamera {
     #[new]
-    #[pyo3(signature = (image_send_mode=None, image_resolution=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        image_send_mode: Option<&Bound<'_, PyAny>>,
-        image_resolution: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableCamera", args, kwargs, core::EnableCamera::FIELDS)?;
+        let image_send_mode: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let image_resolution: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let image_send_mode = match image_send_mode {
             Some(o) => {
@@ -4135,8 +4274,13 @@ pub struct PyCheckLiftLoad;
 #[pymethods]
 impl PyCheckLiftLoad {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("CheckLiftLoad", args, kwargs, core::CheckLiftLoad::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::CheckLiftLoad {};
         let mut pkt = Packet::from_message(Message::CheckLiftLoad(m), kinds);
@@ -4160,13 +4304,16 @@ pub struct PySetCameraParams;
 #[pymethods]
 impl PySetCameraParams {
     #[new]
-    #[pyo3(signature = (gain=None, exposure_ms=None, auto_exposure_enabled=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        gain: Option<&Bound<'_, PyAny>>,
-        exposure_ms: Option<&Bound<'_, PyAny>>,
-        auto_exposure_enabled: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetCameraParams", args, kwargs, core::SetCameraParams::FIELDS)?;
+        let gain: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let exposure_ms: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let auto_exposure_enabled: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let gain = match gain {
             Some(o) => {
@@ -4274,12 +4421,15 @@ pub struct PyStartMotorCalibration;
 #[pymethods]
 impl PyStartMotorCalibration {
     #[new]
-    #[pyo3(signature = (head=None, lift=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        head: Option<&Bound<'_, PyAny>>,
-        lift: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("StartMotorCalibration", args, kwargs, core::StartMotorCalibration::FIELDS)?;
+        let head: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let lift: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let head = match head {
             Some(o) => {
@@ -4362,8 +4512,14 @@ pub struct PyEnableStopOnCliff;
 #[pymethods]
 impl PyEnableStopOnCliff {
     #[new]
-    #[pyo3(signature = (enable=None))]
-    fn new(py: Python<'_>, enable: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableStopOnCliff", args, kwargs, core::EnableStopOnCliff::FIELDS)?;
+        let enable: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let enable = match enable {
             Some(o) => {
@@ -4417,8 +4573,14 @@ pub struct PySetRobotVolume;
 #[pymethods]
 impl PySetRobotVolume {
     #[new]
-    #[pyo3(signature = (level=None))]
-    fn new(py: Python<'_>, level: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetRobotVolume", args, kwargs, core::SetRobotVolume::FIELDS)?;
+        let level: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let level = match level {
             Some(o) => {
@@ -4469,8 +4631,14 @@ pub struct PyEnableColorImages;
 #[pymethods]
 impl PyEnableColorImages {
     #[new]
-    #[pyo3(signature = (enable=None))]
-    fn new(py: Python<'_>, enable: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableColorImages", args, kwargs, core::EnableColorImages::FIELDS)?;
+        let enable: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let enable = match enable {
             Some(o) => {
@@ -4524,15 +4692,18 @@ pub struct PyNvStorageOp;
 #[pymethods]
 impl PyNvStorageOp {
     #[new]
-    #[pyo3(signature = (tag=None, length=None, op=None, unknown=None, data=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        tag: Option<&Bound<'_, PyAny>>,
-        length: Option<&Bound<'_, PyAny>>,
-        op: Option<&Bound<'_, PyAny>>,
-        unknown: Option<&Bound<'_, PyAny>>,
-        data: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("NvStorageOp", args, kwargs, core::NvStorageOp::FIELDS)?;
+        let tag: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let length: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let op: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let data: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let tag = match tag {
             Some(o) => {
@@ -4694,8 +4865,13 @@ pub struct PyAbortAnimation;
 #[pymethods]
 impl PyAbortAnimation {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AbortAnimation", args, kwargs, core::AbortAnimation::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::AbortAnimation {};
         let mut pkt = Packet::from_message(Message::AbortAnimation(m), kinds);
@@ -4719,8 +4895,14 @@ pub struct PyOutputAudio;
 #[pymethods]
 impl PyOutputAudio {
     #[new]
-    #[pyo3(signature = (samples=None))]
-    fn new(py: Python<'_>, samples: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("OutputAudio", args, kwargs, core::OutputAudio::FIELDS)?;
+        let samples: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let samples = match samples {
             Some(o) => {
@@ -4779,8 +4961,13 @@ pub struct PyOutputSilence;
 #[pymethods]
 impl PyOutputSilence {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("OutputSilence", args, kwargs, core::OutputSilence::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::OutputSilence {};
         let mut pkt = Packet::from_message(Message::OutputSilence(m), kinds);
@@ -4804,8 +4991,13 @@ pub struct PyRecordHeading;
 #[pymethods]
 impl PyRecordHeading {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RecordHeading", args, kwargs, core::RecordHeading::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::RecordHeading {};
         let mut pkt = Packet::from_message(Message::RecordHeading(m), kinds);
@@ -4829,8 +5021,13 @@ pub struct PyTurnToRecordedHeading;
 #[pymethods]
 impl PyTurnToRecordedHeading {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("TurnToRecordedHeading", args, kwargs, core::TurnToRecordedHeading::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::TurnToRecordedHeading {};
         let mut pkt = Packet::from_message(Message::TurnToRecordedHeading(m), kinds);
@@ -4859,12 +5056,15 @@ pub struct PyAnimHead;
 #[pymethods]
 impl PyAnimHead {
     #[new]
-    #[pyo3(signature = (duration_ms=None, angle_deg=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        duration_ms: Option<&Bound<'_, PyAny>>,
-        angle_deg: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimHead", args, kwargs, core::AnimHead::FIELDS)?;
+        let duration_ms: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let angle_deg: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let duration_ms = match duration_ms {
             Some(o) => {
@@ -4942,12 +5142,15 @@ pub struct PyAnimLift;
 #[pymethods]
 impl PyAnimLift {
     #[new]
-    #[pyo3(signature = (duration_ms=None, height_mm=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        duration_ms: Option<&Bound<'_, PyAny>>,
-        height_mm: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimLift", args, kwargs, core::AnimLift::FIELDS)?;
+        let duration_ms: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let height_mm: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let duration_ms = match duration_ms {
             Some(o) => {
@@ -5025,8 +5228,14 @@ pub struct PyAnimEvent;
 #[pymethods]
 impl PyAnimEvent {
     #[new]
-    #[pyo3(signature = (event_id=None))]
-    fn new(py: Python<'_>, event_id: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimEvent", args, kwargs, core::AnimEvent::FIELDS)?;
+        let event_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let event_id = match event_id {
             Some(o) => {
@@ -5077,8 +5286,14 @@ pub struct PyDisplayImage;
 #[pymethods]
 impl PyDisplayImage {
     #[new]
-    #[pyo3(signature = (image=None))]
-    fn new(py: Python<'_>, image: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DisplayImage", args, kwargs, core::DisplayImage::FIELDS)?;
+        let image: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let image = match image {
             Some(o) => {
@@ -5133,8 +5348,14 @@ pub struct PyAnimBackpackLights;
 #[pymethods]
 impl PyAnimBackpackLights {
     #[new]
-    #[pyo3(signature = (colors=None))]
-    fn new(py: Python<'_>, colors: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimBackpackLights", args, kwargs, core::AnimBackpackLights::FIELDS)?;
+        let colors: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let colors = match colors {
             Some(o) => {
@@ -5196,12 +5417,15 @@ pub struct PyAnimBody;
 #[pymethods]
 impl PyAnimBody {
     #[new]
-    #[pyo3(signature = (speed=None, curvature_radius_mm=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        speed: Option<&Bound<'_, PyAny>>,
-        curvature_radius_mm: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimBody", args, kwargs, core::AnimBody::FIELDS)?;
+        let speed: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let curvature_radius_mm: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let speed = match speed {
             Some(o) => {
@@ -5279,8 +5503,13 @@ pub struct PyEndAnimation;
 #[pymethods]
 impl PyEndAnimation {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EndAnimation", args, kwargs, core::EndAnimation::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::EndAnimation {};
         let mut pkt = Packet::from_message(Message::EndAnimation(m), kinds);
@@ -5304,8 +5533,14 @@ pub struct PyStartAnimation;
 #[pymethods]
 impl PyStartAnimation {
     #[new]
-    #[pyo3(signature = (anim_id=None))]
-    fn new(py: Python<'_>, anim_id: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("StartAnimation", args, kwargs, core::StartAnimation::FIELDS)?;
+        let anim_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let anim_id = match anim_id {
             Some(o) => {
@@ -5356,8 +5591,13 @@ pub struct PyEnableAnimationState;
 #[pymethods]
 impl PyEnableAnimationState {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableAnimationState", args, kwargs, core::EnableAnimationState::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::EnableAnimationState {};
         let mut pkt = Packet::from_message(Message::EnableAnimationState(m), kinds);
@@ -5384,8 +5624,13 @@ pub struct PyShutdownRobot;
 #[pymethods]
 impl PyShutdownRobot {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ShutdownRobot", args, kwargs, core::ShutdownRobot::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::ShutdownRobot {};
         let mut pkt = Packet::from_message(Message::ShutdownRobot(m), kinds);
@@ -5409,8 +5654,14 @@ pub struct PyWifiOff;
 #[pymethods]
 impl PyWifiOff {
     #[new]
-    #[pyo3(signature = (enable=None))]
-    fn new(py: Python<'_>, enable: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("WifiOff", args, kwargs, core::WifiOff::FIELDS)?;
+        let enable: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let enable = match enable {
             Some(o) => {
@@ -5461,12 +5712,15 @@ pub struct PyFirmwareUpdate;
 #[pymethods]
 impl PyFirmwareUpdate {
     #[new]
-    #[pyo3(signature = (chunk_id=None, data=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        chunk_id: Option<&Bound<'_, PyAny>>,
-        data: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("FirmwareUpdate", args, kwargs, core::FirmwareUpdate::FIELDS)?;
+        let chunk_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let data: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let chunk_id = match chunk_id {
             Some(o) => {
@@ -5552,15 +5806,18 @@ pub struct PyDebugData;
 #[pymethods]
 impl PyDebugData {
     #[new]
-    #[pyo3(signature = (format_id=None, unused=None, name_id=None, level=None, args=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        format_id: Option<&Bound<'_, PyAny>>,
-        unused: Option<&Bound<'_, PyAny>>,
-        name_id: Option<&Bound<'_, PyAny>>,
-        level: Option<&Bound<'_, PyAny>>,
-        args: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DebugData", args, kwargs, core::DebugData::FIELDS)?;
+        let format_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unused: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let name_id: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let level: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let args: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let format_id = match format_id {
             Some(o) => {
@@ -5723,16 +5980,19 @@ pub struct PyObjectMoved;
 #[pymethods]
 impl PyObjectMoved {
     #[new]
-    #[pyo3(signature = (timestamp=None, object_id=None, active_accel_x=None, active_accel_y=None, active_accel_z=None, axis_of_accel=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        active_accel_x: Option<&Bound<'_, PyAny>>,
-        active_accel_y: Option<&Bound<'_, PyAny>>,
-        active_accel_z: Option<&Bound<'_, PyAny>>,
-        axis_of_accel: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectMoved", args, kwargs, core::ObjectMoved::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let object_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let active_accel_x: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let active_accel_y: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let active_accel_z: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let axis_of_accel: Option<&Bound<'_, PyAny>> = a[5].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -5919,12 +6179,15 @@ pub struct PyObjectStoppedMoving;
 #[pymethods]
 impl PyObjectStoppedMoving {
     #[new]
-    #[pyo3(signature = (timestamp=None, object_id=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        object_id: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectStoppedMoving", args, kwargs, core::ObjectStoppedMoving::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let object_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -6005,16 +6268,19 @@ pub struct PyObjectTapped;
 #[pymethods]
 impl PyObjectTapped {
     #[new]
-    #[pyo3(signature = (timestamp=None, object_id=None, num_taps=None, tap_time=None, tap_neg=None, tap_pos=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        num_taps: Option<&Bound<'_, PyAny>>,
-        tap_time: Option<&Bound<'_, PyAny>>,
-        tap_neg: Option<&Bound<'_, PyAny>>,
-        tap_pos: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectTapped", args, kwargs, core::ObjectTapped::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let object_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let num_taps: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let tap_time: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let tap_neg: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let tap_pos: Option<&Bound<'_, PyAny>> = a[5].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -6200,14 +6466,17 @@ pub struct PyPickAndPlaceResult;
 #[pymethods]
 impl PyPickAndPlaceResult {
     #[new]
-    #[pyo3(signature = (timestamp=None, did_succeed=None, result=None, block_status=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        did_succeed: Option<&Bound<'_, PyAny>>,
-        result: Option<&Bound<'_, PyAny>>,
-        block_status: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("PickAndPlaceResult", args, kwargs, core::PickAndPlaceResult::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let did_succeed: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let result: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let block_status: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -6342,14 +6611,17 @@ pub struct PyObjectTapFiltered;
 #[pymethods]
 impl PyObjectTapFiltered {
     #[new]
-    #[pyo3(signature = (timestamp=None, object_id=None, time=None, intensity=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        time: Option<&Bound<'_, PyAny>>,
-        intensity: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectTapFiltered", args, kwargs, core::ObjectTapFiltered::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let object_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let time: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let intensity: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -6484,8 +6756,14 @@ pub struct PyAcknowledgeAction;
 #[pymethods]
 impl PyAcknowledgeAction {
     #[new]
-    #[pyo3(signature = (action_id=None))]
-    fn new(py: Python<'_>, action_id: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AcknowledgeAction", args, kwargs, core::AcknowledgeAction::FIELDS)?;
+        let action_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let action_id = match action_id {
             Some(o) => {
@@ -6539,8 +6817,13 @@ pub struct PyRobotDelocalized;
 #[pymethods]
 impl PyRobotDelocalized {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RobotDelocalized", args, kwargs, core::RobotDelocalized::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::RobotDelocalized {};
         let mut pkt = Packet::from_message(Message::RobotDelocalized(m), kinds);
@@ -6567,8 +6850,13 @@ pub struct PyRobotPoked;
 #[pymethods]
 impl PyRobotPoked {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RobotPoked", args, kwargs, core::RobotPoked::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::RobotPoked {};
         let mut pkt = Packet::from_message(Message::RobotPoked(m), kinds);
@@ -6592,8 +6880,14 @@ pub struct PyMovingLiftPostDock;
 #[pymethods]
 impl PyMovingLiftPostDock {
     #[new]
-    #[pyo3(signature = (value=None))]
-    fn new(py: Python<'_>, value: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("MovingLiftPostDock", args, kwargs, core::MovingLiftPostDock::FIELDS)?;
+        let value: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let value = match value {
             Some(o) => {
@@ -6647,12 +6941,15 @@ pub struct PyPathFollowingEvent;
 #[pymethods]
 impl PyPathFollowingEvent {
     #[new]
-    #[pyo3(signature = (event_id=None, event_type=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        event_id: Option<&Bound<'_, PyAny>>,
-        event_type: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("PathFollowingEvent", args, kwargs, core::PathFollowingEvent::FIELDS)?;
+        let event_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let event_type: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let event_id = match event_id {
             Some(o) => {
@@ -6733,12 +7030,15 @@ pub struct PyHardwareInfo;
 #[pymethods]
 impl PyHardwareInfo {
     #[new]
-    #[pyo3(signature = (serial_number_head=None, hw_version=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        serial_number_head: Option<&Bound<'_, PyAny>>,
-        hw_version: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("HardwareInfo", args, kwargs, core::HardwareInfo::FIELDS)?;
+        let serial_number_head: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let hw_version: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let serial_number_head = match serial_number_head {
             Some(o) => {
@@ -6816,8 +7116,14 @@ pub struct PyAnimationStarted;
 #[pymethods]
 impl PyAnimationStarted {
     #[new]
-    #[pyo3(signature = (anim_id=None))]
-    fn new(py: Python<'_>, anim_id: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimationStarted", args, kwargs, core::AnimationStarted::FIELDS)?;
+        let anim_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let anim_id = match anim_id {
             Some(o) => {
@@ -6871,8 +7177,14 @@ pub struct PyAnimationEnded;
 #[pymethods]
 impl PyAnimationEnded {
     #[new]
-    #[pyo3(signature = (anim_id=None))]
-    fn new(py: Python<'_>, anim_id: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimationEnded", args, kwargs, core::AnimationEnded::FIELDS)?;
+        let anim_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let anim_id = match anim_id {
             Some(o) => {
@@ -6923,15 +7235,18 @@ pub struct PyNvStorageOpResult;
 #[pymethods]
 impl PyNvStorageOpResult {
     #[new]
-    #[pyo3(signature = (tag=None, length=None, op=None, result=None, data=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        tag: Option<&Bound<'_, PyAny>>,
-        length: Option<&Bound<'_, PyAny>>,
-        op: Option<&Bound<'_, PyAny>>,
-        result: Option<&Bound<'_, PyAny>>,
-        data: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("NvStorageOpResult", args, kwargs, core::NvStorageOpResult::FIELDS)?;
+        let tag: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let length: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let op: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let result: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let data: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let tag = match tag {
             Some(o) => {
@@ -7096,13 +7411,16 @@ pub struct PyObjectPowerLevel;
 #[pymethods]
 impl PyObjectPowerLevel {
     #[new]
-    #[pyo3(signature = (object_id=None, missed_packets=None, battery_level=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        missed_packets: Option<&Bound<'_, PyAny>>,
-        battery_level: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectPowerLevel", args, kwargs, core::ObjectPowerLevel::FIELDS)?;
+        let object_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let missed_packets: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let battery_level: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let object_id = match object_id {
             Some(o) => {
@@ -7210,14 +7528,17 @@ pub struct PyObjectConnectionState;
 #[pymethods]
 impl PyObjectConnectionState {
     #[new]
-    #[pyo3(signature = (object_id=None, factory_id=None, object_type=None, connected=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        factory_id: Option<&Bound<'_, PyAny>>,
-        object_type: Option<&Bound<'_, PyAny>>,
-        connected: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectConnectionState", args, kwargs, core::ObjectConnectionState::FIELDS)?;
+        let object_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let factory_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let object_type: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let connected: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let object_id = match object_id {
             Some(o) => {
@@ -7356,13 +7677,16 @@ pub struct PyMotorCalibration;
 #[pymethods]
 impl PyMotorCalibration {
     #[new]
-    #[pyo3(signature = (motor_id=None, calib_started=None, auto_started=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        motor_id: Option<&Bound<'_, PyAny>>,
-        calib_started: Option<&Bound<'_, PyAny>>,
-        auto_started: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("MotorCalibration", args, kwargs, core::MotorCalibration::FIELDS)?;
+        let motor_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let calib_started: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let auto_started: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let motor_id = match motor_id {
             Some(o) => {
@@ -7470,12 +7794,15 @@ pub struct PyDockingStatus;
 #[pymethods]
 impl PyDockingStatus {
     #[new]
-    #[pyo3(signature = (timestamp=None, status=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        status: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DockingStatus", args, kwargs, core::DockingStatus::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let status: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -7553,13 +7880,16 @@ pub struct PyAnimationEvent;
 #[pymethods]
 impl PyAnimationEvent {
     #[new]
-    #[pyo3(signature = (timestamp=None, anim_id=None, event_id=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        anim_id: Option<&Bound<'_, PyAny>>,
-        event_id: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimationEvent", args, kwargs, core::AnimationEvent::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let anim_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let event_id: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -7664,13 +7994,16 @@ pub struct PyObjectUpAxisChanged;
 #[pymethods]
 impl PyObjectUpAxisChanged {
     #[new]
-    #[pyo3(signature = (timestamp=None, object_id=None, axis=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        axis: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectUpAxisChanged", args, kwargs, core::ObjectUpAxisChanged::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let object_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let axis: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -7778,8 +8111,14 @@ pub struct PyLiftLoad;
 #[pymethods]
 impl PyLiftLoad {
     #[new]
-    #[pyo3(signature = (has_load=None))]
-    fn new(py: Python<'_>, has_load: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("LiftLoad", args, kwargs, core::LiftLoad::FIELDS)?;
+        let has_load: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let has_load = match has_load {
             Some(o) => {
@@ -7830,8 +8169,14 @@ pub struct PyButtonPressed;
 #[pymethods]
 impl PyButtonPressed {
     #[new]
-    #[pyo3(signature = (pressed=None))]
-    fn new(py: Python<'_>, pressed: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ButtonPressed", args, kwargs, core::ButtonPressed::FIELDS)?;
+        let pressed: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let pressed = match pressed {
             Some(o) => {
@@ -7882,8 +8227,14 @@ pub struct PyFallingStarted;
 #[pymethods]
 impl PyFallingStarted {
     #[new]
-    #[pyo3(signature = (unknown=None))]
-    fn new(py: Python<'_>, unknown: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("FallingStarted", args, kwargs, core::FallingStarted::FIELDS)?;
+        let unknown: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown = match unknown {
             Some(o) => {
@@ -7934,13 +8285,16 @@ pub struct PyFallingStopped;
 #[pymethods]
 impl PyFallingStopped {
     #[new]
-    #[pyo3(signature = (unknown=None, duration_ms=None, impact_intensity=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown: Option<&Bound<'_, PyAny>>,
-        duration_ms: Option<&Bound<'_, PyAny>>,
-        impact_intensity: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("FallingStopped", args, kwargs, core::FallingStopped::FIELDS)?;
+        let unknown: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let duration_ms: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let impact_intensity: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown = match unknown {
             Some(o) => {
@@ -8045,13 +8399,16 @@ pub struct PyBodyInfo;
 #[pymethods]
 impl PyBodyInfo {
     #[new]
-    #[pyo3(signature = (serial_number=None, body_hw_version=None, body_color=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        serial_number: Option<&Bound<'_, PyAny>>,
-        body_hw_version: Option<&Bound<'_, PyAny>>,
-        body_color: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("BodyInfo", args, kwargs, core::BodyInfo::FIELDS)?;
+        let serial_number: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let body_hw_version: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let body_color: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let serial_number = match serial_number {
             Some(o) => {
@@ -8158,12 +8515,15 @@ pub struct PyFirmwareSignature;
 #[pymethods]
 impl PyFirmwareSignature {
     #[new]
-    #[pyo3(signature = (robot_id=None, signature=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        robot_id: Option<&Bound<'_, PyAny>>,
-        signature: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("FirmwareSignature", args, kwargs, core::FirmwareSignature::FIELDS)?;
+        let robot_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let signature: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let robot_id = match robot_id {
             Some(o) => {
@@ -8244,13 +8604,16 @@ pub struct PyFirmwareUpdateResult;
 #[pymethods]
 impl PyFirmwareUpdateResult {
     #[new]
-    #[pyo3(signature = (byte_count=None, chunk_id=None, status=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        byte_count: Option<&Bound<'_, PyAny>>,
-        chunk_id: Option<&Bound<'_, PyAny>>,
-        status: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("FirmwareUpdateResult", args, kwargs, core::FirmwareUpdateResult::FIELDS)?;
+        let byte_count: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let chunk_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let status: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let byte_count = match byte_count {
             Some(o) => {
@@ -8358,33 +8721,36 @@ pub struct PyRobotState;
 #[pymethods]
 impl PyRobotState {
     #[new]
-    #[pyo3(signature = (timestamp=None, pose_frame_id=None, pose_origin_id=None, pose_x=None, pose_y=None, pose_z=None, pose_angle_rad=None, pose_pitch_rad=None, lwheel_speed_mmps=None, rwheel_speed_mmps=None, head_angle_rad=None, lift_height_rad=None, accel_x=None, accel_y=None, accel_z=None, gyro_x=None, gyro_y=None, gyro_z=None, battery_voltage=None, status=None, cliff_data_raw=None, backpack_touch_sensor_raw=None, curr_path_segment=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        pose_frame_id: Option<&Bound<'_, PyAny>>,
-        pose_origin_id: Option<&Bound<'_, PyAny>>,
-        pose_x: Option<&Bound<'_, PyAny>>,
-        pose_y: Option<&Bound<'_, PyAny>>,
-        pose_z: Option<&Bound<'_, PyAny>>,
-        pose_angle_rad: Option<&Bound<'_, PyAny>>,
-        pose_pitch_rad: Option<&Bound<'_, PyAny>>,
-        lwheel_speed_mmps: Option<&Bound<'_, PyAny>>,
-        rwheel_speed_mmps: Option<&Bound<'_, PyAny>>,
-        head_angle_rad: Option<&Bound<'_, PyAny>>,
-        lift_height_rad: Option<&Bound<'_, PyAny>>,
-        accel_x: Option<&Bound<'_, PyAny>>,
-        accel_y: Option<&Bound<'_, PyAny>>,
-        accel_z: Option<&Bound<'_, PyAny>>,
-        gyro_x: Option<&Bound<'_, PyAny>>,
-        gyro_y: Option<&Bound<'_, PyAny>>,
-        gyro_z: Option<&Bound<'_, PyAny>>,
-        battery_voltage: Option<&Bound<'_, PyAny>>,
-        status: Option<&Bound<'_, PyAny>>,
-        cliff_data_raw: Option<&Bound<'_, PyAny>>,
-        backpack_touch_sensor_raw: Option<&Bound<'_, PyAny>>,
-        curr_path_segment: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RobotState", args, kwargs, core::RobotState::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let pose_frame_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let pose_origin_id: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let pose_x: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let pose_y: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let pose_z: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let pose_angle_rad: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let pose_pitch_rad: Option<&Bound<'_, PyAny>> = a[7].as_ref();
+        let lwheel_speed_mmps: Option<&Bound<'_, PyAny>> = a[8].as_ref();
+        let rwheel_speed_mmps: Option<&Bound<'_, PyAny>> = a[9].as_ref();
+        let head_angle_rad: Option<&Bound<'_, PyAny>> = a[10].as_ref();
+        let lift_height_rad: Option<&Bound<'_, PyAny>> = a[11].as_ref();
+        let accel_x: Option<&Bound<'_, PyAny>> = a[12].as_ref();
+        let accel_y: Option<&Bound<'_, PyAny>> = a[13].as_ref();
+        let accel_z: Option<&Bound<'_, PyAny>> = a[14].as_ref();
+        let gyro_x: Option<&Bound<'_, PyAny>> = a[15].as_ref();
+        let gyro_y: Option<&Bound<'_, PyAny>> = a[16].as_ref();
+        let gyro_z: Option<&Bound<'_, PyAny>> = a[17].as_ref();
+        let battery_voltage: Option<&Bound<'_, PyAny>> = a[18].as_ref();
+        let status: Option<&Bound<'_, PyAny>> = a[19].as_ref();
+        let cliff_data_raw: Option<&Bound<'_, PyAny>> = a[20].as_ref();
+        let backpack_touch_sensor_raw: Option<&Bound<'_, PyAny>> = a[21].as_ref();
+        let curr_path_segment: Option<&Bound<'_, PyAny>> = a[22].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -9062,16 +9428,19 @@ pub struct PyAnimationState;
 #[pymethods]
 impl PyAnimationState {
     #[new]
-    #[pyo3(signature = (timestamp=None, num_anim_bytes_played=None, num_audio_frames_played=None, enabled_anim_tracks=None, tag=None, client_drop_count=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        num_anim_bytes_played: Option<&Bound<'_, PyAny>>,
-        num_audio_frames_played: Option<&Bound<'_, PyAny>>,
-        enabled_anim_tracks: Option<&Bound<'_, PyAny>>,
-        tag: Option<&Bound<'_, PyAny>>,
-        client_drop_count: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimationState", args, kwargs, core::AnimationState::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let num_anim_bytes_played: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let num_audio_frames_played: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let enabled_anim_tracks: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let tag: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let client_drop_count: Option<&Bound<'_, PyAny>> = a[5].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -9264,19 +9633,22 @@ pub struct PyImageChunk;
 #[pymethods]
 impl PyImageChunk {
     #[new]
-    #[pyo3(signature = (frame_timestamp=None, image_id=None, chunk_debug=None, image_encoding=None, image_resolution=None, image_chunk_count=None, chunk_id=None, status=None, data=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        frame_timestamp: Option<&Bound<'_, PyAny>>,
-        image_id: Option<&Bound<'_, PyAny>>,
-        chunk_debug: Option<&Bound<'_, PyAny>>,
-        image_encoding: Option<&Bound<'_, PyAny>>,
-        image_resolution: Option<&Bound<'_, PyAny>>,
-        image_chunk_count: Option<&Bound<'_, PyAny>>,
-        chunk_id: Option<&Bound<'_, PyAny>>,
-        status: Option<&Bound<'_, PyAny>>,
-        data: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ImageChunk", args, kwargs, core::ImageChunk::FIELDS)?;
+        let frame_timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let image_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let chunk_debug: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let image_encoding: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let image_resolution: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let image_chunk_count: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let chunk_id: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let status: Option<&Bound<'_, PyAny>> = a[7].as_ref();
+        let data: Option<&Bound<'_, PyAny>> = a[8].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let frame_timestamp = match frame_timestamp {
             Some(o) => {
@@ -9558,13 +9930,16 @@ pub struct PyObjectAvailable;
 #[pymethods]
 impl PyObjectAvailable {
     #[new]
-    #[pyo3(signature = (factory_id=None, object_type=None, rssi=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        factory_id: Option<&Bound<'_, PyAny>>,
-        object_type: Option<&Bound<'_, PyAny>>,
-        rssi: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectAvailable", args, kwargs, core::ObjectAvailable::FIELDS)?;
+        let factory_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let object_type: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let rssi: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let factory_id = match factory_id {
             Some(o) => {
@@ -9674,15 +10049,18 @@ pub struct PyImageImuData;
 #[pymethods]
 impl PyImageImuData {
     #[new]
-    #[pyo3(signature = (image_id=None, rate_x=None, rate_y=None, rate_z=None, line_2_number=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        image_id: Option<&Bound<'_, PyAny>>,
-        rate_x: Option<&Bound<'_, PyAny>>,
-        rate_y: Option<&Bound<'_, PyAny>>,
-        rate_z: Option<&Bound<'_, PyAny>>,
-        line_2_number: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ImageImuData", args, kwargs, core::ImageImuData::FIELDS)?;
+        let image_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let rate_x: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let rate_y: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let rate_z: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let line_2_number: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let image_id = match image_id {
             Some(o) => {
@@ -9841,15 +10219,18 @@ pub struct PyObjectAccel;
 #[pymethods]
 impl PyObjectAccel {
     #[new]
-    #[pyo3(signature = (timestamp=None, object_id=None, accel_x=None, accel_y=None, accel_z=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        accel_x: Option<&Bound<'_, PyAny>>,
-        accel_y: Option<&Bound<'_, PyAny>>,
-        accel_z: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectAccel", args, kwargs, core::ObjectAccel::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let object_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let accel_x: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let accel_y: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let accel_z: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -10008,8 +10389,14 @@ pub struct PyAdjustTimestamp;
 #[pymethods]
 impl PyAdjustTimestamp {
     #[new]
-    #[pyo3(signature = (timestamp=None))]
-    fn new(py: Python<'_>, timestamp: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AdjustTimestamp", args, kwargs, core::AdjustTimestamp::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -10063,8 +10450,14 @@ pub struct PyBackpackSetLayer;
 #[pymethods]
 impl PyBackpackSetLayer {
     #[new]
-    #[pyo3(signature = (layer=None))]
-    fn new(py: Python<'_>, layer: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("BackpackSetLayer", args, kwargs, core::BackpackSetLayer::FIELDS)?;
+        let layer: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let layer = match layer {
             Some(o) => {
@@ -10118,8 +10511,13 @@ pub struct PyKillBodyCode;
 #[pymethods]
 impl PyKillBodyCode {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("KillBodyCode", args, kwargs, core::KillBodyCode::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::KillBodyCode {};
         let mut pkt = Packet::from_message(Message::KillBodyCode(m), kinds);
@@ -10143,12 +10541,15 @@ pub struct PySetBodyRadioMode;
 #[pymethods]
 impl PySetBodyRadioMode {
     #[new]
-    #[pyo3(signature = (radio_mode=None, wifi_channel=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        radio_mode: Option<&Bound<'_, PyAny>>,
-        wifi_channel: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetBodyRadioMode", args, kwargs, core::SetBodyRadioMode::FIELDS)?;
+        let radio_mode: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let wifi_channel: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let radio_mode = match radio_mode {
             Some(o) => {
@@ -10229,12 +10630,15 @@ pub struct PyReadBodyStorage;
 #[pymethods]
 impl PyReadBodyStorage {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ReadBodyStorage", args, kwargs, core::ReadBodyStorage::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -10315,14 +10719,17 @@ pub struct PySendDTMCommand;
 #[pymethods]
 impl PySendDTMCommand {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SendDTMCommand", args, kwargs, core::SendDTMCommand::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -10454,8 +10861,13 @@ pub struct PyGetBodySerialNumber;
 #[pymethods]
 impl PyGetBodySerialNumber {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("GetBodySerialNumber", args, kwargs, core::GetBodySerialNumber::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::GetBodySerialNumber {};
         let mut pkt = Packet::from_message(Message::GetBodySerialNumber(m), kinds);
@@ -10482,8 +10894,14 @@ pub struct PyHeadAngleUpdate;
 #[pymethods]
 impl PyHeadAngleUpdate {
     #[new]
-    #[pyo3(signature = (angle_rad=None))]
-    fn new(py: Python<'_>, angle_rad: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("HeadAngleUpdate", args, kwargs, core::HeadAngleUpdate::FIELDS)?;
+        let angle_rad: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let angle_rad = match angle_rad {
             Some(o) => {
@@ -10537,12 +10955,15 @@ pub struct PyTurnInPlaceAtAngularSpeed;
 #[pymethods]
 impl PyTurnInPlaceAtAngularSpeed {
     #[new]
-    #[pyo3(signature = (speed_rad_per_sec=None, accel_rad_per_sec2=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        speed_rad_per_sec: Option<&Bound<'_, PyAny>>,
-        accel_rad_per_sec2: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("TurnInPlaceAtAngularSpeed", args, kwargs, core::TurnInPlaceAtAngularSpeed::FIELDS)?;
+        let speed_rad_per_sec: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let accel_rad_per_sec2: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let speed_rad_per_sec = match speed_rad_per_sec {
             Some(o) => {
@@ -10625,17 +11046,20 @@ pub struct PyPlaceObjectOnGround;
 #[pymethods]
 impl PyPlaceObjectOnGround {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None, unknown4=None, unknown5=None, unknown6=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
-        unknown4: Option<&Bound<'_, PyAny>>,
-        unknown5: Option<&Bound<'_, PyAny>>,
-        unknown6: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("PlaceObjectOnGround", args, kwargs, core::PlaceObjectOnGround::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let unknown4: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let unknown5: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let unknown6: Option<&Bound<'_, PyAny>> = a[6].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -10851,14 +11275,17 @@ pub struct PyStartControllerTestMode;
 #[pymethods]
 impl PyStartControllerTestMode {
     #[new]
-    #[pyo3(signature = (p1=None, p2=None, p3=None, mode=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        p1: Option<&Bound<'_, PyAny>>,
-        p2: Option<&Bound<'_, PyAny>>,
-        p3: Option<&Bound<'_, PyAny>>,
-        mode: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("StartControllerTestMode", args, kwargs, core::StartControllerTestMode::FIELDS)?;
+        let p1: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let p2: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let p3: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let mode: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let p1 = match p1 {
             Some(o) => {
@@ -10995,15 +11422,18 @@ pub struct PyControllerGains;
 #[pymethods]
 impl PyControllerGains {
     #[new]
-    #[pyo3(signature = (kp=None, ki=None, kd=None, max_integral_error=None, controller=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        kp: Option<&Bound<'_, PyAny>>,
-        ki: Option<&Bound<'_, PyAny>>,
-        kd: Option<&Bound<'_, PyAny>>,
-        max_integral_error: Option<&Bound<'_, PyAny>>,
-        controller: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ControllerGains", args, kwargs, core::ControllerGains::FIELDS)?;
+        let kp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let ki: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let kd: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let max_integral_error: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let controller: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let kp = match kp {
             Some(o) => {
@@ -11165,8 +11595,14 @@ pub struct PyIMURequest;
 #[pymethods]
 impl PyIMURequest {
     #[new]
-    #[pyo3(signature = (length_ms=None))]
-    fn new(py: Python<'_>, length_ms: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("IMURequest", args, kwargs, core::IMURequest::FIELDS)?;
+        let length_ms: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let length_ms = match length_ms {
             Some(o) => {
@@ -11217,12 +11653,15 @@ pub struct PyObjectBeingCarried;
 #[pymethods]
 impl PyObjectBeingCarried {
     #[new]
-    #[pyo3(signature = (object_id=None, carried=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        carried: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("ObjectBeingCarried", args, kwargs, core::ObjectBeingCarried::FIELDS)?;
+        let object_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let carried: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let object_id = match object_id {
             Some(o) => {
@@ -11303,12 +11742,15 @@ pub struct PyEnableMotorPower;
 #[pymethods]
 impl PyEnableMotorPower {
     #[new]
-    #[pyo3(signature = (motor_id=None, enable=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        motor_id: Option<&Bound<'_, PyAny>>,
-        enable: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableMotorPower", args, kwargs, core::EnableMotorPower::FIELDS)?;
+        let motor_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let enable: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let motor_id = match motor_id {
             Some(o) => {
@@ -11389,8 +11831,14 @@ pub struct PySetMotionModelParams;
 #[pymethods]
 impl PySetMotionModelParams {
     #[new]
-    #[pyo3(signature = (slip_factor=None))]
-    fn new(py: Python<'_>, slip_factor: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetMotionModelParams", args, kwargs, core::SetMotionModelParams::FIELDS)?;
+        let slip_factor: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let slip_factor = match slip_factor {
             Some(o) => {
@@ -11444,8 +11892,13 @@ pub struct PyEnterSleepMode;
 #[pymethods]
 impl PyEnterSleepMode {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnterSleepMode", args, kwargs, core::EnterSleepMode::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::EnterSleepMode {};
         let mut pkt = Packet::from_message(Message::EnterSleepMode(m), kinds);
@@ -11469,18 +11922,21 @@ pub struct PyPowerState;
 #[pymethods]
 impl PyPowerState {
     #[new]
-    #[pyo3(signature = (v_bat_fixed=None, v_ext_fixed=None, unused=None, battery_level=None, on_charger=None, is_charging=None, operating_mode=None, charger_oos=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        v_bat_fixed: Option<&Bound<'_, PyAny>>,
-        v_ext_fixed: Option<&Bound<'_, PyAny>>,
-        unused: Option<&Bound<'_, PyAny>>,
-        battery_level: Option<&Bound<'_, PyAny>>,
-        on_charger: Option<&Bound<'_, PyAny>>,
-        is_charging: Option<&Bound<'_, PyAny>>,
-        operating_mode: Option<&Bound<'_, PyAny>>,
-        charger_oos: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("PowerState", args, kwargs, core::PowerState::FIELDS)?;
+        let v_bat_fixed: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let v_ext_fixed: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unused: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let battery_level: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let on_charger: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let is_charging: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let operating_mode: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let charger_oos: Option<&Bound<'_, PyAny>> = a[7].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let v_bat_fixed = match v_bat_fixed {
             Some(o) => {
@@ -11729,8 +12185,14 @@ pub struct PySetCliffDetectThreshold;
 #[pymethods]
 impl PySetCliffDetectThreshold {
     #[new]
-    #[pyo3(signature = (threshold=None))]
-    fn new(py: Python<'_>, threshold: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetCliffDetectThreshold", args, kwargs, core::SetCliffDetectThreshold::FIELDS)?;
+        let threshold: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let threshold = match threshold {
             Some(o) => {
@@ -11786,13 +12248,16 @@ pub struct PyEnableReadToolCodeMode;
 #[pymethods]
 impl PyEnableReadToolCodeMode {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableReadToolCodeMode", args, kwargs, core::EnableReadToolCodeMode::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -11902,15 +12367,18 @@ pub struct PyRollActionParams;
 #[pymethods]
 impl PyRollActionParams {
     #[new]
-    #[pyo3(signature = (lift_height_mm=None, drive_speed_mmps=None, drive_accel_mmps2=None, drive_duration_ms=None, back_up_dist_mm=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        lift_height_mm: Option<&Bound<'_, PyAny>>,
-        drive_speed_mmps: Option<&Bound<'_, PyAny>>,
-        drive_accel_mmps2: Option<&Bound<'_, PyAny>>,
-        drive_duration_ms: Option<&Bound<'_, PyAny>>,
-        back_up_dist_mm: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RollActionParams", args, kwargs, core::RollActionParams::FIELDS)?;
+        let lift_height_mm: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let drive_speed_mmps: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let drive_accel_mmps2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let drive_duration_ms: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let back_up_dist_mm: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let lift_height_mm = match lift_height_mm {
             Some(o) => {
@@ -12078,12 +12546,15 @@ pub struct PyCameraFOVInfo;
 #[pymethods]
 impl PyCameraFOVInfo {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("CameraFOVInfo", args, kwargs, core::CameraFOVInfo::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -12161,8 +12632,18 @@ pub struct PyForceDelocalizeSimulatedRobot;
 #[pymethods]
 impl PyForceDelocalizeSimulatedRobot {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args(
+            "ForceDelocalizeSimulatedRobot",
+            args,
+            kwargs,
+            core::ForceDelocalizeSimulatedRobot::FIELDS,
+        )?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::ForceDelocalizeSimulatedRobot {};
         let mut pkt = Packet::from_message(Message::ForceDelocalizeSimulatedRobot(m), kinds);
@@ -12191,14 +12672,18 @@ pub struct PyObjectConnectionStateToRobot;
 #[pymethods]
 impl PyObjectConnectionStateToRobot {
     #[new]
-    #[pyo3(signature = (object_id=None, factory_id=None, object_type=None, connected=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        object_id: Option<&Bound<'_, PyAny>>,
-        factory_id: Option<&Bound<'_, PyAny>>,
-        object_type: Option<&Bound<'_, PyAny>>,
-        connected: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a =
+            conv::parse_args("ObjectConnectionStateToRobot", args, kwargs, core::ObjectConnectionStateToRobot::FIELDS)?;
+        let object_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let factory_id: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let object_type: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let connected: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let object_id = match object_id {
             Some(o) => {
@@ -12335,8 +12820,14 @@ pub struct PyEnableBraceWhenFalling;
 #[pymethods]
 impl PyEnableBraceWhenFalling {
     #[new]
-    #[pyo3(signature = (enable=None))]
-    fn new(py: Python<'_>, enable: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableBraceWhenFalling", args, kwargs, core::EnableBraceWhenFalling::FIELDS)?;
+        let enable: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let enable = match enable {
             Some(o) => {
@@ -12392,8 +12883,13 @@ pub struct PyGenerateTestTone;
 #[pymethods]
 impl PyGenerateTestTone {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("GenerateTestTone", args, kwargs, core::GenerateTestTone::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::GenerateTestTone {};
         let mut pkt = Packet::from_message(Message::GenerateTestTone(m), kinds);
@@ -12420,8 +12916,14 @@ pub struct PyRequestCrashReports;
 #[pymethods]
 impl PyRequestCrashReports {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RequestCrashReports", args, kwargs, core::RequestCrashReports::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -12475,8 +12977,13 @@ pub struct PyEnableWiFiTelemetry;
 #[pymethods]
 impl PyEnableWiFiTelemetry {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnableWiFiTelemetry", args, kwargs, core::EnableWiFiTelemetry::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::EnableWiFiTelemetry {};
         let mut pkt = Packet::from_message(Message::EnableWiFiTelemetry(m), kinds);
@@ -12503,8 +13010,14 @@ pub struct PyDebugSetRTTO;
 #[pymethods]
 impl PyDebugSetRTTO {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DebugSetRTTO", args, kwargs, core::DebugSetRTTO::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -12555,12 +13068,15 @@ pub struct PyAnimEventToRTIP;
 #[pymethods]
 impl PyAnimEventToRTIP {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AnimEventToRTIP", args, kwargs, core::AnimEventToRTIP::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -12641,12 +13157,15 @@ pub struct PyEnterFactoryTestMode;
 #[pymethods]
 impl PyEnterFactoryTestMode {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("EnterFactoryTestMode", args, kwargs, core::EnterFactoryTestMode::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -12727,14 +13246,17 @@ pub struct PyDisplayNumber;
 #[pymethods]
 impl PyDisplayNumber {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DisplayNumber", args, kwargs, core::DisplayNumber::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -12866,8 +13388,14 @@ pub struct PyBodySerialNumber;
 #[pymethods]
 impl PyBodySerialNumber {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("BodySerialNumber", args, kwargs, core::BodySerialNumber::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -12921,20 +13449,23 @@ pub struct PyAppConnectConfigFlags;
 #[pymethods]
 impl PyAppConnectConfigFlags {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None, unknown4=None, unknown5=None, unknown6=None, unknown7=None, unknown8=None, unknown9=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
-        unknown4: Option<&Bound<'_, PyAny>>,
-        unknown5: Option<&Bound<'_, PyAny>>,
-        unknown6: Option<&Bound<'_, PyAny>>,
-        unknown7: Option<&Bound<'_, PyAny>>,
-        unknown8: Option<&Bound<'_, PyAny>>,
-        unknown9: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AppConnectConfigFlags", args, kwargs, core::AppConnectConfigFlags::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let unknown4: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let unknown5: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let unknown6: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let unknown7: Option<&Bound<'_, PyAny>> = a[7].as_ref();
+        let unknown8: Option<&Bound<'_, PyAny>> = a[8].as_ref();
+        let unknown9: Option<&Bound<'_, PyAny>> = a[9].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13244,14 +13775,17 @@ pub struct PyAppConnectConfigIPInfo;
 #[pymethods]
 impl PyAppConnectConfigIPInfo {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AppConnectConfigIPInfo", args, kwargs, core::AppConnectConfigIPInfo::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13388,8 +13922,14 @@ pub struct PyAppConnectGetRobotIP;
 #[pymethods]
 impl PyAppConnectGetRobotIP {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AppConnectGetRobotIP", args, kwargs, core::AppConnectGetRobotIP::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13443,14 +13983,17 @@ pub struct PyMainCycleTimeError;
 #[pymethods]
 impl PyMainCycleTimeError {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("MainCycleTimeError", args, kwargs, core::MainCycleTimeError::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13585,8 +14128,14 @@ pub struct PyRampTraverseStart;
 #[pymethods]
 impl PyRampTraverseStart {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RampTraverseStart", args, kwargs, core::RampTraverseStart::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13640,12 +14189,15 @@ pub struct PyRampTraverseComplete;
 #[pymethods]
 impl PyRampTraverseComplete {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RampTraverseComplete", args, kwargs, core::RampTraverseComplete::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13726,8 +14278,14 @@ pub struct PyBridgeTraverseStart;
 #[pymethods]
 impl PyBridgeTraverseStart {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("BridgeTraverseStart", args, kwargs, core::BridgeTraverseStart::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13781,12 +14339,15 @@ pub struct PyBridgeTraverseComplete;
 #[pymethods]
 impl PyBridgeTraverseComplete {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("BridgeTraverseComplete", args, kwargs, core::BridgeTraverseComplete::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -13869,13 +14430,16 @@ pub struct PyCliffEvent;
 #[pymethods]
 impl PyCliffEvent {
     #[new]
-    #[pyo3(signature = (timestamp=None, detected_flags=None, did_stop_for_cliff=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        timestamp: Option<&Bound<'_, PyAny>>,
-        detected_flags: Option<&Bound<'_, PyAny>>,
-        did_stop_for_cliff: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("CliffEvent", args, kwargs, core::CliffEvent::FIELDS)?;
+        let timestamp: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let detected_flags: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let did_stop_for_cliff: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let timestamp = match timestamp {
             Some(o) => {
@@ -13980,8 +14544,13 @@ pub struct PyPotentialCliff;
 #[pymethods]
 impl PyPotentialCliff {
     #[new]
-    #[pyo3(signature = ())]
-    fn new(py: Python<'_>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("PotentialCliff", args, kwargs, core::PotentialCliff::FIELDS)?;
         let mut kinds = [ArrKind::List; 8];
         let m = core::PotentialCliff {};
         let mut pkt = Packet::from_message(Message::PotentialCliff(m), kinds);
@@ -14005,8 +14574,14 @@ pub struct PyRobotStopped;
 #[pymethods]
 impl PyRobotStopped {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RobotStopped", args, kwargs, core::RobotStopped::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -14057,8 +14632,14 @@ pub struct PyFactoryTestParameter;
 #[pymethods]
 impl PyFactoryTestParameter {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("FactoryTestParameter", args, kwargs, core::FactoryTestParameter::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -14112,12 +14693,15 @@ pub struct PyMotorAutoEnabled;
 #[pymethods]
 impl PyMotorAutoEnabled {
     #[new]
-    #[pyo3(signature = (motor_id=None, enabled=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        motor_id: Option<&Bound<'_, PyAny>>,
-        enabled: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("MotorAutoEnabled", args, kwargs, core::MotorAutoEnabled::FIELDS)?;
+        let motor_id: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let enabled: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let motor_id = match motor_id {
             Some(o) => {
@@ -14198,12 +14782,15 @@ pub struct PyRobotErrorReport;
 #[pymethods]
 impl PyRobotErrorReport {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("RobotErrorReport", args, kwargs, core::RobotErrorReport::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -14284,8 +14871,14 @@ pub struct PyIMUTemperature;
 #[pymethods]
 impl PyIMUTemperature {
     #[new]
-    #[pyo3(signature = (temperature_degc=None))]
-    fn new(py: Python<'_>, temperature_degc: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("IMUTemperature", args, kwargs, core::IMUTemperature::FIELDS)?;
+        let temperature_degc: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let temperature_degc = match temperature_degc {
             Some(o) => {
@@ -14336,8 +14929,14 @@ pub struct PyWiFiFlashID;
 #[pymethods]
 impl PyWiFiFlashID {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("WiFiFlashID", args, kwargs, core::WiFiFlashID::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -14388,18 +14987,21 @@ pub struct PyIMURawDataChunk;
 #[pymethods]
 impl PyIMURawDataChunk {
     #[new]
-    #[pyo3(signature = (gyro_x=None, gyro_y=None, gyro_z=None, accel_x=None, accel_y=None, accel_z=None, order=None, timestamp=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        gyro_x: Option<&Bound<'_, PyAny>>,
-        gyro_y: Option<&Bound<'_, PyAny>>,
-        gyro_z: Option<&Bound<'_, PyAny>>,
-        accel_x: Option<&Bound<'_, PyAny>>,
-        accel_y: Option<&Bound<'_, PyAny>>,
-        accel_z: Option<&Bound<'_, PyAny>>,
-        order: Option<&Bound<'_, PyAny>>,
-        timestamp: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("IMURawDataChunk", args, kwargs, core::IMURawDataChunk::FIELDS)?;
+        let gyro_x: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let gyro_y: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let gyro_z: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let accel_x: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let accel_y: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let accel_z: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let order: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let timestamp: Option<&Bound<'_, PyAny>> = a[7].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let gyro_x = match gyro_x {
             Some(o) => {
@@ -14642,12 +15244,15 @@ pub struct PyWriteBodyStorage;
 #[pymethods]
 impl PyWriteBodyStorage {
     #[new]
-    #[pyo3(signature = (unknown0=None, data=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        data: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("WriteBodyStorage", args, kwargs, core::WriteBodyStorage::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let data: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -14731,8 +15336,14 @@ pub struct PySetAppRunID;
 #[pymethods]
 impl PySetAppRunID {
     #[new]
-    #[pyo3(signature = (unknown0=None))]
-    fn new(py: Python<'_>, unknown0: Option<&Bound<'_, PyAny>>) -> PyResult<PyClassInitializer<Self>> {
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("SetAppRunID", args, kwargs, core::SetAppRunID::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -14792,18 +15403,21 @@ pub struct PyTestState;
 #[pymethods]
 impl PyTestState {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None, unknown4=None, unknown5=None, unknown6=None, unknown7=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
-        unknown4: Option<&Bound<'_, PyAny>>,
-        unknown5: Option<&Bound<'_, PyAny>>,
-        unknown6: Option<&Bound<'_, PyAny>>,
-        unknown7: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("TestState", args, kwargs, core::TestState::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let unknown4: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let unknown5: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let unknown6: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let unknown7: Option<&Bound<'_, PyAny>> = a[7].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -15077,13 +15691,16 @@ pub struct PyBodyStorageContents;
 #[pymethods]
 impl PyBodyStorageContents {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, data=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        data: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("BodyStorageContents", args, kwargs, core::BodyStorageContents::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let data: Option<&Bound<'_, PyAny>> = a[2].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -15194,12 +15811,15 @@ pub struct PyAppConnectConfigString;
 #[pymethods]
 impl PyAppConnectConfigString {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("AppConnectConfigString", args, kwargs, core::AppConnectConfigString::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -15290,12 +15910,15 @@ pub struct PyPrintText;
 #[pymethods]
 impl PyPrintText {
     #[new]
-    #[pyo3(signature = (unknown0=None, text=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        text: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("PrintText", args, kwargs, core::PrintText::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let text: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -15373,16 +15996,19 @@ pub struct PyGoalPose;
 #[pymethods]
 impl PyGoalPose {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None, unknown4=None, unknown5=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
-        unknown4: Option<&Bound<'_, PyAny>>,
-        unknown5: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("GoalPose", args, kwargs, core::GoalPose::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let unknown4: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let unknown5: Option<&Bound<'_, PyAny>> = a[5].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -15568,12 +16194,15 @@ pub struct PyDataDump;
 #[pymethods]
 impl PyDataDump {
     #[new]
-    #[pyo3(signature = (unknown0=None, data=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        data: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DataDump", args, kwargs, core::DataDump::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let data: Option<&Bound<'_, PyAny>> = a[1].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -15654,14 +16283,17 @@ pub struct PyTimeProfileStat;
 #[pymethods]
 impl PyTimeProfileStat {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, name=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        name: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("TimeProfileStat", args, kwargs, core::TimeProfileStat::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let name: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -15796,19 +16428,22 @@ pub struct PyIMUDataChunk;
 #[pymethods]
 impl PyIMUDataChunk {
     #[new]
-    #[pyo3(signature = (a_x=None, a_y=None, a_z=None, g_x=None, g_y=None, g_z=None, seq_id=None, chunk_id=None, total_num_chunks=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        a_x: Option<&Bound<'_, PyAny>>,
-        a_y: Option<&Bound<'_, PyAny>>,
-        a_z: Option<&Bound<'_, PyAny>>,
-        g_x: Option<&Bound<'_, PyAny>>,
-        g_y: Option<&Bound<'_, PyAny>>,
-        g_z: Option<&Bound<'_, PyAny>>,
-        seq_id: Option<&Bound<'_, PyAny>>,
-        chunk_id: Option<&Bound<'_, PyAny>>,
-        total_num_chunks: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("IMUDataChunk", args, kwargs, core::IMUDataChunk::FIELDS)?;
+        let a_x: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let a_y: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let a_z: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let g_x: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let g_y: Option<&Bound<'_, PyAny>> = a[4].as_ref();
+        let g_z: Option<&Bound<'_, PyAny>> = a[5].as_ref();
+        let seq_id: Option<&Bound<'_, PyAny>> = a[6].as_ref();
+        let chunk_id: Option<&Bound<'_, PyAny>> = a[7].as_ref();
+        let total_num_chunks: Option<&Bound<'_, PyAny>> = a[8].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let a_x = match a_x {
             Some(o) => {
@@ -16099,15 +16734,18 @@ pub struct PyDefaultCameraParams;
 #[pymethods]
 impl PyDefaultCameraParams {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None, unknown4=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
-        unknown4: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("DefaultCameraParams", args, kwargs, core::DefaultCameraParams::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let unknown4: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -16277,14 +16915,17 @@ pub struct PyCrashReport;
 #[pymethods]
 impl PyCrashReport {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, dump=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        dump: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("CrashReport", args, kwargs, core::CrashReport::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let dump: Option<&Bound<'_, PyAny>> = a[3].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
@@ -16420,15 +17061,18 @@ pub struct PyFWVersionInfo;
 #[pymethods]
 impl PyFWVersionInfo {
     #[new]
-    #[pyo3(signature = (unknown0=None, unknown1=None, unknown2=None, unknown3=None, unknown4=None))]
+    #[pyo3(signature = (*args, **kwargs))]
     fn new(
         py: Python<'_>,
-        unknown0: Option<&Bound<'_, PyAny>>,
-        unknown1: Option<&Bound<'_, PyAny>>,
-        unknown2: Option<&Bound<'_, PyAny>>,
-        unknown3: Option<&Bound<'_, PyAny>>,
-        unknown4: Option<&Bound<'_, PyAny>>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<PyClassInitializer<Self>> {
+        let a = conv::parse_args("FWVersionInfo", args, kwargs, core::FWVersionInfo::FIELDS)?;
+        let unknown0: Option<&Bound<'_, PyAny>> = a[0].as_ref();
+        let unknown1: Option<&Bound<'_, PyAny>> = a[1].as_ref();
+        let unknown2: Option<&Bound<'_, PyAny>> = a[2].as_ref();
+        let unknown3: Option<&Bound<'_, PyAny>> = a[3].as_ref();
+        let unknown4: Option<&Bound<'_, PyAny>> = a[4].as_ref();
         let mut kinds = [ArrKind::List; 8];
         let unknown0 = match unknown0 {
             Some(o) => {
