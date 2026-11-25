@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw
 import numpy as np
 
 from . import robot
+from . import _cozmo
 
 
 __all__ = [
@@ -470,34 +471,12 @@ class ProceduralFace(ProceduralBase):
         self.params[self.offset + 4] = value
 
     def render(self) -> Image.Image:
-        # Background image
-        im = Image.new("1", (self.width, self.height), color=0)
-
-        # Face image
-        face = Image.new("1", (self.width, self.height), color=0)
-
-        # Draw eyes
-        for eye in self.eyes:
-            eye.render(face)
-
-        # Rotate
-        face = face.rotate(self.angle, resample=RESAMPLE, expand=1)
-
-        # Scale
-        scale = (int(float(face.size[0]) * self.scale_x),
-                 int(float(face.size[1]) * self.scale_y))
-        try:
-            face = face.resize(scale, resample=RESAMPLE)
-        except ValueError:
-            # Scale factors can be extremely small and Pillow cannot handle resize() with both scale factors of 0.
-            return im
-
-        # Translate and compose
-        location = (int((im.size[0] - face.size[0]) / 2 + self.center_x * X_FACTOR),
-                    int((im.size[1] - face.size[1]) / 2 + self.center_y * Y_FACTOR))
-        im.paste(face, location)
-
-        return im
+        # Rendered in Rust (crates/cozmo-core/src/face.rs) with the drawing, rotation, resizing and pasting rules of
+        # Pillow, so that the pixels are the same as with ProceduralEye.render() and ProceduralLid.render().
+        eyes = [(eye.x_offset, eye.corner_radius, [(lid.y_offset, lid.angle_offset) for lid in eye.lids])
+                for eye in self.eyes]
+        data = _cozmo.render_procedural_face(self.params, self.width, self.height, eyes)
+        return Image.frombytes("1", (self.width, self.height), data)
 
 
 def interpolate(

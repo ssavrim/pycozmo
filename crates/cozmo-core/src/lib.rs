@@ -12,5 +12,6 @@ pub mod wire;
 pub use error::{Error, Result};
 pub mod anim;
 pub mod emotions;
+pub mod face;
 pub mod image;
 pub mod window;

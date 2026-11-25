@@ -12,6 +12,7 @@ mod conv;
 mod emotions;
 mod enums;
 mod errors;
+mod face;
 mod frame;
 mod image;
 mod protocol;
@@ -37,6 +38,7 @@ fn _cozmo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<emotions::DecayGraph>()?;
     m.add_class::<emotions::EmotionType>()?;
     m.add_function(wrap_pyfunction!(anim::anim_register, m)?)?;
+    m.add_function(wrap_pyfunction!(face::render_procedural_face, m)?)?;
     m.add_function(wrap_pyfunction!(anim::anim_decode_clips, m)?)?;
     m.add_function(wrap_pyfunction!(anim::anim_encode_clips, m)?)?;
 
