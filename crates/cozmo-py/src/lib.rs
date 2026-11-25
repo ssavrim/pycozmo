@@ -11,8 +11,10 @@ mod conv;
 mod enums;
 mod errors;
 mod frame;
+mod image;
 mod protocol;
 mod protocol_gen;
+mod window;
 
 #[pymodule]
 fn _cozmo(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -25,6 +27,11 @@ fn _cozmo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<protocol::UnknownEvent>()?;
     protocol_gen::register(m)?;
     m.add_class::<frame::Frame>()?;
+    m.add_class::<window::BaseWindow>()?;
+    m.add_class::<window::ReceiveWindow>()?;
+    m.add_class::<window::SendWindow>()?;
+    m.add_class::<image::ImageDecoder>()?;
+    m.add_class::<image::ImageEncoder>()?;
 
     use cozmo_core::protocol as p;
     m.add("PACKETS_BY_ID", PyList::new(py, p::PACKETS_BY_ID)?)?;

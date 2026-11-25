@@ -10,3 +10,5 @@ pub mod protocol;
 pub mod wire;
 
 pub use error::{Error, Result};
+pub mod image;
+pub mod window;
