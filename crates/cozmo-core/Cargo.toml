@@ -1,0 +1,9 @@
+[package]
+name = "cozmo-core"
+description = "Cozmo protocol, frame layer and offline algorithms of PyCozmo, in Rust (no Python dependency)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
