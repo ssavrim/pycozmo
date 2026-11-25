@@ -8858,3 +8858,1287 @@ pub const PACKETS_BY_GROUP: &[(&str, &[u8])] = &[
         ],
     ),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every message whose declared defaults are valid encodes to its length and decodes to itself.
+    #[test]
+    fn defaults_round_trip() {
+        let mut n = 0;
+        if let Ok(m) = Connect::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "Connect");
+            let b = w.into_bytes();
+            assert_eq!(Connect::decode(&mut Reader::new(&b, 0)).unwrap(), m, "Connect");
+            n += 1;
+        }
+        if let Ok(m) = Disconnect::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "Disconnect");
+            let b = w.into_bytes();
+            assert_eq!(Disconnect::decode(&mut Reader::new(&b, 0)).unwrap(), m, "Disconnect");
+            n += 1;
+        }
+        if let Ok(m) = Ping::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "Ping");
+            let b = w.into_bytes();
+            assert_eq!(Ping::decode(&mut Reader::new(&b, 0)).unwrap(), m, "Ping");
+            n += 1;
+        }
+        if let Ok(m) = Keyframe::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "Keyframe");
+            let b = w.into_bytes();
+            assert_eq!(Keyframe::decode(&mut Reader::new(&b, 0)).unwrap(), m, "Keyframe");
+            n += 1;
+        }
+        if let Ok(m) = LightStateCenter::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "LightStateCenter");
+            let b = w.into_bytes();
+            assert_eq!(LightStateCenter::decode(&mut Reader::new(&b, 0)).unwrap(), m, "LightStateCenter");
+            n += 1;
+        }
+        if let Ok(m) = CubeLights::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "CubeLights");
+            let b = w.into_bytes();
+            assert_eq!(CubeLights::decode(&mut Reader::new(&b, 0)).unwrap(), m, "CubeLights");
+            n += 1;
+        }
+        if let Ok(m) = ObjectConnect::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectConnect");
+            let b = w.into_bytes();
+            assert_eq!(ObjectConnect::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectConnect");
+            n += 1;
+        }
+        if let Ok(m) = StreamObjectAccel::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "StreamObjectAccel");
+            let b = w.into_bytes();
+            assert_eq!(StreamObjectAccel::decode(&mut Reader::new(&b, 0)).unwrap(), m, "StreamObjectAccel");
+            n += 1;
+        }
+        if let Ok(m) = SetAccessoryDiscovery::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetAccessoryDiscovery");
+            let b = w.into_bytes();
+            assert_eq!(SetAccessoryDiscovery::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetAccessoryDiscovery");
+            n += 1;
+        }
+        if let Ok(m) = SetHeadLight::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetHeadLight");
+            let b = w.into_bytes();
+            assert_eq!(SetHeadLight::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetHeadLight");
+            n += 1;
+        }
+        if let Ok(m) = SetCubeGamma::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetCubeGamma");
+            let b = w.into_bytes();
+            assert_eq!(SetCubeGamma::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetCubeGamma");
+            n += 1;
+        }
+        if let Ok(m) = CubeId::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "CubeId");
+            let b = w.into_bytes();
+            assert_eq!(CubeId::decode(&mut Reader::new(&b, 0)).unwrap(), m, "CubeId");
+            n += 1;
+        }
+        if let Ok(m) = LightStateSide::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "LightStateSide");
+            let b = w.into_bytes();
+            assert_eq!(LightStateSide::decode(&mut Reader::new(&b, 0)).unwrap(), m, "LightStateSide");
+            n += 1;
+        }
+        if let Ok(m) = Enable::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "Enable");
+            let b = w.into_bytes();
+            assert_eq!(Enable::decode(&mut Reader::new(&b, 0)).unwrap(), m, "Enable");
+            n += 1;
+        }
+        if let Ok(m) = DriveWheels::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DriveWheels");
+            let b = w.into_bytes();
+            assert_eq!(DriveWheels::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DriveWheels");
+            n += 1;
+        }
+        if let Ok(m) = TurnInPlaceAtSpeed::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "TurnInPlaceAtSpeed");
+            let b = w.into_bytes();
+            assert_eq!(TurnInPlaceAtSpeed::decode(&mut Reader::new(&b, 0)).unwrap(), m, "TurnInPlaceAtSpeed");
+            n += 1;
+        }
+        if let Ok(m) = MoveLift::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "MoveLift");
+            let b = w.into_bytes();
+            assert_eq!(MoveLift::decode(&mut Reader::new(&b, 0)).unwrap(), m, "MoveLift");
+            n += 1;
+        }
+        if let Ok(m) = MoveHead::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "MoveHead");
+            let b = w.into_bytes();
+            assert_eq!(MoveHead::decode(&mut Reader::new(&b, 0)).unwrap(), m, "MoveHead");
+            n += 1;
+        }
+        if let Ok(m) = SetLiftHeight::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetLiftHeight");
+            let b = w.into_bytes();
+            assert_eq!(SetLiftHeight::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetLiftHeight");
+            n += 1;
+        }
+        if let Ok(m) = SetHeadAngle::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetHeadAngle");
+            let b = w.into_bytes();
+            assert_eq!(SetHeadAngle::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetHeadAngle");
+            n += 1;
+        }
+        if let Ok(m) = TurnInPlace::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "TurnInPlace");
+            let b = w.into_bytes();
+            assert_eq!(TurnInPlace::decode(&mut Reader::new(&b, 0)).unwrap(), m, "TurnInPlace");
+            n += 1;
+        }
+        if let Ok(m) = StopAllMotors::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "StopAllMotors");
+            let b = w.into_bytes();
+            assert_eq!(StopAllMotors::decode(&mut Reader::new(&b, 0)).unwrap(), m, "StopAllMotors");
+            n += 1;
+        }
+        if let Ok(m) = ClearPath::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ClearPath");
+            let b = w.into_bytes();
+            assert_eq!(ClearPath::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ClearPath");
+            n += 1;
+        }
+        if let Ok(m) = AppendPathSegLine::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AppendPathSegLine");
+            let b = w.into_bytes();
+            assert_eq!(AppendPathSegLine::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AppendPathSegLine");
+            n += 1;
+        }
+        if let Ok(m) = AppendPathSegArc::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AppendPathSegArc");
+            let b = w.into_bytes();
+            assert_eq!(AppendPathSegArc::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AppendPathSegArc");
+            n += 1;
+        }
+        if let Ok(m) = AppendPathSegPointTurn::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AppendPathSegPointTurn");
+            let b = w.into_bytes();
+            assert_eq!(AppendPathSegPointTurn::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AppendPathSegPointTurn");
+            n += 1;
+        }
+        if let Ok(m) = TrimPath::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "TrimPath");
+            let b = w.into_bytes();
+            assert_eq!(TrimPath::decode(&mut Reader::new(&b, 0)).unwrap(), m, "TrimPath");
+            n += 1;
+        }
+        if let Ok(m) = ExecutePath::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ExecutePath");
+            let b = w.into_bytes();
+            assert_eq!(ExecutePath::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ExecutePath");
+            n += 1;
+        }
+        if let Ok(m) = DockWithObject::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DockWithObject");
+            let b = w.into_bytes();
+            assert_eq!(DockWithObject::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DockWithObject");
+            n += 1;
+        }
+        if let Ok(m) = AbortDocking::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AbortDocking");
+            let b = w.into_bytes();
+            assert_eq!(AbortDocking::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AbortDocking");
+            n += 1;
+        }
+        if let Ok(m) = SetOrigin::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetOrigin");
+            let b = w.into_bytes();
+            assert_eq!(SetOrigin::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetOrigin");
+            n += 1;
+        }
+        if let Ok(m) = DockingErrorSignal::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DockingErrorSignal");
+            let b = w.into_bytes();
+            assert_eq!(DockingErrorSignal::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DockingErrorSignal");
+            n += 1;
+        }
+        if let Ok(m) = SetCarryState::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetCarryState");
+            let b = w.into_bytes();
+            assert_eq!(SetCarryState::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetCarryState");
+            n += 1;
+        }
+        if let Ok(m) = SyncTime::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SyncTime");
+            let b = w.into_bytes();
+            assert_eq!(SyncTime::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SyncTime");
+            n += 1;
+        }
+        if let Ok(m) = EnableCamera::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableCamera");
+            let b = w.into_bytes();
+            assert_eq!(EnableCamera::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableCamera");
+            n += 1;
+        }
+        if let Ok(m) = CheckLiftLoad::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "CheckLiftLoad");
+            let b = w.into_bytes();
+            assert_eq!(CheckLiftLoad::decode(&mut Reader::new(&b, 0)).unwrap(), m, "CheckLiftLoad");
+            n += 1;
+        }
+        if let Ok(m) = SetCameraParams::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetCameraParams");
+            let b = w.into_bytes();
+            assert_eq!(SetCameraParams::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetCameraParams");
+            n += 1;
+        }
+        if let Ok(m) = StartMotorCalibration::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "StartMotorCalibration");
+            let b = w.into_bytes();
+            assert_eq!(StartMotorCalibration::decode(&mut Reader::new(&b, 0)).unwrap(), m, "StartMotorCalibration");
+            n += 1;
+        }
+        if let Ok(m) = EnableStopOnCliff::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableStopOnCliff");
+            let b = w.into_bytes();
+            assert_eq!(EnableStopOnCliff::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableStopOnCliff");
+            n += 1;
+        }
+        if let Ok(m) = SetRobotVolume::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetRobotVolume");
+            let b = w.into_bytes();
+            assert_eq!(SetRobotVolume::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetRobotVolume");
+            n += 1;
+        }
+        if let Ok(m) = EnableColorImages::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableColorImages");
+            let b = w.into_bytes();
+            assert_eq!(EnableColorImages::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableColorImages");
+            n += 1;
+        }
+        if let Ok(m) = NvStorageOp::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "NvStorageOp");
+            let b = w.into_bytes();
+            assert_eq!(NvStorageOp::decode(&mut Reader::new(&b, 0)).unwrap(), m, "NvStorageOp");
+            n += 1;
+        }
+        if let Ok(m) = AbortAnimation::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AbortAnimation");
+            let b = w.into_bytes();
+            assert_eq!(AbortAnimation::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AbortAnimation");
+            n += 1;
+        }
+        if let Ok(m) = OutputAudio::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "OutputAudio");
+            let b = w.into_bytes();
+            assert_eq!(OutputAudio::decode(&mut Reader::new(&b, 0)).unwrap(), m, "OutputAudio");
+            n += 1;
+        }
+        if let Ok(m) = OutputSilence::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "OutputSilence");
+            let b = w.into_bytes();
+            assert_eq!(OutputSilence::decode(&mut Reader::new(&b, 0)).unwrap(), m, "OutputSilence");
+            n += 1;
+        }
+        if let Ok(m) = RecordHeading::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RecordHeading");
+            let b = w.into_bytes();
+            assert_eq!(RecordHeading::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RecordHeading");
+            n += 1;
+        }
+        if let Ok(m) = TurnToRecordedHeading::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "TurnToRecordedHeading");
+            let b = w.into_bytes();
+            assert_eq!(TurnToRecordedHeading::decode(&mut Reader::new(&b, 0)).unwrap(), m, "TurnToRecordedHeading");
+            n += 1;
+        }
+        if let Ok(m) = AnimHead::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimHead");
+            let b = w.into_bytes();
+            assert_eq!(AnimHead::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimHead");
+            n += 1;
+        }
+        if let Ok(m) = AnimLift::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimLift");
+            let b = w.into_bytes();
+            assert_eq!(AnimLift::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimLift");
+            n += 1;
+        }
+        if let Ok(m) = AnimEvent::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimEvent");
+            let b = w.into_bytes();
+            assert_eq!(AnimEvent::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimEvent");
+            n += 1;
+        }
+        if let Ok(m) = DisplayImage::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DisplayImage");
+            let b = w.into_bytes();
+            assert_eq!(DisplayImage::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DisplayImage");
+            n += 1;
+        }
+        if let Ok(m) = AnimBackpackLights::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimBackpackLights");
+            let b = w.into_bytes();
+            assert_eq!(AnimBackpackLights::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimBackpackLights");
+            n += 1;
+        }
+        if let Ok(m) = AnimBody::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimBody");
+            let b = w.into_bytes();
+            assert_eq!(AnimBody::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimBody");
+            n += 1;
+        }
+        if let Ok(m) = EndAnimation::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EndAnimation");
+            let b = w.into_bytes();
+            assert_eq!(EndAnimation::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EndAnimation");
+            n += 1;
+        }
+        if let Ok(m) = StartAnimation::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "StartAnimation");
+            let b = w.into_bytes();
+            assert_eq!(StartAnimation::decode(&mut Reader::new(&b, 0)).unwrap(), m, "StartAnimation");
+            n += 1;
+        }
+        if let Ok(m) = EnableAnimationState::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableAnimationState");
+            let b = w.into_bytes();
+            assert_eq!(EnableAnimationState::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableAnimationState");
+            n += 1;
+        }
+        if let Ok(m) = ShutdownRobot::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ShutdownRobot");
+            let b = w.into_bytes();
+            assert_eq!(ShutdownRobot::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ShutdownRobot");
+            n += 1;
+        }
+        if let Ok(m) = WifiOff::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "WifiOff");
+            let b = w.into_bytes();
+            assert_eq!(WifiOff::decode(&mut Reader::new(&b, 0)).unwrap(), m, "WifiOff");
+            n += 1;
+        }
+        if let Ok(m) = FirmwareUpdate::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "FirmwareUpdate");
+            let b = w.into_bytes();
+            assert_eq!(FirmwareUpdate::decode(&mut Reader::new(&b, 0)).unwrap(), m, "FirmwareUpdate");
+            n += 1;
+        }
+        if let Ok(m) = DebugData::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DebugData");
+            let b = w.into_bytes();
+            assert_eq!(DebugData::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DebugData");
+            n += 1;
+        }
+        if let Ok(m) = ObjectMoved::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectMoved");
+            let b = w.into_bytes();
+            assert_eq!(ObjectMoved::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectMoved");
+            n += 1;
+        }
+        if let Ok(m) = ObjectStoppedMoving::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectStoppedMoving");
+            let b = w.into_bytes();
+            assert_eq!(ObjectStoppedMoving::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectStoppedMoving");
+            n += 1;
+        }
+        if let Ok(m) = ObjectTapped::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectTapped");
+            let b = w.into_bytes();
+            assert_eq!(ObjectTapped::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectTapped");
+            n += 1;
+        }
+        if let Ok(m) = PickAndPlaceResult::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "PickAndPlaceResult");
+            let b = w.into_bytes();
+            assert_eq!(PickAndPlaceResult::decode(&mut Reader::new(&b, 0)).unwrap(), m, "PickAndPlaceResult");
+            n += 1;
+        }
+        if let Ok(m) = ObjectTapFiltered::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectTapFiltered");
+            let b = w.into_bytes();
+            assert_eq!(ObjectTapFiltered::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectTapFiltered");
+            n += 1;
+        }
+        if let Ok(m) = AcknowledgeAction::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AcknowledgeAction");
+            let b = w.into_bytes();
+            assert_eq!(AcknowledgeAction::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AcknowledgeAction");
+            n += 1;
+        }
+        if let Ok(m) = RobotDelocalized::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RobotDelocalized");
+            let b = w.into_bytes();
+            assert_eq!(RobotDelocalized::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RobotDelocalized");
+            n += 1;
+        }
+        if let Ok(m) = RobotPoked::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RobotPoked");
+            let b = w.into_bytes();
+            assert_eq!(RobotPoked::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RobotPoked");
+            n += 1;
+        }
+        if let Ok(m) = MovingLiftPostDock::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "MovingLiftPostDock");
+            let b = w.into_bytes();
+            assert_eq!(MovingLiftPostDock::decode(&mut Reader::new(&b, 0)).unwrap(), m, "MovingLiftPostDock");
+            n += 1;
+        }
+        if let Ok(m) = PathFollowingEvent::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "PathFollowingEvent");
+            let b = w.into_bytes();
+            assert_eq!(PathFollowingEvent::decode(&mut Reader::new(&b, 0)).unwrap(), m, "PathFollowingEvent");
+            n += 1;
+        }
+        if let Ok(m) = HardwareInfo::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "HardwareInfo");
+            let b = w.into_bytes();
+            assert_eq!(HardwareInfo::decode(&mut Reader::new(&b, 0)).unwrap(), m, "HardwareInfo");
+            n += 1;
+        }
+        if let Ok(m) = AnimationStarted::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimationStarted");
+            let b = w.into_bytes();
+            assert_eq!(AnimationStarted::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimationStarted");
+            n += 1;
+        }
+        if let Ok(m) = AnimationEnded::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimationEnded");
+            let b = w.into_bytes();
+            assert_eq!(AnimationEnded::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimationEnded");
+            n += 1;
+        }
+        if let Ok(m) = NvStorageOpResult::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "NvStorageOpResult");
+            let b = w.into_bytes();
+            assert_eq!(NvStorageOpResult::decode(&mut Reader::new(&b, 0)).unwrap(), m, "NvStorageOpResult");
+            n += 1;
+        }
+        if let Ok(m) = ObjectPowerLevel::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectPowerLevel");
+            let b = w.into_bytes();
+            assert_eq!(ObjectPowerLevel::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectPowerLevel");
+            n += 1;
+        }
+        if let Ok(m) = ObjectConnectionState::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectConnectionState");
+            let b = w.into_bytes();
+            assert_eq!(ObjectConnectionState::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectConnectionState");
+            n += 1;
+        }
+        if let Ok(m) = MotorCalibration::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "MotorCalibration");
+            let b = w.into_bytes();
+            assert_eq!(MotorCalibration::decode(&mut Reader::new(&b, 0)).unwrap(), m, "MotorCalibration");
+            n += 1;
+        }
+        if let Ok(m) = DockingStatus::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DockingStatus");
+            let b = w.into_bytes();
+            assert_eq!(DockingStatus::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DockingStatus");
+            n += 1;
+        }
+        if let Ok(m) = AnimationEvent::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimationEvent");
+            let b = w.into_bytes();
+            assert_eq!(AnimationEvent::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimationEvent");
+            n += 1;
+        }
+        if let Ok(m) = ObjectUpAxisChanged::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectUpAxisChanged");
+            let b = w.into_bytes();
+            assert_eq!(ObjectUpAxisChanged::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectUpAxisChanged");
+            n += 1;
+        }
+        if let Ok(m) = LiftLoad::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "LiftLoad");
+            let b = w.into_bytes();
+            assert_eq!(LiftLoad::decode(&mut Reader::new(&b, 0)).unwrap(), m, "LiftLoad");
+            n += 1;
+        }
+        if let Ok(m) = ButtonPressed::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ButtonPressed");
+            let b = w.into_bytes();
+            assert_eq!(ButtonPressed::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ButtonPressed");
+            n += 1;
+        }
+        if let Ok(m) = FallingStarted::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "FallingStarted");
+            let b = w.into_bytes();
+            assert_eq!(FallingStarted::decode(&mut Reader::new(&b, 0)).unwrap(), m, "FallingStarted");
+            n += 1;
+        }
+        if let Ok(m) = FallingStopped::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "FallingStopped");
+            let b = w.into_bytes();
+            assert_eq!(FallingStopped::decode(&mut Reader::new(&b, 0)).unwrap(), m, "FallingStopped");
+            n += 1;
+        }
+        if let Ok(m) = BodyInfo::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "BodyInfo");
+            let b = w.into_bytes();
+            assert_eq!(BodyInfo::decode(&mut Reader::new(&b, 0)).unwrap(), m, "BodyInfo");
+            n += 1;
+        }
+        if let Ok(m) = FirmwareSignature::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "FirmwareSignature");
+            let b = w.into_bytes();
+            assert_eq!(FirmwareSignature::decode(&mut Reader::new(&b, 0)).unwrap(), m, "FirmwareSignature");
+            n += 1;
+        }
+        if let Ok(m) = FirmwareUpdateResult::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "FirmwareUpdateResult");
+            let b = w.into_bytes();
+            assert_eq!(FirmwareUpdateResult::decode(&mut Reader::new(&b, 0)).unwrap(), m, "FirmwareUpdateResult");
+            n += 1;
+        }
+        if let Ok(m) = RobotState::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RobotState");
+            let b = w.into_bytes();
+            assert_eq!(RobotState::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RobotState");
+            n += 1;
+        }
+        if let Ok(m) = AnimationState::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimationState");
+            let b = w.into_bytes();
+            assert_eq!(AnimationState::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimationState");
+            n += 1;
+        }
+        if let Ok(m) = ImageChunk::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ImageChunk");
+            let b = w.into_bytes();
+            assert_eq!(ImageChunk::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ImageChunk");
+            n += 1;
+        }
+        if let Ok(m) = ObjectAvailable::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectAvailable");
+            let b = w.into_bytes();
+            assert_eq!(ObjectAvailable::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectAvailable");
+            n += 1;
+        }
+        if let Ok(m) = ImageImuData::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ImageImuData");
+            let b = w.into_bytes();
+            assert_eq!(ImageImuData::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ImageImuData");
+            n += 1;
+        }
+        if let Ok(m) = ObjectAccel::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectAccel");
+            let b = w.into_bytes();
+            assert_eq!(ObjectAccel::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectAccel");
+            n += 1;
+        }
+        if let Ok(m) = AdjustTimestamp::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AdjustTimestamp");
+            let b = w.into_bytes();
+            assert_eq!(AdjustTimestamp::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AdjustTimestamp");
+            n += 1;
+        }
+        if let Ok(m) = BackpackSetLayer::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "BackpackSetLayer");
+            let b = w.into_bytes();
+            assert_eq!(BackpackSetLayer::decode(&mut Reader::new(&b, 0)).unwrap(), m, "BackpackSetLayer");
+            n += 1;
+        }
+        if let Ok(m) = KillBodyCode::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "KillBodyCode");
+            let b = w.into_bytes();
+            assert_eq!(KillBodyCode::decode(&mut Reader::new(&b, 0)).unwrap(), m, "KillBodyCode");
+            n += 1;
+        }
+        if let Ok(m) = SetBodyRadioMode::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetBodyRadioMode");
+            let b = w.into_bytes();
+            assert_eq!(SetBodyRadioMode::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetBodyRadioMode");
+            n += 1;
+        }
+        if let Ok(m) = ReadBodyStorage::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ReadBodyStorage");
+            let b = w.into_bytes();
+            assert_eq!(ReadBodyStorage::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ReadBodyStorage");
+            n += 1;
+        }
+        if let Ok(m) = SendDTMCommand::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SendDTMCommand");
+            let b = w.into_bytes();
+            assert_eq!(SendDTMCommand::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SendDTMCommand");
+            n += 1;
+        }
+        if let Ok(m) = GetBodySerialNumber::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "GetBodySerialNumber");
+            let b = w.into_bytes();
+            assert_eq!(GetBodySerialNumber::decode(&mut Reader::new(&b, 0)).unwrap(), m, "GetBodySerialNumber");
+            n += 1;
+        }
+        if let Ok(m) = HeadAngleUpdate::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "HeadAngleUpdate");
+            let b = w.into_bytes();
+            assert_eq!(HeadAngleUpdate::decode(&mut Reader::new(&b, 0)).unwrap(), m, "HeadAngleUpdate");
+            n += 1;
+        }
+        if let Ok(m) = TurnInPlaceAtAngularSpeed::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "TurnInPlaceAtAngularSpeed");
+            let b = w.into_bytes();
+            assert_eq!(
+                TurnInPlaceAtAngularSpeed::decode(&mut Reader::new(&b, 0)).unwrap(),
+                m,
+                "TurnInPlaceAtAngularSpeed"
+            );
+            n += 1;
+        }
+        if let Ok(m) = PlaceObjectOnGround::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "PlaceObjectOnGround");
+            let b = w.into_bytes();
+            assert_eq!(PlaceObjectOnGround::decode(&mut Reader::new(&b, 0)).unwrap(), m, "PlaceObjectOnGround");
+            n += 1;
+        }
+        if let Ok(m) = StartControllerTestMode::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "StartControllerTestMode");
+            let b = w.into_bytes();
+            assert_eq!(StartControllerTestMode::decode(&mut Reader::new(&b, 0)).unwrap(), m, "StartControllerTestMode");
+            n += 1;
+        }
+        if let Ok(m) = ControllerGains::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ControllerGains");
+            let b = w.into_bytes();
+            assert_eq!(ControllerGains::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ControllerGains");
+            n += 1;
+        }
+        if let Ok(m) = IMURequest::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "IMURequest");
+            let b = w.into_bytes();
+            assert_eq!(IMURequest::decode(&mut Reader::new(&b, 0)).unwrap(), m, "IMURequest");
+            n += 1;
+        }
+        if let Ok(m) = ObjectBeingCarried::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectBeingCarried");
+            let b = w.into_bytes();
+            assert_eq!(ObjectBeingCarried::decode(&mut Reader::new(&b, 0)).unwrap(), m, "ObjectBeingCarried");
+            n += 1;
+        }
+        if let Ok(m) = EnableMotorPower::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableMotorPower");
+            let b = w.into_bytes();
+            assert_eq!(EnableMotorPower::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableMotorPower");
+            n += 1;
+        }
+        if let Ok(m) = SetMotionModelParams::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetMotionModelParams");
+            let b = w.into_bytes();
+            assert_eq!(SetMotionModelParams::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetMotionModelParams");
+            n += 1;
+        }
+        if let Ok(m) = EnterSleepMode::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnterSleepMode");
+            let b = w.into_bytes();
+            assert_eq!(EnterSleepMode::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnterSleepMode");
+            n += 1;
+        }
+        if let Ok(m) = PowerState::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "PowerState");
+            let b = w.into_bytes();
+            assert_eq!(PowerState::decode(&mut Reader::new(&b, 0)).unwrap(), m, "PowerState");
+            n += 1;
+        }
+        if let Ok(m) = SetCliffDetectThreshold::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetCliffDetectThreshold");
+            let b = w.into_bytes();
+            assert_eq!(SetCliffDetectThreshold::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetCliffDetectThreshold");
+            n += 1;
+        }
+        if let Ok(m) = EnableReadToolCodeMode::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableReadToolCodeMode");
+            let b = w.into_bytes();
+            assert_eq!(EnableReadToolCodeMode::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableReadToolCodeMode");
+            n += 1;
+        }
+        if let Ok(m) = RollActionParams::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RollActionParams");
+            let b = w.into_bytes();
+            assert_eq!(RollActionParams::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RollActionParams");
+            n += 1;
+        }
+        if let Ok(m) = CameraFOVInfo::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "CameraFOVInfo");
+            let b = w.into_bytes();
+            assert_eq!(CameraFOVInfo::decode(&mut Reader::new(&b, 0)).unwrap(), m, "CameraFOVInfo");
+            n += 1;
+        }
+        if let Ok(m) = ForceDelocalizeSimulatedRobot::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ForceDelocalizeSimulatedRobot");
+            let b = w.into_bytes();
+            assert_eq!(
+                ForceDelocalizeSimulatedRobot::decode(&mut Reader::new(&b, 0)).unwrap(),
+                m,
+                "ForceDelocalizeSimulatedRobot"
+            );
+            n += 1;
+        }
+        if let Ok(m) = ObjectConnectionStateToRobot::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "ObjectConnectionStateToRobot");
+            let b = w.into_bytes();
+            assert_eq!(
+                ObjectConnectionStateToRobot::decode(&mut Reader::new(&b, 0)).unwrap(),
+                m,
+                "ObjectConnectionStateToRobot"
+            );
+            n += 1;
+        }
+        if let Ok(m) = EnableBraceWhenFalling::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableBraceWhenFalling");
+            let b = w.into_bytes();
+            assert_eq!(EnableBraceWhenFalling::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableBraceWhenFalling");
+            n += 1;
+        }
+        if let Ok(m) = GenerateTestTone::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "GenerateTestTone");
+            let b = w.into_bytes();
+            assert_eq!(GenerateTestTone::decode(&mut Reader::new(&b, 0)).unwrap(), m, "GenerateTestTone");
+            n += 1;
+        }
+        if let Ok(m) = RequestCrashReports::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RequestCrashReports");
+            let b = w.into_bytes();
+            assert_eq!(RequestCrashReports::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RequestCrashReports");
+            n += 1;
+        }
+        if let Ok(m) = EnableWiFiTelemetry::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnableWiFiTelemetry");
+            let b = w.into_bytes();
+            assert_eq!(EnableWiFiTelemetry::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnableWiFiTelemetry");
+            n += 1;
+        }
+        if let Ok(m) = DebugSetRTTO::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DebugSetRTTO");
+            let b = w.into_bytes();
+            assert_eq!(DebugSetRTTO::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DebugSetRTTO");
+            n += 1;
+        }
+        if let Ok(m) = AnimEventToRTIP::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AnimEventToRTIP");
+            let b = w.into_bytes();
+            assert_eq!(AnimEventToRTIP::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AnimEventToRTIP");
+            n += 1;
+        }
+        if let Ok(m) = EnterFactoryTestMode::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "EnterFactoryTestMode");
+            let b = w.into_bytes();
+            assert_eq!(EnterFactoryTestMode::decode(&mut Reader::new(&b, 0)).unwrap(), m, "EnterFactoryTestMode");
+            n += 1;
+        }
+        if let Ok(m) = DisplayNumber::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DisplayNumber");
+            let b = w.into_bytes();
+            assert_eq!(DisplayNumber::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DisplayNumber");
+            n += 1;
+        }
+        if let Ok(m) = BodySerialNumber::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "BodySerialNumber");
+            let b = w.into_bytes();
+            assert_eq!(BodySerialNumber::decode(&mut Reader::new(&b, 0)).unwrap(), m, "BodySerialNumber");
+            n += 1;
+        }
+        if let Ok(m) = AppConnectConfigFlags::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AppConnectConfigFlags");
+            let b = w.into_bytes();
+            assert_eq!(AppConnectConfigFlags::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AppConnectConfigFlags");
+            n += 1;
+        }
+        if let Ok(m) = AppConnectConfigIPInfo::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AppConnectConfigIPInfo");
+            let b = w.into_bytes();
+            assert_eq!(AppConnectConfigIPInfo::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AppConnectConfigIPInfo");
+            n += 1;
+        }
+        if let Ok(m) = AppConnectGetRobotIP::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AppConnectGetRobotIP");
+            let b = w.into_bytes();
+            assert_eq!(AppConnectGetRobotIP::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AppConnectGetRobotIP");
+            n += 1;
+        }
+        if let Ok(m) = MainCycleTimeError::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "MainCycleTimeError");
+            let b = w.into_bytes();
+            assert_eq!(MainCycleTimeError::decode(&mut Reader::new(&b, 0)).unwrap(), m, "MainCycleTimeError");
+            n += 1;
+        }
+        if let Ok(m) = RampTraverseStart::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RampTraverseStart");
+            let b = w.into_bytes();
+            assert_eq!(RampTraverseStart::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RampTraverseStart");
+            n += 1;
+        }
+        if let Ok(m) = RampTraverseComplete::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RampTraverseComplete");
+            let b = w.into_bytes();
+            assert_eq!(RampTraverseComplete::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RampTraverseComplete");
+            n += 1;
+        }
+        if let Ok(m) = BridgeTraverseStart::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "BridgeTraverseStart");
+            let b = w.into_bytes();
+            assert_eq!(BridgeTraverseStart::decode(&mut Reader::new(&b, 0)).unwrap(), m, "BridgeTraverseStart");
+            n += 1;
+        }
+        if let Ok(m) = BridgeTraverseComplete::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "BridgeTraverseComplete");
+            let b = w.into_bytes();
+            assert_eq!(BridgeTraverseComplete::decode(&mut Reader::new(&b, 0)).unwrap(), m, "BridgeTraverseComplete");
+            n += 1;
+        }
+        if let Ok(m) = CliffEvent::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "CliffEvent");
+            let b = w.into_bytes();
+            assert_eq!(CliffEvent::decode(&mut Reader::new(&b, 0)).unwrap(), m, "CliffEvent");
+            n += 1;
+        }
+        if let Ok(m) = PotentialCliff::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "PotentialCliff");
+            let b = w.into_bytes();
+            assert_eq!(PotentialCliff::decode(&mut Reader::new(&b, 0)).unwrap(), m, "PotentialCliff");
+            n += 1;
+        }
+        if let Ok(m) = RobotStopped::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RobotStopped");
+            let b = w.into_bytes();
+            assert_eq!(RobotStopped::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RobotStopped");
+            n += 1;
+        }
+        if let Ok(m) = FactoryTestParameter::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "FactoryTestParameter");
+            let b = w.into_bytes();
+            assert_eq!(FactoryTestParameter::decode(&mut Reader::new(&b, 0)).unwrap(), m, "FactoryTestParameter");
+            n += 1;
+        }
+        if let Ok(m) = MotorAutoEnabled::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "MotorAutoEnabled");
+            let b = w.into_bytes();
+            assert_eq!(MotorAutoEnabled::decode(&mut Reader::new(&b, 0)).unwrap(), m, "MotorAutoEnabled");
+            n += 1;
+        }
+        if let Ok(m) = RobotErrorReport::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "RobotErrorReport");
+            let b = w.into_bytes();
+            assert_eq!(RobotErrorReport::decode(&mut Reader::new(&b, 0)).unwrap(), m, "RobotErrorReport");
+            n += 1;
+        }
+        if let Ok(m) = IMUTemperature::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "IMUTemperature");
+            let b = w.into_bytes();
+            assert_eq!(IMUTemperature::decode(&mut Reader::new(&b, 0)).unwrap(), m, "IMUTemperature");
+            n += 1;
+        }
+        if let Ok(m) = WiFiFlashID::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "WiFiFlashID");
+            let b = w.into_bytes();
+            assert_eq!(WiFiFlashID::decode(&mut Reader::new(&b, 0)).unwrap(), m, "WiFiFlashID");
+            n += 1;
+        }
+        if let Ok(m) = IMURawDataChunk::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "IMURawDataChunk");
+            let b = w.into_bytes();
+            assert_eq!(IMURawDataChunk::decode(&mut Reader::new(&b, 0)).unwrap(), m, "IMURawDataChunk");
+            n += 1;
+        }
+        if let Ok(m) = WriteBodyStorage::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "WriteBodyStorage");
+            let b = w.into_bytes();
+            assert_eq!(WriteBodyStorage::decode(&mut Reader::new(&b, 0)).unwrap(), m, "WriteBodyStorage");
+            n += 1;
+        }
+        if let Ok(m) = SetAppRunID::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "SetAppRunID");
+            let b = w.into_bytes();
+            assert_eq!(SetAppRunID::decode(&mut Reader::new(&b, 0)).unwrap(), m, "SetAppRunID");
+            n += 1;
+        }
+        if let Ok(m) = TestState::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "TestState");
+            let b = w.into_bytes();
+            assert_eq!(TestState::decode(&mut Reader::new(&b, 0)).unwrap(), m, "TestState");
+            n += 1;
+        }
+        if let Ok(m) = BodyStorageContents::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "BodyStorageContents");
+            let b = w.into_bytes();
+            assert_eq!(BodyStorageContents::decode(&mut Reader::new(&b, 0)).unwrap(), m, "BodyStorageContents");
+            n += 1;
+        }
+        if let Ok(m) = AppConnectConfigString::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "AppConnectConfigString");
+            let b = w.into_bytes();
+            assert_eq!(AppConnectConfigString::decode(&mut Reader::new(&b, 0)).unwrap(), m, "AppConnectConfigString");
+            n += 1;
+        }
+        if let Ok(m) = PrintText::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "PrintText");
+            let b = w.into_bytes();
+            assert_eq!(PrintText::decode(&mut Reader::new(&b, 0)).unwrap(), m, "PrintText");
+            n += 1;
+        }
+        if let Ok(m) = GoalPose::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "GoalPose");
+            let b = w.into_bytes();
+            assert_eq!(GoalPose::decode(&mut Reader::new(&b, 0)).unwrap(), m, "GoalPose");
+            n += 1;
+        }
+        if let Ok(m) = DataDump::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DataDump");
+            let b = w.into_bytes();
+            assert_eq!(DataDump::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DataDump");
+            n += 1;
+        }
+        if let Ok(m) = TimeProfileStat::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "TimeProfileStat");
+            let b = w.into_bytes();
+            assert_eq!(TimeProfileStat::decode(&mut Reader::new(&b, 0)).unwrap(), m, "TimeProfileStat");
+            n += 1;
+        }
+        if let Ok(m) = IMUDataChunk::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "IMUDataChunk");
+            let b = w.into_bytes();
+            assert_eq!(IMUDataChunk::decode(&mut Reader::new(&b, 0)).unwrap(), m, "IMUDataChunk");
+            n += 1;
+        }
+        if let Ok(m) = DefaultCameraParams::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "DefaultCameraParams");
+            let b = w.into_bytes();
+            assert_eq!(DefaultCameraParams::decode(&mut Reader::new(&b, 0)).unwrap(), m, "DefaultCameraParams");
+            n += 1;
+        }
+        if let Ok(m) = CrashReport::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "CrashReport");
+            let b = w.into_bytes();
+            assert_eq!(CrashReport::decode(&mut Reader::new(&b, 0)).unwrap(), m, "CrashReport");
+            n += 1;
+        }
+        if let Ok(m) = FWVersionInfo::try_default() {
+            let mut w = Writer::new();
+            m.encode(&mut w).unwrap();
+            assert_eq!(w.len(), m.encoded_len(), "FWVersionInfo");
+            let b = w.into_bytes();
+            assert_eq!(FWVersionInfo::decode(&mut Reader::new(&b, 0)).unwrap(), m, "FWVersionInfo");
+            n += 1;
+        }
+        assert!(n > 100, "{n}");
+    }
+
+    #[test]
+    fn identifiers_are_unique_and_sorted() {
+        assert!(PACKETS_BY_ID.windows(2).all(|p| p[0].0 < p[1].0));
+        for (id, name) in PACKETS_BY_ID {
+            let msg = Message::decode_by_id(*id, &mut Reader::new(&[0u8; 2048], 0)).unwrap();
+            if let Ok(m) = msg {
+                assert_eq!(m.name(), *name);
+                assert_eq!(m.id(), Some(*id));
+            }
+        }
+    }
+}

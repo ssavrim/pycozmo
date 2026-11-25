@@ -374,6 +374,23 @@ def gen_core():
     for g, ps in sorted(groups.items()):
         w("    (\"{}\", &[{}]),\n".format(g, ", ".join("0x{:02x}".format(p.id) for p in sorted(ps, key=lambda p: p.id))))
     w("];\n")
+    w("\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n")
+    w("    /// Every message whose declared defaults are valid encodes to its length and decodes to itself.\n")
+    w("    #[test]\n    fn defaults_round_trip() {\n        let mut n = 0;\n")
+    for p in pkts:
+        w("        if let Ok(m) = {0}::try_default() {{\n"
+          "            let mut w = Writer::new();\n            m.encode(&mut w).unwrap();\n"
+          "            assert_eq!(w.len(), m.encoded_len(), \"{0}\");\n"
+          "            let b = w.into_bytes();\n"
+          "            assert_eq!({0}::decode(&mut Reader::new(&b, 0)).unwrap(), m, \"{0}\");\n"
+          "            n += 1;\n        }}\n".format(p.name))
+    w("        assert!(n > 100, \"{n}\");\n    }\n\n")
+    w("    #[test]\n    fn identifiers_are_unique_and_sorted() {\n")
+    w("        assert!(PACKETS_BY_ID.windows(2).all(|p| p[0].0 < p[1].0));\n")
+    w("        for (id, name) in PACKETS_BY_ID {\n")
+    w("            let msg = Message::decode_by_id(*id, &mut Reader::new(&[0u8; 2048], 0)).unwrap();\n")
+    w("            if let Ok(m) = msg {\n                assert_eq!(m.name(), *name);\n                assert_eq!(m.id(), Some(*id));\n            }\n")
+    w("        }\n    }\n}\n")
     return "".join(o)
 
 
