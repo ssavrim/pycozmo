@@ -20,6 +20,8 @@ pub enum Error {
     Assertion(String),
     /// A case that PyCozmo does not implement (Python `NotImplementedError`).
     NotImplemented(String),
+    /// A value of the wrong type or out of the range of its binary type (Python `TypeError`).
+    Type(String),
     /// A frame whose packets could not be checked because none was decoded (Python `UnboundLocalError`).
     UnboundLocal(String),
 }
@@ -33,6 +35,7 @@ impl fmt::Display for Error {
             | Error::Pack(m)
             | Error::Assertion(m)
             | Error::NotImplemented(m)
+            | Error::Type(m)
             | Error::UnboundLocal(m) => f.write_str(m),
         }
     }

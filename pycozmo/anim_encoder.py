@@ -2,6 +2,10 @@
 
 Reading and writing of Cozmo animations in FlatBuffers (.bin) and JSON format.
 
+The animation classes are Python classes. The reading and writing of .bin data (AnimClips.from_fb_stream() and
+to_fb_stream(), and the file variants) is implemented in Rust; to_fb() and from_fb() still work with the Python
+flatbuffers objects.
+
 Cozmo animations are stored in files/cozmo/cozmo_resources/assets/animations inside the Cozmo mobile application.
 
 Animation data structures are declared in FlatBuffers format in files/cozmo/cozmo_resources/config/cozmo_anim.fbs .
@@ -20,6 +24,7 @@ import flatbuffers
 
 from .logger import logger
 from . import CozmoAnim
+from . import _cozmo
 
 
 __all__ = [
@@ -408,11 +413,8 @@ class AnimClips(AnimBase):
             return cls.from_json_stream(f)
 
     def to_fb_stream(self, f: BinaryIO) -> None:
-        builder = flatbuffers.Builder(1024)
-        fbclips = self.to_fb(builder)
-        builder.Finish(fbclips)
-        buf = builder.Output()
-        f.write(buf)
+        # Encoded in Rust (crates/cozmo-core/src/anim.rs), byte for byte like flatbuffers.Builder with to_fb().
+        f.write(_cozmo.anim_encode_clips(self.clips))
 
     def to_fb_file(self, fspec: str) -> None:
         with open(fspec, "wb") as f:
@@ -420,9 +422,9 @@ class AnimClips(AnimBase):
 
     @classmethod
     def from_fb_stream(cls, f: BinaryIO) -> "AnimClips":
+        # Decoded in Rust (crates/cozmo-core/src/anim.rs), with the result of from_fb().
         buf = f.read()
-        fbclips = CozmoAnim.AnimClips.AnimClips.GetRootAsAnimClips(buf, 0)
-        clips = cls.from_fb(fbclips)
+        clips = cls(clips=_cozmo.anim_decode_clips(buf))
         return clips
 
     @classmethod
@@ -1114,3 +1116,8 @@ def get_clip_metadata(dspec: str) -> dict[str, ClipMetadata]:
     logger.debug("Loaded {} clip metadata in {:.02f} s.".format(len(res), time.perf_counter() - start_time))
 
     return res
+
+
+_cozmo.anim_register({cls.__name__: cls for cls in (
+    AnimHeadAngle, AnimLiftHeight, AnimRecordHeading, AnimTurnToRecordedHeading, AnimBodyMotion, AnimBackpackLights,
+    AnimFaceAnimation, AnimProceduralFace, AnimRobotAudio, AnimEvent, AnimClip, AnimLight)})

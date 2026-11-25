@@ -2,7 +2,8 @@
 
 use cozmo_core::Error;
 use pyo3::exceptions::{
-    PyAssertionError, PyIndexError, PyNotImplementedError, PyOverflowError, PyUnboundLocalError, PyValueError,
+    PyAssertionError, PyIndexError, PyNotImplementedError, PyOverflowError, PyTypeError, PyUnboundLocalError,
+    PyValueError,
 };
 use pyo3::prelude::*;
 
@@ -21,6 +22,7 @@ pub fn err(e: Error) -> PyErr {
         }
         Error::NotImplemented(m) => PyNotImplementedError::new_err(m),
         Error::UnboundLocal(m) => PyUnboundLocalError::new_err(m),
+        Error::Type(m) => PyTypeError::new_err(m),
         Error::Pack(m) => Python::with_gil(|py| match py.import("struct").and_then(|s| s.getattr("error")) {
             Ok(cls) => match cls.call1((m.clone(),)) {
                 Ok(inst) => PyErr::from_value(inst),
