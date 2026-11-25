@@ -1,0 +1,80 @@
+[
+ {
+  "name": "protocol: construct 5 messages",
+  "baseline_s": 1.746403063968005e-06,
+  "candidate_s": 4.4536409912060426e-07,
+  "ratio": 3.921292864459379
+ },
+ {
+  "name": "protocol: encode 10 messages",
+  "baseline_s": 2.3717886352525584e-06,
+  "candidate_s": 2.1650412139889718e-07,
+  "ratio": 10.954935268334525
+ },
+ {
+  "name": "protocol: decode 10 messages",
+  "baseline_s": 4.998085546858988e-06,
+  "candidate_s": 4.6212303771997474e-07,
+  "ratio": 10.81548665376773
+ },
+ {
+  "name": "frame: pack 5 packets",
+  "baseline_s": 1.2427564697270466e-05,
+  "candidate_s": 1.3338245391826542e-06,
+  "ratio": 9.317241010489935
+ },
+ {
+  "name": "frame: unpack robot frame (3 packets)",
+  "baseline_s": 3.201284179688013e-05,
+  "candidate_s": 1.6083223876930952e-06,
+  "ratio": 19.904493055523464
+ },
+ {
+  "name": "window: 60 packets through send/receive windows",
+  "baseline_s": 3.4700543457000244e-05,
+  "candidate_s": 7.366899353045131e-06,
+  "ratio": 4.710332229889453
+ },
+ {
+  "name": "image: encode 20 display images",
+  "baseline_s": 0.0005411002343748805,
+  "candidate_s": 2.329101074218798e-05,
+  "ratio": 23.23214910526674
+ },
+ {
+  "name": "image: decode 20 display images",
+  "baseline_s": 0.00017171231249974995,
+  "candidate_s": 3.878174926763567e-06,
+  "ratio": 44.27657744748717
+ },
+ {
+  "name": "anim: encode 20 clips (FlatBuffers)",
+  "baseline_s": 0.06721188649999021,
+  "candidate_s": 0.007638581187507043,
+  "ratio": 8.799001391765758
+ },
+ {
+  "name": "anim: decode 20 clips (FlatBuffers)",
+  "baseline_s": 0.16042575100027534,
+  "candidate_s": 0.006364207312515191,
+  "ratio": 25.207499241075737
+ },
+ {
+  "name": "procedural face: render 10 faces",
+  "baseline_s": 0.0002908785640627798,
+  "candidate_s": 0.000216373240625245,
+  "ratio": 1.344337050285145
+ },
+ {
+  "name": "mood: decay of 9 emotions",
+  "baseline_s": 4.885051293945786e-05,
+  "candidate_s": 7.432510719298374e-07,
+  "ratio": 65.72545238665909
+ },
+ {
+  "name": "decay graph: 5 evaluations",
+  "baseline_s": 1.3833867553714185e-06,
+  "candidate_s": 6.878239097590776e-08,
+  "ratio": 20.112513329988396
+ }
+]

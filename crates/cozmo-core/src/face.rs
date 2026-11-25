@@ -135,11 +135,21 @@ impl Bitmap {
 
     /// `Image.rotate(angle, resample=NEAREST, expand=expand)`.
     pub fn rotate(&self, angle: f64, expand: bool) -> Bitmap {
+        self.rotated(angle, expand).into_owned()
+    }
+
+    /// Like `rotate()`, without copying when the angle is a multiple of 360 degrees.
+    pub fn rotated(&self, angle: f64, expand: bool) -> std::borrow::Cow<'_, Bitmap> {
+        use std::borrow::Cow;
         let angle = py_mod(angle, 360.0);
-        let (w, h) = (self.w, self.h);
         if angle == 0.0 {
-            return self.clone();
+            return Cow::Borrowed(self);
         }
+        Cow::Owned(self.rotated_owned(angle, expand))
+    }
+
+    fn rotated_owned(&self, angle: f64, expand: bool) -> Bitmap {
+        let (w, h) = (self.w, self.h);
         if angle == 180.0 {
             return self.transpose(Rotation::R180);
         }
@@ -173,6 +183,10 @@ impl Bitmap {
 
     fn transpose(&self, r: Rotation) -> Bitmap {
         let (w, h) = (self.w, self.h);
+        if let Rotation::R180 = r {
+            // A half turn of a row-major image reverses its pixels.
+            return Bitmap { w, h, px: self.px.iter().rev().copied().collect() };
+        }
         let mut out = match r {
             Rotation::R180 => Bitmap::new(w, h),
             _ => Bitmap::new(h, w),
@@ -318,12 +332,56 @@ impl Bitmap {
         if xsize <= 0 || ysize <= 0 {
             return;
         }
-        for y in 0..ysize {
-            for x in 0..xsize {
-                let (sx, sy) = ((sx0 + x) as i32, (sy0 + y) as i32);
-                if mask.is_none_or(|m| m.get(sx, sy) != 0) {
-                    let v = src.get(sx, sy);
-                    self.set((dx0 + x) as i32, (dy0 + y) as i32, v);
+        let (xs, sw, dw) = (xsize as usize, src.w as usize, self.w as usize);
+        for y in 0..ysize as usize {
+            let s0 = (sy0 as usize + y) * sw + sx0 as usize;
+            let d0 = (dy0 as usize + y) * dw + dx0 as usize;
+            let srow = &src.px[s0..s0 + xs];
+            let drow = &mut self.px[d0..d0 + xs];
+            match mask {
+                None => drow.copy_from_slice(srow),
+                Some(m) => {
+                    let mrow = &m.px[s0..s0 + xs];
+                    for ((d, s), k) in drow.iter_mut().zip(srow).zip(mrow) {
+                        if *k != 0 {
+                            *d = *s;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Like `paste()` of a black image of the size of `mask`, with `mask`: clears the pixels where `mask` is set.
+    pub fn clear_where(&mut self, mask: &Bitmap, dx: i64, dy: i64) {
+        let (mut xsize, mut ysize) = (mask.w as i64, mask.h as i64);
+        let (mut dx0, mut dy0, mut sx0, mut sy0) = (dx, dy, 0i64, 0i64);
+        if dx0 < 0 {
+            xsize += dx0;
+            sx0 = -dx0;
+            dx0 = 0;
+        }
+        if dx0 + xsize > self.w as i64 {
+            xsize = self.w as i64 - dx0;
+        }
+        if dy0 < 0 {
+            ysize += dy0;
+            sy0 = -dy0;
+            dy0 = 0;
+        }
+        if dy0 + ysize > self.h as i64 {
+            ysize = self.h as i64 - dy0;
+        }
+        if xsize <= 0 || ysize <= 0 {
+            return;
+        }
+        let (xs, mw, dw) = (xsize as usize, mask.w as usize, self.w as usize);
+        for y in 0..ysize as usize {
+            let s0 = (sy0 as usize + y) * mw + sx0 as usize;
+            let d0 = (dy0 as usize + y) * dw + dx0 as usize;
+            for (d, k) in self.px[d0..d0 + xs].iter_mut().zip(&mask.px[s0..s0 + xs]) {
+                if *k != 0 {
+                    *d = 0;
                 }
             }
         }
@@ -733,11 +791,11 @@ fn render_lid(base: &Base, p: &[f64], y_offset: f64, angle_offset: f64, im: &mut
     if x4 >= x3 && y4 >= y3 {
         lid.fill_chord(x3, y3, x4, y4, 0.0, 180.0);
     }
-    let lid = lid.rotate(angle + angle_offset, false);
+    let lid = lid.rotated(angle + angle_offset, false);
     let lx = py_int((im.w - lid.w) as f64 / 2.0)?;
     let ly = py_int((im.h - lid.h) as f64 / 2.0 + y_offset)?;
-    let black = Bitmap::new(base.width * 2, base.height * 2);
-    im.paste(&black, lx, ly, Some(&lid));
+    // Pasting a black image with the lid as mask.
+    im.clear_where(&lid, lx, ly);
     Ok(())
 }
 
@@ -785,11 +843,16 @@ fn render_eye(base: &Base, p: &[f64], layout: &EyeLayout, im: &mut Bitmap) -> Re
         render_lid(base, &p[13 + 3 * k..16 + 3 * k], *y_offset, *angle_offset, &mut eye)?;
     }
 
-    let eye = eye.rotate(angle, true);
-    let eye = match eye.resize(py_int(eye.w as f64 * scale_x)?, py_int(eye.h as f64 * scale_y)?) {
-        Ok(e) => e,
-        // Scale factors can be extremely small: nothing is drawn, like in PyCozmo.
-        Err(_) => return Ok(()),
+    let eye = eye.rotated(angle, true);
+    let (nw, nh) = (py_int(eye.w as f64 * scale_x)?, py_int(eye.h as f64 * scale_y)?);
+    let eye = if nw == eye.w as i64 && nh == eye.h as i64 {
+        eye
+    } else {
+        match eye.resize(nw, nh) {
+            Ok(e) => std::borrow::Cow::Owned(e),
+            // Scale factors can be extremely small: nothing is drawn, like in PyCozmo.
+            Err(_) => return Ok(()),
+        }
     };
     let lx = py_int((im.w - eye.w) as f64 / 2.0 + center_x * X_FACTOR + layout.x_offset)?;
     let ly = py_int((im.h - eye.h) as f64 / 2.0 + center_y * Y_FACTOR)?;
