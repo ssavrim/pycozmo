@@ -213,7 +213,10 @@ therefore code 0. See `audio.u_law_encoding`.
 The robot buffers frames sent ahead of playback and plays them on its own clock. Sending each frame just in time makes
 any network delay longer than one frame audible as a gap; `AnimationController` keeps a lead of 7 frames, measured
 with `AnimationState.num_audio_frames_played`. The buffer holds about ten frames of sound: beyond, the robot discards
-them (the counter of frames played then advances several times faster than 30 per second).
+them (the counter of frames played then advances several times faster than 30 per second). The controller therefore
+also keeps the bytes sent but not yet reported as played (`AnimationState.num_anim_bytes_played`) under 6000: a frame
+takes the ID and the payload of each of its packets. Discarded bytes are never counted as played, so a frame held
+while the robot plays nothing for half a second is sent anyway.
 
 Speaker volume can be adjusted with the `SetRobotVolume` message.
  

@@ -130,3 +130,56 @@ class TestClientDisplayImage(unittest.TestCase):
         self.cli.clear_screen()
         self.assertFalse(self.cli.anim_controller.image_displayed)
         self.assertEqual(self.queued_images()[-1], BLANK)
+
+
+class TestAnimationControllerBuffer(unittest.TestCase):
+    """ Sound frames are held while the buffer of the robot is full. """
+
+    def setUp(self) -> None:
+        self.cli = FakeClient()
+        self.controller = AnimationController(self.cli)             # type: ignore[arg-type]
+        self.controller.animations_enabled = True
+
+    def report(self, bytes_played: int) -> None:
+        self.controller._on_animation_state(None, protocol_encoder.AnimationState(
+            num_anim_bytes_played=bytes_played, num_audio_frames_played=0))
+
+    def send_all(self) -> int:
+        sent = 0
+        while self.controller.queue.audio_queue and self.controller._run_frame():
+            sent += 1
+        return sent
+
+    def test_sound_waits_for_room(self) -> None:
+        self.report(1000)
+        frame = protocol_encoder.OutputAudio(samples=bytes(744))
+        self.controller.play_audio([frame] * 20)
+
+        first = self.send_all()
+        self.assertEqual(first, 8)
+        pending = self.controller.bytes_pending()
+        assert pending is not None
+        self.assertLessEqual(pending, AnimationController.BUFFER_BYTES)
+        self.assertEqual(len(self.controller.queue.audio_queue), 12)
+
+        # Two frames played: two more can go.
+        self.report(1000 + 2 * (len(frame) + 1 + 5))
+        self.assertEqual(self.send_all(), 2)
+
+    def test_held_sound_is_sent_after_lost_bytes(self) -> None:
+        self.report(0)
+        self.controller.play_audio([protocol_encoder.OutputAudio(samples=bytes(744))] * 20)
+        self.send_all()
+        self.assertFalse(self.controller._run_frame())
+
+        # The robot plays nothing more: the bytes counted as waiting are lost.
+        self.controller._progress_at -= AnimationController.STALL_TIMEOUT
+        self.assertTrue(self.controller._run_frame())
+        pending = self.controller.bytes_pending()
+        assert pending is not None
+        self.assertLess(pending, 800)
+
+    def test_silence_is_never_held(self) -> None:
+        self.report(0)
+        self.controller.bytes_sent = 10 * AnimationController.BUFFER_BYTES
+        self.assertTrue(self.controller._run_frame())

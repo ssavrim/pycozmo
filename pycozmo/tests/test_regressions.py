@@ -12,6 +12,12 @@ import pycozmo
 from pycozmo import audio, procedural_face, protocol_encoder
 
 
+def _report(frames_played):
+    """ The fields of AnimationState that the animation controller reads. """
+    from types import SimpleNamespace
+    return SimpleNamespace(num_audio_frames_played=frames_played, num_anim_bytes_played=0)
+
+
 def test_pcm_encoding_is_a_byte_for_all_16_bit_samples():
     for start in range(-32768, 32768, 744):
         samples = list(range(start, min(start + 744, 32768)))
@@ -35,18 +41,18 @@ def test_animation_controller_keeps_a_lead_on_the_robot():
     ctrl = anim_controller.AnimationController(SimpleNamespace())
     assert ctrl.frame_sleeps() == 1                 # no report yet: real time
     ctrl.frames_sent = 3
-    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=500))
+    ctrl._on_animation_state(None, _report(500))
     assert ctrl.lead() == 0 and ctrl.frame_sleeps() == 0   # fill the lead at once
     ctrl.frames_sent = 3 + ctrl.LEAD_FRAMES
     assert ctrl.frame_sleeps() == 1
     ctrl.frames_sent += ctrl.LEAD_SLACK + 1
     assert ctrl.frame_sleeps() == 2                 # drain an excess
-    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=500 + ctrl.LEAD_SLACK + 1))
+    ctrl._on_animation_state(None, _report(500 + ctrl.LEAD_SLACK + 1))
     assert ctrl.lead() == ctrl.LEAD_FRAMES
     # No burst while an animation is streamed.
     ctrl.streaming_animation = True
     ctrl.frames_sent = 3
-    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=500 + 3 + 100))
+    ctrl._on_animation_state(None, _report(500 + 3 + 100))
     assert ctrl.lead() < 0 and ctrl.frame_sleeps() == 1
 
 
@@ -293,13 +299,13 @@ def test_animation_completion_from_the_frame_count():
     cli = SimpleNamespace(conn=SimpleNamespace(post_event=lambda *args: posted.append(args[0])))
     ctrl = anim_controller.AnimationController(cli)
     ctrl.frames_sent = 10
-    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=100))      # base: 90
+    ctrl._on_animation_state(None, _report(100))      # base: 90
     ctrl.frames_sent = 40
     ctrl._end_frame = 40                                    # EndAnimation was the 40th frame sent
-    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=120))      # 30 frames played
+    ctrl._on_animation_state(None, _report(120))      # 30 frames played
     assert posted == []
     ctrl.frames_sent = 60                                   # idle frames after the end
-    ctrl._on_animation_state(None, SimpleNamespace(num_audio_frames_played=135))      # 45 frames played
+    ctrl._on_animation_state(None, _report(135))      # 45 frames played
     assert posted == [event.EvtAnimationCompleted]
     ctrl._on_animation_ended(None, None)                    # a late AnimationEnded is not reported twice
     assert posted == [event.EvtAnimationCompleted]

@@ -4,6 +4,7 @@ Animation controller for audio, image, and animation playback.
 
 """
 
+import time
 from typing import TYPE_CHECKING, Any
 from collections.abc import Iterable
 from threading import Thread, Lock
@@ -78,6 +79,12 @@ class AnimationQueue:
 
         return audio_pkt, image_pkt, pkts
 
+    def peek(self) -> tuple[protocol_encoder.OutputAudio | None, protocol_encoder.DisplayImage | None]:
+        """ The sound and the image of the next frame, without taking them. """
+        with self.lock:
+            return (self.audio_queue[0] if self.audio_queue else None,
+                    self.image_queue[0] if self.image_queue else None)
+
     def clear(self) -> None:
         with self.lock:
             self.audio_queue.clear()
@@ -92,11 +99,16 @@ class AnimationController:
     #: animation frames and plays them on its own 30 fps clock; streaming each
     #: frame just in time turned every Wi-Fi delay longer than one frame into an
     #: audible gap. The lead is measured with AnimationState.num_audio_frames_played.
-    #: Its buffer holds about ten frames of sound: with a lead of 14, a robot discarded
-    #: most of a spoken sentence.
     LEAD_FRAMES = 7
     #: Extra lead tolerated before slowing down, to absorb clock drift.
     LEAD_SLACK = 3
+    #: Bytes of frames that may wait on the robot. Its buffer holds about 8 KB (ten frames of sound) and what does
+    #: not fit is discarded, never to be counted as played. The frame lead alone does not keep within it: the reports
+    #: of the robot arrive late, and the controller went on sending sound, which lost parts of spoken sentences.
+    BUFFER_BYTES = 6000
+    #: A frame held for lack of room is sent after this long without the robot playing anything: the bytes counted as
+    #: waiting on it were lost.
+    STALL_TIMEOUT = 0.5
 
     def __init__(self, cli: "Client") -> None:
         self.cli = cli
@@ -107,6 +119,12 @@ class AnimationController:
         self.num_audio_frames_played: int | None = None
         self.frames_sent = 0
         self._played_base: int | None = None
+        #: Bytes of frames sent to the robot, and played by it as it reports.
+        self.bytes_sent = 0
+        self.num_anim_bytes_played: int | None = None
+        self._bytes_base: int | None = None
+        #: When the robot last reported that it had played more bytes.
+        self._progress_at = 0.0
         self.playing_audio = False
         self.playing_animation = False
         #: True between the StartAnimation and the EndAnimation sent to the robot.
@@ -129,6 +147,7 @@ class AnimationController:
         self.frames_sent = 0
         self.num_audio_frames_played = None
         self._played_base = None
+        self._reset_byte_count()
         self.thread = Thread(daemon=True, name=AnimationController.__name__, target=self._run)
         self.stop_flag = False
         self.thread.start()
@@ -152,6 +171,11 @@ class AnimationController:
             # the lead by the frames in flight, which only adds margin.
             self._played_base = pkt.num_audio_frames_played - self.frames_sent
         self.num_audio_frames_played = pkt.num_audio_frames_played
+        if pkt.num_anim_bytes_played != self.num_anim_bytes_played:
+            self.num_anim_bytes_played = pkt.num_anim_bytes_played
+            self._progress_at = time.monotonic()
+        if self._bytes_base is None:
+            self._bytes_base = pkt.num_anim_bytes_played - self.bytes_sent
         # The robot does not always send AnimationEnded (not when the animation has sound): the
         # animation is also over when it has played every frame sent up to EndAnimation.
         lead = self.lead()
@@ -170,6 +194,38 @@ class AnimationController:
         if self._played_base is None or self.num_audio_frames_played is None:
             return None
         return self.frames_sent - (self.num_audio_frames_played - self._played_base)
+
+    def _reset_byte_count(self) -> None:
+        self.bytes_sent = 0
+        self.num_anim_bytes_played = None
+        self._bytes_base = None
+        self._progress_at = 0.0
+
+    def bytes_pending(self) -> int | None:
+        """ Bytes of frames sent but not yet played by the robot, or None before the first report. """
+        if self._bytes_base is None or self.num_anim_bytes_played is None:
+            return None
+        return self.bytes_sent - (int(self.num_anim_bytes_played) - self._bytes_base)
+
+    def _send_frame_packet(self, pkt: protocol_encoder.Packet) -> None:
+        """ Send a packet of a frame and count the room that it takes on the robot: its ID and its payload. """
+        self.cli.conn.send(pkt)
+        self.bytes_sent += len(pkt) + 1
+
+    def _has_room_for_next_frame(self) -> bool:
+        """ Whether the next frame, if it carries sound, fits in the buffer of the robot. """
+        audio_pkt, image_pkt = self.queue.peek()
+        pending = self.bytes_pending()
+        if audio_pkt is None or pending is None:
+            return True
+        size = len(audio_pkt) + 1 + len(image_pkt or self.last_image_pkt) + 1
+        if pending + size <= self.BUFFER_BYTES:
+            return True
+        if time.monotonic() - self._progress_at < self.STALL_TIMEOUT:
+            return False
+        assert self.num_anim_bytes_played is not None
+        self._bytes_base = self.num_anim_bytes_played - self.bytes_sent
+        return True
 
     def frame_sleeps(self) -> int:
         """ Timer periods to wait after a frame: 0 to fill the lead, 2 to drain an excess. """
@@ -239,6 +295,9 @@ class AnimationController:
 
     def _run_frame(self) -> bool:
         """ Send the audio, image, and animation packets for a single frame. Return False if none was sent. """
+        if self.animations_enabled and not self._has_room_for_next_frame():
+            return False
+
         audio_pkt, image_pkt, pkts = self.queue.get()
 
         if not self.animations_enabled:
@@ -254,22 +313,22 @@ class AnimationController:
             if self.playing_audio:
                 self.playing_audio = False
                 self.cli.conn.post_event(event.EvtAudioCompleted, self.cli)
-        self.cli.conn.send(audio_out)
+        self._send_frame_packet(audio_out)
 
         if not image_pkt and self.procedural_face_enabled and not self.playing_animation \
                 and not self.image_displayed:
             image_pkt = self._get_face_image()
 
         if image_pkt:
-            self.cli.conn.send(image_pkt)
+            self._send_frame_packet(image_pkt)
             self.last_image_pkt = image_pkt
         else:
             # If not refreshed, the robot stops displaying an image after 30 s.
-            self.cli.conn.send(self.last_image_pkt)
+            self._send_frame_packet(self.last_image_pkt)
 
         if pkts:
             for pkt in pkts:
-                self.cli.conn.send(pkt)
+                self._send_frame_packet(pkt)
                 if isinstance(pkt, protocol_encoder.StartAnimation):
                     self.streaming_animation = True
                     self._completed_by_count = False
@@ -305,8 +364,7 @@ class AnimationController:
         self.queue.clear()
         self.streaming_animation = False
         self._end_frame = None
-        pkt = protocol_encoder.EndAnimation()
-        self.cli.conn.send(pkt)
+        self._send_frame_packet(protocol_encoder.EndAnimation())
 
     def enable_animations(self, enabled: bool = True) -> None:
         self.animations_enabled = bool(enabled)
