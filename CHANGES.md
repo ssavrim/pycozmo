@@ -3,6 +3,9 @@ Revision History
 
 Unreleased
 ----------
+- Sound: `AnimationController` holds a frame of sound while more than 6000 bytes wait on the robot
+    (`AnimationController.BUFFER_BYTES`). Spoken sentences still lost parts when the reports of the robot arrived late,
+    as its buffer discards what does not fit.
 - Sound: `AnimationController` keeps a lead of 7 frames instead of 14. A robot discarded most of a spoken sentence when
     more frames of sound were queued.
 - MCP server: `turn` uses the angular speed command of the robot (`Client.turn_in_place`) and stops at the heading
