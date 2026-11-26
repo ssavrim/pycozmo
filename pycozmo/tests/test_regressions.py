@@ -50,6 +50,40 @@ def test_animation_controller_keeps_a_lead_on_the_robot():
     assert ctrl.lead() < 0 and ctrl.frame_sleeps() == 1
 
 
+def test_backpack_light_components_of_a_clip_are_fractions():
+    import pycozmo
+    from pycozmo import anim, anim_encoder as ae, lights
+    light = ae.AnimLight.from_dict([1.0, 0.7, 0.0, 0.0])
+    assert light.to_dict() == [1.0, 0.7, 0.0, 0.0]
+    clip = ae.AnimClip("lights", [ae.AnimBackpackLights(duration_ms=33, middle=light)])
+    packet = anim.PreprocessedClip.from_anim_clip(clip).keyframes[0][0]
+    assert isinstance(packet, pycozmo.protocol_encoder.AnimBackpackLights)
+    assert list(packet.colors)[2] == lights.Color(rgb=(255, 178, 0)).to_int16()
+
+
+def test_sound_lead_fits_the_buffer_of_the_robot():
+    from pycozmo import anim_controller
+    assert anim_controller.AnimationController.LEAD_FRAMES <= 7
+
+
+def test_camera_settles_after_it_starts_in_a_color_mode():
+    from unittest.mock import patch
+    import pycozmo
+    from pycozmo import camera
+    client = pycozmo.Client()
+    with patch.object(client.conn, "send"), patch("pycozmo.client.time.monotonic") as clock:
+        clock.return_value = 10.0
+        assert client.camera_settle_remaining() is None
+        client.enable_camera(True)
+        assert client.camera_settle_remaining() == camera.SETTLE_TIME
+        assert client.camera_settle_remaining(color=True) is None
+        clock.return_value = 11.5
+        client.enable_camera(True)
+        assert client.camera_settle_remaining() == camera.SETTLE_TIME - 1.5
+        client.enable_camera(False)
+        assert client.camera_settle_remaining() is None
+
+
 @pytest.mark.parametrize('shape', ['rectangle', 'chord', 'pieslice'])
 def test_inverted_face_shapes_are_empty(shape):
     im = Image.new('1', (12, 12))

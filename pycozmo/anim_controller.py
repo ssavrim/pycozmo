@@ -92,7 +92,9 @@ class AnimationController:
     #: animation frames and plays them on its own 30 fps clock; streaming each
     #: frame just in time turned every Wi-Fi delay longer than one frame into an
     #: audible gap. The lead is measured with AnimationState.num_audio_frames_played.
-    LEAD_FRAMES = 14
+    #: Its buffer holds about ten frames of sound: with a lead of 14, a robot discarded
+    #: most of a spoken sentence.
+    LEAD_FRAMES = 7
     #: Extra lead tolerated before slowing down, to absorb clock drift.
     LEAD_SLACK = 3
 

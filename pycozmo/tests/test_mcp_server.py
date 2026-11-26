@@ -8,8 +8,8 @@ from typing import Any
 
 from PIL import Image
 
-from pycozmo import anim_encoder, event, protocol_encoder, robot
-from pycozmo.mcp_server import ANIMATION_TIMEOUT, Limits, RobotController, ToolError, build_server
+from pycozmo import anim_encoder, camera, event, protocol_encoder, robot
+from pycozmo.mcp_server import ANIMATION_TIMEOUT, TURN_COAST_DEG, Limits, RobotController, ToolError, build_server
 
 
 class Clock:
@@ -17,12 +17,15 @@ class Clock:
 
     def __init__(self) -> None:
         self.now = 0.0
+        self.on_sleep: Any = None       # what the fake robot does while the controller sleeps
 
     def __call__(self) -> float:
         return self.now
 
     def sleep(self, seconds: float) -> None:
         self.now += seconds
+        if self.on_sleep is not None:
+            self.on_sleep(seconds)
 
 
 class FakeClient:
@@ -41,9 +44,28 @@ class FakeClient:
         self.animation_groups = {"B": object(), "A": object()}
         self.anim_ends = True           # the fake robot reports the end of an animation at once
         self.anim_clip: str | None = "a_01"
+        self.turning = 0.0              # radians per second
+        self.camera_since: float | None = None
+        self.clock: Any = None
+
+    def advance(self, seconds: float) -> None:
+        angle = self.pose.rotation.angle_z
+        angle.radians = math.remainder(angle.radians + self.turning * seconds, math.tau)
+
+    def turn_in_place(self, speed: Any) -> None:
+        self.calls.append(("turn", speed.degrees))
+        self.turning = speed.radians
+
+    def camera_settle_remaining(self) -> float | None:
+        if self.camera_since is None:
+            return None
+        return float(max(0.0, self.camera_since + camera.SETTLE_TIME - self.clock.now))
 
     def add_handler(self, cls: Any, handler: Any) -> Any:
         self.handlers.append((cls, handler))
+        if cls is event.EvtNewRawCameraImage:       # the camera streams: an image arrives
+            shade = 200 if self.camera_settle_remaining() == 0.0 else 0
+            handler(self, Image.new("RGB", (8, 6), (shade, shade, shade)))
         return handler
 
     def fire_state(self) -> None:
@@ -70,6 +92,7 @@ class FakeClient:
 
     def stop_all_motors(self) -> None:
         self.calls.append(("stop",))
+        self.turning = 0.0
 
     def set_all_backpack_lights(self, light: Any) -> None:
         self.calls.append(("backpack", light))
@@ -84,9 +107,8 @@ class FakeClient:
                 handler(self, SimpleNamespace(factory_id=factory_id, connected=True, object_id=3))
 
     def enable_camera(self, enable: bool = True) -> None:
-        for cls, handler in list(self.handlers):
-            if cls is event.EvtNewRawCameraImage:
-                handler(self, Image.new("RGB", (8, 6), (10, 20, 30)))
+        self.calls.append(("camera", enable))
+        self.camera_since = self.clock.now if enable else None
 
     def load_anims(self) -> None:
         pass
@@ -117,6 +139,8 @@ def make(allow_drive: bool = True, limits: Limits | None = None,
     """ A controller on a fake robot; the edge guard is off except in TestEdgeGuard (a fresh memory cannot back up). """
     clock = Clock()
     fake = FakeClient()
+    fake.clock = clock
+    clock.on_sleep = fake.advance
     controller = RobotController(connect_fn=lambda: fake, limits=limits, allow_drive=allow_drive,
                                  sleep=clock.sleep, clock=clock, edge_guard=edge_guard)
     return controller, fake, clock
@@ -206,15 +230,29 @@ class TestMotion(unittest.TestCase):
             self.controller.drive(50, 0)
         self.assertEqual(self.fake.calls, [])
 
-    def test_turn(self):
+    def test_turn_stops_at_the_heading_asked(self):
+        for angle in (90.0, -90.0, 30.0, -180.0):
+            self.fake.calls.clear()
+            result = self.controller.turn(angle)
+            self.assertEqual(result["angle_deg"], angle)
+            self.assertIsNone(result["stopped_by"])
+            # The fake robot stops at once: it ends short by the coast of a real robot.
+            self.assertAlmostEqual(result["turned_deg"], angle - math.copysign(TURN_COAST_DEG, angle), delta=1.5)
+            self.assertEqual(self.fake.calls, [("turn", math.copysign(Limits().turn_speed_dps, angle)), ("stop",)])
+
+    def test_small_and_null_turns(self):
+        self.assertAlmostEqual(self.controller.turn(4)["turned_deg"], 2.0, delta=1.5)
+        self.fake.calls.clear()
+        self.assertEqual(self.controller.turn(0)["turned_deg"], 0.0)
+        self.assertEqual(self.fake.calls, [])
+
+    def test_turn_that_does_not_reach_the_heading_is_stopped_by_time(self):
+        self.clock.on_sleep = None                  # blocked treads: the heading does not change
         result = self.controller.turn(90)
-        self.assertEqual(result["angle_deg"], 90)
-        left, right = self.fake.calls[0][1:]
-        self.assertAlmostEqual(left, -right)
-        self.assertGreater(right, 0.0)                    # counterclockwise: the right wheel goes forward
-        self.assertAlmostEqual(result["seconds"], 90 / Limits().turn_speed_dps)
-        self.controller.turn(-1000)
-        self.assertGreater(self.fake.calls[-2][1], 0.0)   # clockwise: the left wheel goes forward
+        self.assertEqual(result["stopped_by"], "time")
+        self.assertEqual(result["turned_deg"], 0.0)
+        self.assertEqual(self.fake.calls[-1], ("stop",))
+        self.assertLessEqual(result["seconds"], Limits().max_seconds + 0.1)
 
     def test_picked_up_robot_does_not_drive(self):
         self.fake.robot_picked_up = True
@@ -388,6 +426,13 @@ class TestExpression(unittest.TestCase):
         self.assertEqual(data[:2], b"\xff\xd8")
         self.assertEqual(Image.open(io.BytesIO(data)).size, (8, 6))
         self.assertEqual(self.fake.user_handlers(), [])
+
+    def test_capture_image_waits_for_the_camera_to_settle_once(self):
+        for expected_time in (camera.SETTLE_TIME, camera.SETTLE_TIME):
+            image = Image.open(io.BytesIO(self.controller.capture_image()))
+            self.assertGreater(image.convert("L").tobytes()[0], 150)
+            self.assertAlmostEqual(self.clock.now, expected_time)
+        self.assertEqual(self.fake.calls, [("camera", True)])
 
     def test_cubes(self):
         types = protocol_encoder.ObjectType

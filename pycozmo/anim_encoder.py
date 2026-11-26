@@ -699,13 +699,13 @@ class AnimBodyMotion(AnimKeyframe):
 
 
 class AnimLight(object):
-    """ Light color class. """
+    """ Light color class. The components are fractions of the full intensity, from 0 to 1. """
 
-    def __init__(self, red: int = 0, green: int = 0, blue: int = 0, ir: int = 0) -> None:
-        self.red = int(red)
-        self.green = int(green)
-        self.blue = int(blue)
-        self.ir = int(ir)
+    def __init__(self, red: float = 0.0, green: float = 0.0, blue: float = 0.0, ir: float = 0.0) -> None:
+        self.red = float(red)
+        self.green = float(green)
+        self.blue = float(blue)
+        self.ir = float(ir)
 
     def to_dict(self) -> list:
         return [
@@ -716,7 +716,7 @@ class AnimLight(object):
         ]
 
     @classmethod
-    def from_dict(cls, data: list[int]) -> "AnimLight":
+    def from_dict(cls, data: list[float]) -> "AnimLight":
         return cls(
             red=data[0],
             green=data[1],
