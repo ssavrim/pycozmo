@@ -35,11 +35,11 @@ Other clients take the same command in their configuration (`"command"` and `"ar
 | `move_head(angle_deg)` | Tilt the head, -25 to 44.5 degrees (values outside are limited). |
 | `move_lift(height)` | Lift: 0 down, 1 fully up (values outside are limited). |
 | `drive(distance_mm, speed_mmps)` | Straight, forward or backward. |
-| `turn(angle_deg)` | Turn on the spot, positive counterclockwise. |
+| `turn(angle_deg)` | Turn on the spot, positive counterclockwise; stops at the heading asked and answers `turned_deg`. |
 | `set_backpack_color(color)` | Backpack: off, red, green, blue, white. |
 | `say(text)` | Speak a text of 1 to 300 characters (needs eSpeak NG on the computer). |
 | `list_animations`, `play_animation(name, wheels)` | Animation groups of the prepared resources; plays one and waits for its end (20 s at most). Without its wheel movements unless `wheels` is true. |
-| `camera_image` | A JPEG image of what the robot sees. |
+| `camera_image` | A JPEG image of what the robot sees (2 s more the first time: the camera settles). |
 | `find_markers` | Cubes and charger in the image now (needs the marker library of the prepared resources). |
 | `connect_cube`, `set_cube_color(object_id, color)` | Connect the first cube that the robot sees; light it. |
 
@@ -52,6 +52,10 @@ The robot is a physical object, so the movements are limited by the server, not 
   raise the first two, up to 220 mm/s and 1000 mm). The wheels stop by themselves at the end of the movement. When the
   6 seconds are shorter than the movement asked, the answer gives the distance or angle of those 6 seconds, with
   `limited_by` "time".
+- A turn uses the angular speed command of the firmware, whose speed the treads follow (wheel speeds computed from the
+  width of the robot gave 38 of 90 degrees), and stops when the heading has changed by the angle, less the 5.5 degrees
+  that the robot still turns (measured at 60 degrees per second, on one robot and one floor). A turn that does not reach
+  its heading is stopped 1.5 s after the time it should take (`stopped_by` "time").
 - The wheels do not start when the robot is picked up or detects a cliff, and a movement in progress stops within 50 ms
   of a pick up, a cliff or a call of `stop` (`stopped_by` "picked up", "cliff" or "stop"), and when anything fails (the
   stop is sent in all cases). `stop` is served while a movement runs because the SDK 2.x runs each tool in a thread of

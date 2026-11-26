@@ -211,8 +211,9 @@ the u-law bias and inversion: bit 7 is the sign, bits 4-6 the segment (position 
 therefore code 0. See `audio.u_law_encoding`.
 
 The robot buffers frames sent ahead of playback and plays them on its own clock. Sending each frame just in time makes
-any network delay longer than one frame audible as a gap; `AnimationController` keeps a lead of 14 frames, measured
-with `AnimationState.num_audio_frames_played`.
+any network delay longer than one frame audible as a gap; `AnimationController` keeps a lead of 7 frames, measured
+with `AnimationState.num_audio_frames_played`. The buffer holds about ten frames of sound: beyond, the robot discards
+them (the counter of frames played then advances several times faster than 30 per second).
 
 Speaker volume can be adjusted with the `SetRobotVolume` message.
  

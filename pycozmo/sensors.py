@@ -50,6 +50,9 @@ def detect_orientation(accel: Tuple[float, float, float] | None, head_angle_rad:
         return previous
     x, y, z = body_gravity(accel, head_angle_rad)
     g = max(math.sqrt(x * x + y * y + z * z), 1.0)
+    # Upside down first: the pitch of an inverted robot is large too.
+    if z / g < -0.7:
+        return robot.RobotOrientation.UPSIDE_DOWN
     if pitch_rad is not None and pitch_rad > 1.0:
         return robot.RobotOrientation.ON_BACK
     if pitch_rad is not None and pitch_rad < -1.0:
@@ -57,12 +60,11 @@ def detect_orientation(accel: Tuple[float, float, float] | None, head_angle_rad:
     upright_limit = 0.55 if previous == robot.RobotOrientation.ON_THREADS else 0.8
     if z / g > upright_limit:
         return robot.RobotOrientation.ON_THREADS
-    if z / g < -0.7:
-        return robot.RobotOrientation.UPSIDE_DOWN
     if abs(y) / g > 0.7:
         return robot.RobotOrientation.ON_LEFT_SIDE if y > 0 else robot.RobotOrientation.ON_RIGHT_SIDE
     if abs(x) / g > 0.7:
-        return robot.RobotOrientation.ON_FACE if x > 0 else robot.RobotOrientation.ON_BACK
+        # With the nose down, the forward axis measures minus gravity.
+        return robot.RobotOrientation.ON_FACE if x < 0 else robot.RobotOrientation.ON_BACK
     return previous
 
 

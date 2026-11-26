@@ -29,6 +29,22 @@ def test_sides_upside_down_and_pitch():
     assert sensors.detect_orientation(None, 0.0, previous=RobotOrientation.ON_BACK) == RobotOrientation.ON_BACK
 
 
+def test_readings_of_a_robot_on_its_face_and_upside_down():
+    # Measured on a robot, head at 36 and 4.6 degrees: body frame readings and pose pitch.
+    def reading(body, head):
+        x, y, z = body
+        c, s = math.cos(head), math.sin(head)
+        return (x * c + z * s, y, -x * s + z * c)
+
+    head = math.radians(4.6)
+    face = reading((-9768, 293, 3326), head)
+    assert sensors.detect_orientation(face, head, pitch_rad=-1.24) == RobotOrientation.ON_FACE
+    assert sensors.detect_orientation(face, head) == RobotOrientation.ON_FACE
+    upside_down = reading((2504, 421, -8964), head)
+    assert sensors.detect_orientation(upside_down, head, pitch_rad=-3.42) == RobotOrientation.UPSIDE_DOWN
+    assert sensors.detect_orientation((10300, 0, 0), 0.0) == RobotOrientation.ON_BACK
+
+
 def test_hysteresis_keeps_the_state_between_thresholds():
     tilted = (0, 10300 * math.sin(math.radians(45)), 10300 * math.cos(math.radians(45)))   # z/g = 0.71
     assert sensors.detect_orientation(tilted, 0.0) == RobotOrientation.ON_THREADS

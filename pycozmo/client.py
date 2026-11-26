@@ -100,6 +100,8 @@ class Client(event.Dispatcher):
         self.client_drop_count = 0
         # Camera state
         self.last_image_timestamp: int | None = None
+        # Since when the camera streams (time.monotonic) and in which color mode, if it does.
+        self._camera_streaming: tuple[float, bool] | None = None
         # Object state
         self.available_objects: dict[int, object.Object] = dict()
         self.connected_objects: dict[int, dict[str, Any]] = dict()
@@ -497,6 +499,15 @@ class Client(event.Dispatcher):
             time.sleep(duration)
             self.stop_all_motors()
 
+    def turn_in_place(self, speed: util.Angle, accel: float = 10.0) -> None:
+        """
+        Turn on the spot at an angular speed per second (positive: counterclockwise) until stop_all_motors().
+
+        The firmware drives the treads: wheel speeds computed from the width of the robot turn it less than half as far.
+        """
+        self.conn.send(protocol_encoder.TurnInPlaceAtAngularSpeed(
+            speed_rad_per_sec=speed.radians, accel_rad_per_sec2=accel))
+
     def stop_all_motors(self) -> None:
         pkt = protocol_encoder.StopAllMotors()
         self.conn.send(pkt)
@@ -565,6 +576,19 @@ class Client(event.Dispatcher):
         self.conn.send(pkt)
         pkt = protocol_encoder.EnableColorImages(enable=color)
         self.conn.send(pkt)
+        if not enable:
+            self._camera_streaming = None
+        elif self._camera_streaming is None or self._camera_streaming[1] != color:
+            self._camera_streaming = (time.monotonic(), color)
+
+    def camera_settle_remaining(self, color: bool = False) -> float | None:
+        """
+        Seconds before the images of the camera are clean (camera.SETTLE_TIME after it starts), or None when it does
+        not stream in this color mode.
+        """
+        if self._camera_streaming is None or self._camera_streaming[1] != color:
+            return None
+        return max(0.0, self._camera_streaming[0] + camera.SETTLE_TIME - time.monotonic())
 
     def clear_screen(self) -> None:
         """ Clear the screen and resume procedural face, if enabled. """

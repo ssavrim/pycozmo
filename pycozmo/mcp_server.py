@@ -74,6 +74,14 @@ CUBE_TYPES = frozenset((protocol_encoder.ObjectType.Block_LIGHTCUBE1, protocol_e
                         protocol_encoder.ObjectType.Block_LIGHTCUBE3))
 #: Poll interval of a movement, in seconds: how fast a pick up or a cliff stops it.
 POLL_INTERVAL = 0.05
+#: Seconds between two looks at the heading during a turn: about the period of the robot state.
+TURN_POLL_INTERVAL = 0.02
+#: Degrees that the robot still turns after the stop of a turn, measured at 60 degrees per second.
+TURN_COAST_DEG = 5.5
+#: Seconds allowed to a turn beyond its angle divided by its speed, for the acceleration.
+TURN_MARGIN_SECONDS = 1.5
+#: Seconds that the robot takes to come to rest after a turn.
+TURN_REST_SECONDS = 0.3
 #: A move that the edges leave less than this many millimeters is refused.
 MIN_STEP_MM = 10.0
 #: Longest wait for the end of an animation, in seconds.
@@ -272,7 +280,8 @@ class RobotController:
         """
         Turn on the spot by an angle in degrees: positive is counterclockwise (to the left).
 
-        It stops by itself, and at once when the robot is picked up or detects a cliff.
+        It stops by itself, once the heading of the robot has changed by the angle, and at once when the robot is picked
+        up or detects a cliff. ``turned_deg`` is the change of heading that the robot measured.
         """
         angle = min(max(_finite(angle_deg, "angle_deg"), -self.limits.max_turn_deg), self.limits.max_turn_deg)
         self._check_can_drive()
@@ -285,12 +294,34 @@ class RobotController:
         if abs(angle) > reach:
             angle = math.copysign(reach, angle)
             result["limited_by"] = "time"
-        seconds = abs(angle) / self.limits.turn_speed_dps
         result["angle_deg"] = angle
-        # A point turn: the wheels run in opposite directions, at the speed that gives the angular speed.
-        wheel = math.radians(self.limits.turn_speed_dps) * robot.TRACK_WIDTH.mm / 2.0
-        sign = 1.0 if angle >= 0 else -1.0
-        return self._run_wheels(-sign * wheel, sign * wheel, seconds, result)
+        if angle == 0.0:
+            result.update(turned_deg=0.0, seconds=0.0, stopped_by=None)
+            return result
+        speed = self.limits.turn_speed_dps
+        seconds = abs(angle) / speed + TURN_MARGIN_SECONDS
+        sign = 1.0 if angle > 0 else -1.0
+        previous = self._pose()[2]
+        turned = 0.0
+
+        def measure() -> None:
+            nonlocal previous, turned
+            heading = self._pose()[2]
+            turned += math.degrees(math.remainder(heading - previous, math.tau))
+            previous = heading
+
+        def reached() -> bool:
+            measure()
+            return turned * sign >= abs(angle) - min(TURN_COAST_DEG, abs(angle) / 2.0)
+
+        cli = self.client
+        result = self._move(
+            lambda: cli.turn_in_place(util.Angle(degrees=sign * speed)), seconds, result, reached=reached)
+        # Let the robot come to rest, then report how far it has turned.
+        self._sleep(TURN_REST_SECONDS)
+        measure()
+        result["turned_deg"] = round(turned, 1)
+        return result
 
     def _check_can_drive(self, backing: bool = False) -> None:
         """
@@ -316,19 +347,30 @@ class RobotController:
         return room >= MIN_STEP_MM
 
     def _run_wheels(self, left: float, right: float, seconds: float, result: dict[str, Any]) -> dict[str, Any]:
-        backing = left < 0 and right < 0
+        cli = self.client
+        return self._move(lambda: cli.drive_wheels(left, right), seconds, result, backing=left < 0 and right < 0)
+
+    def _move(self, start: Callable[[], None], seconds: float, result: dict[str, Any], backing: bool = False,
+              reached: Callable[[], bool] | None = None) -> dict[str, Any]:
+        """
+        Start the wheels and stop them after ``seconds``, or sooner on a stop, a pick up, a cliff or the end of the
+        floor. With ``reached``, the movement ends when it returns True, and is stopped by "time" if it never does.
+        """
         self._check_can_drive(backing=backing)
         cli = self.client
         seconds = min(seconds, self.limits.max_seconds)
         with self._lock:
             stopped_by = None
+            done = False
             self._stop_requested.clear()
-            cli.drive_wheels(left, right)
-            deadline = self._clock() + seconds
+            start()
+            begin = self._clock()
+            deadline = begin + seconds
             try:
                 while self._clock() < deadline:
-                    self._sleep(POLL_INTERVAL)
+                    self._sleep(POLL_INTERVAL if reached is None else TURN_POLL_INTERVAL)
                     flags = cli.robot_status
+                    done = reached is not None and reached()
                     if self._stop_requested.is_set():
                         stopped_by = "stop"
                     elif cli.robot_picked_up or flags & robot.RobotStatusFlag.IS_PICKED_UP:
@@ -336,12 +378,16 @@ class RobotController:
                     elif flags & robot.RobotStatusFlag.CLIFF_DETECTED and not (backing and self.edge_guard):
                         # Backing away keeps the sensor over the drop for a moment: that is not a stop.
                         stopped_by = "cliff"
-                    elif self.edge_guard and left < 0 and right < 0 and not self._floor_behind():
+                    elif self.edge_guard and backing and not self._floor_behind():
                         stopped_by = "unknown floor"
-                    if stopped_by:
+                    if stopped_by or done:
                         break
             finally:
                 cli.stop_all_motors()
+        if reached is not None:
+            seconds = self._clock() - begin
+            if not done and stopped_by is None:
+                stopped_by = "time"
         result["seconds"] = round(seconds, 2)
         result["stopped_by"] = stopped_by
         return result
@@ -451,9 +497,12 @@ class RobotController:
             got.append(image)
             ready.set()
 
+        if cli.camera_settle_remaining() is None:
+            cli.enable_camera(True)
+        # The first images after the camera starts are distorted.
+        self._sleep(cli.camera_settle_remaining() or 0.0)
         handler = cli.add_handler(event.EvtNewRawCameraImage, on_image)
         try:
-            cli.enable_camera(True)
             if not ready.wait(timeout):
                 raise ToolError("No image from the camera within {} seconds.".format(timeout))
         finally:

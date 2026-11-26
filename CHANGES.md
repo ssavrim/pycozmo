@@ -3,6 +3,16 @@ Revision History
 
 Unreleased
 ----------
+- Sound: `AnimationController` keeps a lead of 7 frames instead of 14. A robot discarded most of a spoken sentence when
+    more frames of sound were queued.
+- MCP server: `turn` uses the angular speed command of the robot (`Client.turn_in_place`) and stops at the heading
+    asked, with `turned_deg` in the answer. Wheel speeds computed from the width of the robot turned it by 38 of 90
+    degrees. `camera_image` and `find_markers` wait 2 s after the camera starts, whose first images are distorted
+    (`Client.camera_settle_remaining`).
+- The backpack lights of the animation clips are lit: their components are fractions of the full intensity, which were
+    truncated to integers (`anim_encoder.AnimLight` now holds floats).
+- Orientation: an inverted robot is reported `UPSIDE_DOWN` and no longer `ON_FACE`, and without the pitch a robot with
+    its nose down is `ON_FACE` and no longer `ON_BACK`.
 - MCP server: `play_animation` drives the wheels only with `wheels` true (by default its body motion and turn-to-heading
     keyframes are left out; with `wheels`, the checks of a drive apply and a pick up or a cliff stops it), and refuses
     an unknown group, or a group that cannot play now, at once instead of waiting 20 s; `stop` also cancels the animation

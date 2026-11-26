@@ -117,6 +117,12 @@ def body_motion_command(radius_mm: Union[float, str], speed: int) -> Tuple[int, 
     return _clamp(speed, -MAX_BODY_SPEED_MMPS, MAX_BODY_SPEED_MMPS), radius
 
 
+def _backpack_color(light: anim_encoder.AnimLight) -> lights.Color:
+    """ The color of a backpack light of a clip, whose components are fractions of the full intensity. """
+    red, green, blue = (round(min(max(c, 0.0), 1.0) * 255) for c in (light.red, light.green, light.blue))
+    return lights.Color(rgb=(red, green, blue))
+
+
 class PreprocessedClip(object):
     """ Preprocessed animation clip that can be played back. """
 
@@ -182,11 +188,8 @@ class PreprocessedClip(object):
                 pkt = protocol_encoder.AnimBody(speed=0, curvature_radius_mm=BODY_STRAIGHT_RADIUS_MM)
                 keyframes[keyframe.trigger_time_ms + keyframe.duration_ms].append(pkt)
             elif isinstance(keyframe, anim_encoder.AnimBackpackLights):
-                left = lights.Color(rgb=(keyframe.left.red, keyframe.left.green, keyframe.left.blue))
-                front = lights.Color(rgb=(keyframe.front.red, keyframe.front.green, keyframe.front.blue))
-                middle = lights.Color(rgb=(keyframe.middle.red, keyframe.middle.green, keyframe.middle.blue))
-                back = lights.Color(rgb=(keyframe.back.red, keyframe.back.green, keyframe.back.blue))
-                right = lights.Color(rgb=(keyframe.right.red, keyframe.right.green, keyframe.right.blue))
+                left, front, middle, back, right = (_backpack_color(light) for light in (
+                    keyframe.left, keyframe.front, keyframe.middle, keyframe.back, keyframe.right))
                 pkt = protocol_encoder.AnimBackpackLights(colors=(left.to_int16(),
                                                                   front.to_int16(), middle.to_int16(), back.to_int16(),
                                                                   right.to_int16()))

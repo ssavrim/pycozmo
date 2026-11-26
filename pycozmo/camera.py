@@ -71,6 +71,10 @@ class CameraConfig:
         return camera_matrix
 
 
+#: Seconds after the camera starts during which the robot sends distorted images: up to 1.6 s on a robot.
+SETTLE_TIME = 2.0
+
+
 def minigray_to_jpeg(minigray, width, height):
     """ Converts miniGrayToJpeg format to normal JPEG format. """
     header50 = np.array([
